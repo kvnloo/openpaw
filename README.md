@@ -50,6 +50,8 @@ See:
 - [Protocol v0](docs/PROTOCOL.md)
 - [Pretotype plan](docs/PRETOTYPE.md)
 - [Expert interview guide](docs/EXPERT-INTERVIEWS.md)
+- [Pretotype architecture](docs/ARCHITECTURE.md)
+- [Market snapshot](docs/MARKET.md)
 - [Initial event schema](schema/openpaw-event.schema.json)
 - [Credits and provenance](CREDITS.md)
 
