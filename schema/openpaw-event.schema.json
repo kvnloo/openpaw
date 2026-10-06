@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openpaw.dev/schema/openpaw-event-v0.json",
+  "title": "OpenPaw Event v0",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "event_id",
+    "dog_id",
+    "timestamp",
+    "event_type",
+    "provenance",
+    "payload"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "0.1"
+    },
+    "event_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "dog_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "episode_id": {
+      "type": ["string", "null"]
+    },
+    "event_type": {
+      "type": "string",
+      "enum": [
+        "measurement",
+        "observation",
+        "context",
+        "trigger",
+        "intervention",
+        "expert_annotation",
+        "derived_state"
+      ]
+    },
+    "provenance": {
+      "$ref": "#/$defs/provenance"
+    },
+    "payload": {
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "required": ["origin", "source_id"],
+      "properties": {
+        "origin": {
+          "type": "string",
+          "enum": [
+            "sensor",
+            "owner",
+            "veterinarian",
+            "behavior_professional",
+            "model",
+            "import",
+            "simulated"
+          ]
+        },
+        "source_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "algorithm_version": {
+          "type": ["string", "null"]
+        },
+        "evidence_event_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        },
+        "confidence": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}
