@@ -107,7 +107,7 @@ OpenPaw is currently a research/prototyping project. Health and behavior outputs
 
 ## License
 
-Software and protocol work in this repository are licensed under Apache-2.0. Future reference hardware may use a dedicated open-hardware license.
+Software and protocol work in this repository are licensed under GPL-3.0. Future reference hardware may use a dedicated open-hardware license.
 
 ## Acknowledgments
 
