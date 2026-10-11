@@ -111,6 +111,10 @@ for (const btn of roleButtons) btn.addEventListener('click', () => {
   events.forEach(e => { e.hidden = !visible[v](e); if (!e.hidden) count++; });
   document.getElementById('visible-count').textContent = count + ' of ' + events.length + ' events shown';
 });
+document.querySelectorAll('.episode-card').forEach(link => link.addEventListener('click', () => {
+  const all = document.querySelector('button[data-view="all"]');
+  if (all.getAttribute('aria-pressed') !== 'true') all.click();
+}));
 function downloadText(filename, text, type) {
   const url = URL.createObjectURL(new Blob([text], {type}));
   const a = document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove();
