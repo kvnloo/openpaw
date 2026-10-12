@@ -94,7 +94,7 @@ header.sitehead{display:flex;justify-content:space-between;align-items:center;pa
 .timeline-panel{min-width:0}.filters{display:flex;gap:5px;padding:3px;border:1px solid var(--line);border-radius:10px;background:var(--panel)}.filters button{border:0;border-radius:7px;background:none;color:var(--muted);padding:7px 11px;font-size:12px}.filters button[aria-pressed=true]{background:var(--panel2);color:var(--accent);font-weight:700}
 .daygroup{scroll-margin-top:22px;margin:0 0 28px}.daylabel{display:flex;align-items:center;gap:10px;padding:15px 0;border-bottom:1px solid var(--line)}.daylabel strong{font-size:16px}.daylabel span{font-size:12px;color:var(--muted)}.event{scroll-margin-top:18px;border-bottom:1px solid #223036}.event[hidden]{display:none}.event summary{display:flex;align-items:center;gap:13px;padding:15px 10px 15px 0;cursor:pointer;list-style:none;min-height:65px}.event summary::-webkit-details-marker{display:none}.event summary:hover{background:#122026}.event time{font-variant-numeric:tabular-nums;color:var(--muted);font-size:12px;min-width:42px}.dot{width:8px;height:8px;flex:none;border-radius:50%;background:#687b75}.kind-trigger .dot{background:#efb481}.kind-intervention .dot{background:#a3dcab}.kind-observation .dot{background:#dbd2a9}.kind-expert_annotation .dot{background:#a6bafa}.event-name{min-width:0;flex:1}.event-name b{display:block;text-transform:none;font-size:14px;font-weight:570}.event-type{font-size:11px;color:var(--muted)}.measure{font-size:13px;white-space:nowrap;font-weight:600}.expand{color:var(--muted);font-size:18px}.event[open] .expand{transform:rotate(45deg)}.event-info{padding:0 16px 18px 67px;color:var(--muted);font-size:12px}.event-info .event-note{color:#d7e1dc;font-size:13px;margin:0 0 12px}.event-info p{margin:6px 0}.meta code{font-size:11px;color:#bfd1c4;overflow-wrap:anywhere}.episode-tag{display:inline-block;margin-left:10px;color:#f6d3a0}
 .empty-day{font-size:12px;color:var(--muted);padding:10px 0}.review-section{border:1px solid var(--line);background:var(--panel);border-radius:16px;padding:26px;margin-top:30px}.review-grid{display:grid;grid-template-columns:1fr 1.5fr;gap:30px}.review-intro p{color:var(--muted);font-size:13px;max-width:370px}.form-control{display:block;font-size:12px;color:var(--muted);margin:0 0 6px}.review-section select,.review-section textarea{display:block;width:100%;background:var(--bg);color:var(--fg);border:1px solid #425354;border-radius:8px;padding:10px}.review-section textarea{min-height:94px;resize:vertical}.review-section select{margin-bottom:13px}.actionrow{display:flex;align-items:center;gap:14px;margin-top:12px}.primary{background:var(--accent);color:#14221b;border:0;border-radius:8px;padding:10px 14px;font-weight:720;font-size:12px}.primary:hover,.primary:focus-visible{background:#e0f5d8}.button-quiet{border:1px solid var(--line);border-radius:8px;padding:10px 14px;background:var(--panel);color:var(--fg);font-size:12px}.form-status{font-size:12px;color:var(--muted)}footer{margin-top:45px;border-top:1px solid var(--line);padding:22px 0;color:var(--muted);font-size:12px}footer a{color:var(--accent)}
-:focus-visible{outline:2px solid var(--accent);outline-offset:3px}@media(max-width:970px){.hero{display:block}.stats{margin-top:25px;max-width:380px}.week{grid-template-columns:repeat(4,minmax(0,1fr))}.workspace{grid-template-columns:1fr}.side{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:620px){.shell{padding:0 17px 40px}.topnotice{font-size:10px}.nav{gap:9px;font-size:12px}.hero{padding:36px 0}.week{grid-template-columns:repeat(2,minmax(0,1fr))}.side{display:flex}.sectionhead{align-items:flex-start;flex-direction:column}.filters{width:100%}.filters button{flex:1}.review-grid{grid-template-columns:1fr}.event summary{gap:8px}.event-info{padding-left:57px}.event-name b{font-size:13px}.measure{font-size:12px}.hero p{font-size:14px}}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px}@media(max-width:970px){.hero{display:block}.stats{margin-top:25px;max-width:380px}.week{grid-template-columns:repeat(4,minmax(0,1fr))}.workspace{grid-template-columns:1fr}.side{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:620px){.shell{padding:0 17px 40px}.topnotice{font-size:10px}.nav{gap:9px;font-size:12px}.hero{padding:36px 0}.week{grid-template-columns:repeat(2,minmax(0,1fr))}.side{display:flex}.sectionhead{align-items:flex-start;flex-direction:column}.filters{width:100%}.filters button{flex:1}.review-grid{grid-template-columns:1fr}.event summary{gap:8px}.event-info{padding-left:57px}.event-name b{font-size:13px}.measure{font-size:12px}.hero p{font-size:14px}}@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.daytile{transition:none}}
 """
 JS = r"""
 const roleButtons = document.querySelectorAll('[data-view]');
@@ -109,11 +109,22 @@ for (const btn of roleButtons) btn.addEventListener('click', () => {
   roleButtons.forEach(b => b.setAttribute('aria-pressed', String(b === btn)));
   let count=0;
   events.forEach(e => { e.hidden = !visible[v](e); if (!e.hidden) count++; });
+  document.querySelectorAll('.daygroup').forEach(day => {
+    const noneVisible = !day.querySelector('.event:not([hidden])');
+    day.querySelector('.empty-day').hidden = !noneVisible;
+  });
   document.getElementById('visible-count').textContent = count + ' of ' + events.length + ' events shown';
 });
-document.querySelectorAll('.episode-card').forEach(link => link.addEventListener('click', () => {
+document.querySelectorAll('.episode-card').forEach(link => link.addEventListener('click', event => {
+  const evidence = document.getElementById(link.getAttribute('href').slice(1));
+  if (!evidence) return;
+  event.preventDefault();
   const all = document.querySelector('button[data-view="all"]');
   if (all.getAttribute('aria-pressed') !== 'true') all.click();
+  evidence.open = true;
+  history.replaceState(null, '', '#' + evidence.id);
+  evidence.scrollIntoView({block: 'start'});
+  evidence.querySelector('summary').focus({preventScroll: true});
 }));
 function downloadText(filename, text, type) {
   const url = URL.createObjectURL(new Blob([text], {type}));
@@ -153,6 +164,7 @@ def render(records, source):
             <span class="episode-count">{escape(ep_label)}</span></a>''')
         stream.append(f'<section class="daygroup" id="day-{day}"><div class="daylabel"><strong>{weekday}, {escape(day)}</strong><span>· {len(events)} source events · UTC</span></div>')
         stream.extend(event_card(e) for e in events)
+        stream.append(f'<p class="empty-day" hidden>No events shown in this review filter; {len(events)} source events remain available under All.</p>')
         stream.append('</section>')
     episode_html = "".join(episode_card(k, records) for k in EPISODE_NAMES)
     expert_rows = [e for e in records if e["event_type"] == "expert_annotation"]
