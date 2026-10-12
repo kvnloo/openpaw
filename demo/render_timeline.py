@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 from collections import Counter, defaultdict
 from datetime import datetime
 from html import escape
@@ -57,7 +58,8 @@ def event_card(e):
         {value}<span class="expand">+</span></summary>
       <div class="event-info">{note}<p class="meta">Source: <code>simulated · openpaw-fictional-week-v0</code></p>
         <p class="meta">Event: <code>{ident}</code>{episode}</p>
-        <p class="meta">Recorded: <code>{escape(e['timestamp'])}</code></p></div>
+        <p class="meta">Recorded: <code>{escape(e['timestamp'])}</code></p>
+        <button type="button" class="link-evidence" data-evidence-id="{ident}" aria-pressed="false" aria-label="Link event {ident} to local review note">Link as note evidence</button></div>
     </details>'''
 
 
@@ -93,7 +95,7 @@ header.sitehead{display:flex;justify-content:space-between;align-items:center;pa
 .question{padding:12px 0;border-bottom:1px solid var(--line);font-size:13px}.question:last-child{border:0}.question b{font-size:11px;display:block;color:var(--accent);letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px}.question p{margin:0;color:#c1cfc6}
 .timeline-panel{min-width:0}.filters{display:flex;gap:5px;padding:3px;border:1px solid var(--line);border-radius:10px;background:var(--panel)}.filters button{border:0;border-radius:7px;background:none;color:var(--muted);padding:7px 11px;font-size:12px}.filters button[aria-pressed=true]{background:var(--panel2);color:var(--accent);font-weight:700}
 .daygroup{scroll-margin-top:22px;margin:0 0 28px}.daylabel{display:flex;align-items:center;gap:10px;padding:15px 0;border-bottom:1px solid var(--line)}.daylabel strong{font-size:16px}.daylabel span{font-size:12px;color:var(--muted)}.event{scroll-margin-top:18px;border-bottom:1px solid #223036}.event[hidden]{display:none}.event summary{display:flex;align-items:center;gap:13px;padding:15px 10px 15px 0;cursor:pointer;list-style:none;min-height:65px}.event summary::-webkit-details-marker{display:none}.event summary:hover{background:#122026}.event time{font-variant-numeric:tabular-nums;color:var(--muted);font-size:12px;min-width:42px}.dot{width:8px;height:8px;flex:none;border-radius:50%;background:#687b75}.kind-trigger .dot{background:#efb481}.kind-intervention .dot{background:#a3dcab}.kind-observation .dot{background:#dbd2a9}.kind-expert_annotation .dot{background:#a6bafa}.event-name{min-width:0;flex:1}.event-name b{display:block;text-transform:none;font-size:14px;font-weight:570}.event-type{font-size:11px;color:var(--muted)}.measure{font-size:13px;white-space:nowrap;font-weight:600}.expand{color:var(--muted);font-size:18px}.event[open] .expand{transform:rotate(45deg)}.event-info{padding:0 16px 18px 67px;color:var(--muted);font-size:12px}.event-info .event-note{color:#d7e1dc;font-size:13px;margin:0 0 12px}.event-info p{margin:6px 0}.meta code{font-size:11px;color:#bfd1c4;overflow-wrap:anywhere}.episode-tag{display:inline-block;margin-left:10px;color:#f6d3a0}
-.empty-day{font-size:12px;color:var(--muted);padding:10px 0}.review-section{border:1px solid var(--line);background:var(--panel);border-radius:16px;padding:26px;margin-top:30px}.review-grid{display:grid;grid-template-columns:1fr 1.5fr;gap:30px}.review-intro p{color:var(--muted);font-size:13px;max-width:370px}.form-control{display:block;font-size:12px;color:var(--muted);margin:0 0 6px}.review-section select,.review-section textarea{display:block;width:100%;background:var(--bg);color:var(--fg);border:1px solid #425354;border-radius:8px;padding:10px}.review-section textarea{min-height:94px;resize:vertical}.review-section select{margin-bottom:13px}.actionrow{display:flex;align-items:center;gap:14px;margin-top:12px}.primary{background:var(--accent);color:#14221b;border:0;border-radius:8px;padding:10px 14px;font-weight:720;font-size:12px}.primary:hover,.primary:focus-visible{background:#e0f5d8}.button-quiet{border:1px solid var(--line);border-radius:8px;padding:10px 14px;background:var(--panel);color:var(--fg);font-size:12px}.form-status{font-size:12px;color:var(--muted)}footer{margin-top:45px;border-top:1px solid var(--line);padding:22px 0;color:var(--muted);font-size:12px}footer a{color:var(--accent)}
+.link-evidence{background:transparent;color:var(--accent);border:1px solid #52695c;border-radius:7px;padding:7px 10px;font-size:12px;cursor:pointer}.link-evidence[aria-pressed=true]{background:var(--accent);color:#15291f}.evidence-count{font-size:12px;color:var(--muted);margin:6px 0 11px}.review-caution{font-size:12px;color:var(--warm)}.empty-day{font-size:12px;color:var(--muted);padding:10px 0}.review-section{border:1px solid var(--line);background:var(--panel);border-radius:16px;padding:26px;margin-top:30px}.review-grid{display:grid;grid-template-columns:1fr 1.5fr;gap:30px}.review-intro p{color:var(--muted);font-size:13px;max-width:370px}.form-control{display:block;font-size:12px;color:var(--muted);margin:0 0 6px}.review-section select,.review-section textarea{display:block;width:100%;background:var(--bg);color:var(--fg);border:1px solid #425354;border-radius:8px;padding:10px}.review-section textarea{min-height:94px;resize:vertical}.review-section select{margin-bottom:13px}.actionrow{display:flex;align-items:center;gap:14px;margin-top:12px}.primary{background:var(--accent);color:#14221b;border:0;border-radius:8px;padding:10px 14px;font-weight:720;font-size:12px}.primary:hover,.primary:focus-visible{background:#e0f5d8}.button-quiet{border:1px solid var(--line);border-radius:8px;padding:10px 14px;background:var(--panel);color:var(--fg);font-size:12px}.form-status{font-size:12px;color:var(--muted)}footer{margin-top:45px;border-top:1px solid var(--line);padding:22px 0;color:var(--muted);font-size:12px}footer a{color:var(--accent)}
 :focus-visible{outline:2px solid var(--accent);outline-offset:3px}@media(max-width:970px){.hero{display:block}.stats{margin-top:25px;max-width:380px}.week{grid-template-columns:repeat(4,minmax(0,1fr))}.workspace{grid-template-columns:1fr}.side{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:620px){.shell{padding:0 17px 40px}.topnotice{font-size:10px}.nav{gap:9px;font-size:12px}.hero{padding:36px 0}.week{grid-template-columns:repeat(2,minmax(0,1fr))}.side{display:flex}.sectionhead{align-items:flex-start;flex-direction:column}.filters{width:100%}.filters button{flex:1}.review-grid{grid-template-columns:1fr}.event summary{gap:8px}.event-info{padding-left:57px}.event-name b{font-size:13px}.measure{font-size:12px}.hero p{font-size:14px}}@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.daytile{transition:none}}
 """
 JS = r"""
@@ -134,13 +136,51 @@ function downloadText(filename, text, type) {
 document.getElementById('export-raw').addEventListener('click', () => {
   downloadText('openpaw-fictional-week.jsonl', document.getElementById('source-data').value, 'application/x-ndjson');
 });
+// Local-only working set; never modifies the synthetic event stream.
+const linkedEvidence = new Set();
+const linkButtons = Array.from(document.querySelectorAll('.link-evidence'));
+const knownIds = new Set(events.map(e => e.id.slice(3)));
+const evidenceLabel = document.getElementById('selected-evidence');
+const clearLinks = document.getElementById('clear-evidence');
+function evidenceIds() {
+  // Stable source chronology rather than click order; no duplicates.
+  return events.map(e => e.id.slice(3)).filter(id => linkedEvidence.has(id));
+}
+function refreshLinks() {
+  linkButtons.forEach(btn => btn.setAttribute('aria-pressed', String(linkedEvidence.has(btn.dataset.evidenceId))));
+  const ids = evidenceIds();
+  evidenceLabel.textContent = ids.length ? ids.length + ' linked source event(s): ' + ids.join(', ') : 'No source event linked. Export requires at least one.';
+  clearLinks.disabled = ids.length === 0;
+}
+linkButtons.forEach(btn => btn.addEventListener('click', () => {
+  const id = btn.dataset.evidenceId;
+  if (!knownIds.has(id)) return;
+  if (linkedEvidence.has(id)) linkedEvidence.delete(id); else linkedEvidence.add(id);
+  refreshLinks();
+}));
+clearLinks.addEventListener('click', () => { linkedEvidence.clear(); refreshLinks(); });
+refreshLinks();
 document.getElementById('export-note').addEventListener('click', () => {
   const note = document.getElementById('expert-note').value.trim();
+  const ids = evidenceIds();
   const status = document.getElementById('note-status');
   if (!note) { status.textContent='Enter a note before export.'; return; }
-  const obj = {source:'openpaw-fictional-week-v0', review_type:'unverified_user_note', episode_id:document.getElementById('note-episode').value, text:note};
+  if (!ids.length || !ids.every(id => knownIds.has(id))) { status.textContent='Link at least one source event first.'; return; }
+  const obj = {
+    schema_version: 'openpaw-local-review-v0',
+    source: 'openpaw-fictional-week-v0',
+    source_fixture_sha256: document.getElementById('review').dataset.fixtureSha256,
+    review_type: 'unverified_user_note',
+    reviewer_role_self_reported: document.getElementById('note-role').value,
+    credential_verified: false,
+    episode_id: document.getElementById('note-episode').value,
+    evidence_event_ids: ids,
+    created_at_utc: new Date().toISOString(),
+    timestamp_source: 'local_device_clock_unverified',
+    text: note
+  };
   downloadText('openpaw-local-review.json', JSON.stringify(obj,null,2)+'\n','application/json');
-  status.textContent='Downloaded locally. Nothing uploaded.';
+  status.textContent='Downloaded locally. Not uploaded or anonymized.';
 });
 """
 
@@ -170,6 +210,7 @@ def render(records, source):
     expert_rows = [e for e in records if e["event_type"] == "expert_annotation"]
     q_html = "".join(f'<div class="question"><b>{escape(human_label(e))} · fictional</b><p>{escape(e["payload"].get("note", ""))}</p></div>' for e in expert_rows)
     options = '<option value="week">Full week</option>' + "".join(f'<option value="{escape(k)}">{escape(n)}</option>' for k,n in EPISODE_NAMES.items())
+    source_hash = hashlib.sha256(source.encode("utf-8")).hexdigest()
     return f'''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'none'; img-src data:; form-action 'none'; base-uri 'none'">
 <meta name="description" content="OpenPaw synthetic week for veterinary and behavior expert discovery; no medical claims."><title>OpenPaw · Fictional Week</title><style>{CSS}</style></head>
@@ -182,8 +223,11 @@ def render(records, source):
 <section class="sidebar-panel"><h2>Questions, not conclusions</h2><p class="side-note">Fictional examples—not actual expert feedback.</p>{q_html}</section></aside>
 <main class="timeline-panel" id="timeline" aria-labelledby="timeline-title"><div class="sectionhead"><div><h2 id="timeline-title">Event stream</h2><span id="visible-count" class="hint">{len(records)} of {len(records)} events shown</span></div><div class="filters" role="group" aria-label="Filter events by review role"><button type="button" data-view="all" aria-pressed="true">All</button><button type="button" data-view="vet" aria-pressed="false">Veterinary</button><button type="button" data-view="behavior" aria-pressed="false">Behavior</button></div></div>
 {''.join(stream)}</main></div>
-<section class="review-section" id="review"><div class="review-grid"><div class="review-intro"><div class="kicker">Local review worksheet</div><h2>What would this change?</h2><p>Describe a question or follow-up—not a diagnosis. This page does not save automatically or send data anywhere. A note is exported only when you click Download.</p><button id="export-raw" type="button" class="button-quiet">Download original JSONL ↗</button></div><div><label class="form-control" for="note-episode">Context</label><select id="note-episode">{options}</select>
-<label class="form-control" for="expert-note">Expert question / observation</label><textarea id="expert-note" placeholder="What evidence would you need to change a decision?"></textarea><div class="actionrow"><button id="export-note" type="button" class="primary">Download note locally</button><span class="form-status" id="note-status" aria-live="polite"></span></div></div></div></section>
+<section class="review-section" id="review" data-fixture-sha256="{source_hash}"><div class="review-grid"><div class="review-intro"><div class="kicker">Local review worksheet</div><h2>What would this change?</h2><p>Open an event and select “Link as note evidence” before exporting an interpretation or question. This note stays separate from the 45 fictional records; it is not a verified expert annotation.</p><p class="review-caution">Downloaded notes are not anonymized. Avoid real owner names or sensitive details; review before sharing. Nothing is sent or autosaved.</p><button id="export-raw" type="button" class="button-quiet">Download original JSONL ↗</button></div><div><label class="form-control" for="note-episode">Context (does not limit evidence selection)</label><select id="note-episode">{options}</select>
+<label class="form-control" for="note-role">Review perspective (self-reported; not verified)</label><select id="note-role"><option value="unspecified">Unspecified</option><option value="veterinarian">Veterinary</option><option value="behavior_professional">Behavior professional</option><option value="owner">Owner</option></select>
+<label class="form-control" for="expert-note">Question / interpretation (unverified)</label><textarea id="expert-note" maxlength="2000" placeholder="What source evidence would change a real question or decision?"></textarea>
+<div class="evidence-count" id="selected-evidence" role="status" aria-live="polite">No source event linked. Export requires at least one.</div><button id="clear-evidence" class="button-quiet" type="button" disabled>Clear evidence links</button>
+<div class="actionrow"><button id="export-note" type="button" class="primary">Download linked note locally</button><span class="form-status" id="note-status" aria-live="polite"></span></div></div></div></section>
 <footer>OpenPaw pretotype · fictional, inspectable evidence, not a medical device. <a href="https://github.com/kvnloo/openpaw" rel="noreferrer">Protocol &amp; source ↗</a></footer></div>
 <textarea id="source-data" hidden readonly>{escape(source,quote=False)}</textarea><script>{JS}</script></body></html>'''
 
