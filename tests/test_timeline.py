@@ -90,6 +90,30 @@ class TimelineTests(unittest.TestCase):
         self.assertIn('Fictional examples—not actual expert feedback.',self.html)
         self.assertNotIn('universal threshold',self.html.lower())
 
+    def test_episode_drilldown_has_details_and_visible_evidence_status(self):
+        class CheckDetails(HTMLParser):
+            def __init__(self):
+                super().__init__()
+                self.details = set()
+                self.empty_days = 0
+            def handle_starttag(self, tag, attrs):
+                attrs = dict(attrs)
+                if tag == 'details' and attrs.get('id'):
+                    self.details.add(attrs['id'])
+                if 'empty-day' in attrs.get('class', '').split():
+                    self.empty_days += 1
+                    assert 'hidden' in attrs
+        check = CheckDetails()
+        check.feed(self.html)
+        self.assertEqual(len(check.details), 45)
+        self.assertEqual(check.empty_days, 7)
+        for href in self.scan.hrefs:
+            if href.startswith('#ev-'):
+                self.assertIn(href[1:], check.details)
+        self.assertIn('evidence.open = true;', self.html)
+        self.assertIn("evidence.querySelector('summary').focus", self.html)
+        self.assertIn('source events remain available under All', self.html)
+
     def test_generated_html_works_without_external_assets(self):
         with tempfile.TemporaryDirectory() as tmp:
             out=Path(tmp)/'demo.html'
