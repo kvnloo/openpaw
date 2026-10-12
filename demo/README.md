@@ -17,16 +17,16 @@ For all fixture/schema tests: `python -m pip install jsonschema && python -m uni
 ## What it does
 
 - Seven days of source events, first recorded HR (not necessarily a resting baseline), sleep estimates, and three fictional trigger episodes.
-- Cross-linked episode → trigger → individual sample, with original UTC instants, source IDs and notes.
-- Reversible `All / Veterinary / Behavior` display filters. The full stream remains available; hiding a category does not erase it.
+- Cross-linked episode → trigger → individual sample, with original UTC instants, source IDs and notes. Activating an episode link also expands and keyboard-focuses its source record, even when a role filter had hidden it.
+- Reversible `All / Veterinary / Behavior` display filters. Empty-looking days say their events were hidden by the selected filter; the full stream remains available under `All`. This is not missing-data imputation.
 - A **not computed** arousal state; elapsed time to the last recorded sample is **not** labeled recovery duration.
 - Explicit download of the byte-identical synthetic JSONL or a locally authored note (unverified review question). No autosave or network calls.
 
-The script **refuses** non-simulated data or unexpected dog/source identity. Its content-security policy disables network connections. Browser tabs may still keep unsaved form input in memory. Downloaded notes may be personal or sensitive: keep them private. **No real expert review has been conducted or implied.** Fictional expert questions are examples only.
+The script **refuses** non-simulated data or unexpected dog/source identity. Its content-security policy disallows script-initiated network connections (the optional source hyperlink navigates only if clicked). Browser tabs may still keep unsaved form input in memory. Downloaded notes may be personal or sensitive: keep them private. **No real expert review has been conducted or implied.** Fictional expert questions are examples only.
 
 ### Verification scope
 
-On 2026-10-11: `7/7` Python unit tests passed; Chromium desktop and 390px-mobile checks passed (45 visible events before filtering, 34 veterinary, 17 behavior; raw JSONL download byte-identical with fixture; manual note export; no horizontal overflow; no JavaScript page errors). These tests demonstrate this *synthetic UI workflow only*. Real canine sensor accuracy, biological plausibility, veterinary actionability, accessibility conformance, and research consent have **not** been validated.
+On 2026-10-11: `8/8` Python unit tests passed; Chromium desktop and 390px-mobile checks passed (45 visible events before filtering, 34 veterinary, 17 behavior, 3 days empty under the behavior filter; keyboard-triggered episode navigation expands/focuses source evidence; raw JSONL download byte-identical with fixture; manual note export; no horizontal overflow, script network calls or JavaScript page errors). Browser checks loaded the generated HTML as an in-memory document because this environment blocked direct `file://` navigation; direct file opening remains unverified here. These tests demonstrate this *synthetic UI workflow only*. Real canine sensor accuracy, biological plausibility, veterinary actionability, accessibility conformance, and research consent have **not** been validated.
 
 ### Next evidence
 
