@@ -53,10 +53,10 @@ class ReviewLinkTests(unittest.TestCase):
             'Downloaded notes are not anonymized',
             'No source event linked. Export requires at least one.',
             'id="note-role"', 'id="clear-evidence"', 'maxlength="2000"',
-            'credential_verified: false', "review_type: 'unverified_user_note'",
+            'credential_verified: false', 'review_type: \'unverified_user_note\'',
             'created_at_utc: new Date().toISOString()',
             "timestamp_source: 'local_device_clock_unverified'",
-            "schema_version: 'openpaw-local-review-v0'",
+            'schema_version: \'openpaw-local-review-v0\'',
         ):
             with self.subTest(needle=needle):
                 self.assertIn(needle, self.html)
