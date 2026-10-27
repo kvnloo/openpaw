@@ -14,6 +14,21 @@ python -m unittest discover -s tests -p 'test_timeline.py' -v
 
 For all fixture/schema tests: `python -m pip install jsonschema && python -m unittest discover -s tests -v`.
 
+## Audit an exported review locally
+
+This feature is only for the **pinned fictional-week fixture**. No account, network, cloud, or real pet records are involved.
+
+```sh
+python demo/audit_review.py ~/Downloads/openpaw-local-review.json
+# Or: python demo/audit_review.py path/to/note.json --fixture fixtures/fictional-week.jsonl
+```
+
+The CLI checks the pinned original fixture hash, review structure, duplicate/unknown event IDs, claimed source digest, and local-clock timestamp *syntax*. It prints a **linkage result**, count, and warning codes; it does not display the note text. It exits `0` for a matching synthetic source and `2` for a failed check. Notes with links outside the selected episode receive a warning but may still be legitimate cross-episode comparisons.
+
+**A matching hash is not proof of who wrote or edited a note.** This review JSON is unsigned, credentials are not verified, and the local clock may be wrong. The CLI does not verify professional expertise, consent, scientific plausibility, clinical utility, or absence of sensitive text; these remain for qualified humans to assess. Do not upload review notes to GitHub or public issue trackers.
+
+Run all standard-library UI/audit tests with `python -m unittest discover -s tests -v`.
+
 ## What it does
 
 - Seven days of source events, first recorded HR (not necessarily a resting baseline), sleep estimates, and three fictional trigger episodes.
@@ -21,12 +36,13 @@ For all fixture/schema tests: `python -m pip install jsonschema && python -m uni
 - Reversible `All / Veterinary / Behavior` display filters. Empty-looking days say their events were hidden by the selected filter; the full stream remains available under `All`. This is not missing-data imputation.
 - A **not computed** arousal state; elapsed time to the last recorded sample is **not** labeled recovery duration.
 - Explicit download of the byte-identical synthetic JSONL or a locally authored note (unverified review question). No autosave or network calls.
+- Before downloading a note, expand source events and choose **Link as note evidence**. The export includes exact evidence IDs, the fixture SHA-256, self-reported reviewer perspective, and a creation time from an **unverified local device clock**. A note with no evidence links cannot be exported. Event selections can be cleared; none mutate the underlying 45 events.
 
-The script **refuses** non-simulated data or unexpected dog/source identity. Its content-security policy disallows script-initiated network connections (the optional source hyperlink navigates only if clicked). Browser tabs may still keep unsaved form input in memory. Downloaded notes may be personal or sensitive: keep them private. **No real expert review has been conducted or implied.** Fictional expert questions are examples only.
+The script **refuses** non-simulated data or unexpected dog/source identity. Its content-security policy disallows script-initiated network connections (the optional source hyperlink navigates only if clicked). Browser tabs may still keep unsaved form input in memory. Downloaded notes are **not anonymized or encrypted**, could include personally identifying information, and are **not** verified professional annotations; review and protect them before sharing. No research upload or consent workflow exists. **No real expert review has been conducted or implied.** Fictional expert questions are examples only.
 
 ### Verification scope
 
-On 2026-10-11: `8/8` Python unit tests passed; Chromium desktop and 390px-mobile checks passed (45 visible events before filtering, 34 veterinary, 17 behavior, 3 days empty under the behavior filter; keyboard-triggered episode navigation expands/focuses source evidence; raw JSONL download byte-identical with fixture; manual note export; no horizontal overflow, script network calls or JavaScript page errors). Browser checks loaded the generated HTML as an in-memory document because this environment blocked direct `file://` navigation; direct file opening remains unverified here. These tests demonstrate this *synthetic UI workflow only*. Real canine sensor accuracy, biological plausibility, veterinary actionability, accessibility conformance, and research consent have **not** been validated.
+On 2026-10-12: `30/30` Python unit tests passed (including the receipt auditor's 17 tests); Chromium desktop and 390px-mobile checks passed (45 visible events before filtering, 34 veterinary, 17 behavior, 3 days empty under the behavior filter; keyboard-triggered episode navigation expands/focuses source evidence; raw JSONL download byte-identical with fixture; local evidence-linked JSON export (two selected event IDs in source order; unchanged byte-identical raw export; rejected empty evidence; clearing links); no horizontal overflow, script network calls or JavaScript page errors). Browser checks loaded the generated HTML as an in-memory document because this environment blocked direct `file://` navigation; direct file opening remains unverified here. These tests demonstrate this *synthetic UI workflow only*. Real canine sensor accuracy, biological plausibility, veterinary actionability, accessibility conformance, and research consent have **not** been validated.
 
 ### Next evidence
 
