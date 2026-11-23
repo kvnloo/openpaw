@@ -1,0 +1,92 @@
+name: collar-firmware
+
+# Builds the collar firmware for every supported board and publishes
+# drag-and-drop .uf2 files, so nobody has to install a compiler.
+on:
+  push:
+    branches: [main]
+    paths: ['firmware/**', '.github/workflows/collar-firmware.yml']
+    tags: ['collar-v*']
+  pull_request:
+    paths: ['firmware/**', 'app/**', '.github/workflows/collar-firmware.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  core-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Host tests for the shared feature core
+        run: |
+          cc -std=c99 -O1 -Wall -Wextra -Werror -o /tmp/test_core firmware/test/test_core.c -lm
+          /tmp/test_core /tmp/golden.json
+          # the committed golden vectors must match what the core produces today
+          diff -u app/test/golden.json /tmp/golden.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Web app decoder tests (same golden packets)
+        run: node --test app/test/
+
+  build:
+    needs: core-tests
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - board: xiao-nrf52840-sense
+            fqbn: Seeeduino:nrf52:xiaonRF52840Sense
+          - board: t1000-e
+            fqbn: Seeeduino:nrf52:tracker_t1000_e_lorawan
+    steps:
+      - uses: actions/checkout@v4
+      - uses: arduino/setup-arduino-cli@v2
+      - name: Install Seeed nRF52 core
+        run: |
+          arduino-cli config init
+          arduino-cli config add board_manager.additional_urls https://files.seeedstudio.com/arduino/package_seeeduino_boards_index.json
+          arduino-cli core update-index
+          arduino-cli core install Seeeduino:nrf52@1.1.13
+          pip install --quiet adafruit-nrfutil
+      - name: Compile
+        run: |
+          arduino-cli compile --fqbn "${{ matrix.fqbn }}" --warnings default \
+            --output-dir build firmware/openpaw-collar 2>&1 | tee build.log
+          ls -la build
+      - name: Make UF2 (drag-and-drop file)
+        run: |
+          CORE=$(ls -d ~/.arduino15/packages/Seeeduino/hardware/nrf52/*/ | head -1)
+          python3 "$CORE/tools/uf2conv/uf2conv.py" build/openpaw-collar.ino.hex -c -f 0xADA52840 \
+            -o "openpaw-collar-${{ matrix.board }}.uf2"
+          cp build/openpaw-collar.ino.zip "openpaw-collar-${{ matrix.board }}-dfu.zip" 2>/dev/null || true
+          grep -E "Sketch uses|Global variables" build.log | tee size.txt
+          sha256sum openpaw-collar-${{ matrix.board }}* | tee SHA256SUMS-${{ matrix.board }}.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: openpaw-collar-${{ matrix.board }}
+          path: |
+            openpaw-collar-${{ matrix.board }}*
+            SHA256SUMS-${{ matrix.board }}.txt
+            size.txt
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/collar-v')
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Publish release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ls -la dist
+          gh release create "${GITHUB_REF_NAME}" dist/*.uf2 dist/*-dfu.zip dist/SHA256SUMS-*.txt \
+            -R "${GITHUB_REPOSITORY}" --title "OpenPaw collar firmware ${GITHUB_REF_NAME#collar-v}" \
+            --notes "Drag the .uf2 for your board onto the drive that appears after double-tapping reset. See docs/COLLAR.md."

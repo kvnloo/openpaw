@@ -1,0 +1,147 @@
+// Host tests for firmware/openpaw-collar/openpaw_core.h
+// Build+run: cc -std=c99 -O1 -Wall -Wextra -Werror -o /tmp/t firmware/test/test_core.c -lm && /tmp/t
+// With an argument, also writes golden packets for the web-app decoder test.
+// SPDX-License-Identifier: GPL-3.0-only
+#include "../openpaw-collar/openpaw_core.h"
+#include <stdio.h>
+#include <stdlib.h>
+
+static int failures = 0;
+#define CHECK(cond, ...) do { if (!(cond)) { failures++; printf("FAIL %s:%d: ", __FILE__, __LINE__); printf(__VA_ARGS__); printf("\n"); } } while (0)
+
+// deterministic LCG noise, +/- amp mg
+static uint32_t rng = 12345;
+static int16_t noise(int amp) { rng = rng * 1103515245u + 12345u; return (int16_t)((int)((rng >> 16) % (2 * amp + 1)) - amp); }
+
+static openpaw_record_t run_epoch(openpaw_state_t *s, int16_t (*gen)(int axis, uint32_t i), uint32_t *t) {
+  openpaw_record_t r; memset(&r, 0, sizeof r);
+  for (uint32_t i = 0;; i++) {
+    int16_t x = gen(0, *t), y = gen(1, *t), z = gen(2, *t);
+    (*t)++;
+    if (openpaw_push(s, x, y, z, *t / 50, 0, 87, 0, &r)) return r;
+    if (i > 100000) { CHECK(0, "epoch never closed"); return r; }
+  }
+}
+
+// dog lying still, collar puck at the bottom of the neck: gravity on +z, tiny noise
+static int16_t gen_rest(int a, uint32_t i) { (void)i; return (int16_t)((a == 2 ? 1000 : 0) + noise(8)); }
+// trotting: ~2.5 Hz vertical oscillation of 600 mg plus lateral sway
+static int16_t gen_trot(int a, uint32_t i) {
+  float ph = 2.0f * 3.14159265f * 2.5f * (float)i / 50.0f;
+  if (a == 2) return (int16_t)(1000 + 600 * sinf(ph) + noise(20));
+  if (a == 1) return (int16_t)(250 * sinf(ph / 2) + noise(20));
+  return (int16_t)noise(20);
+}
+// lunge: rest, then one 0.4 s 3 g spike, then rest
+static int16_t gen_lunge(int a, uint32_t i) {
+  uint32_t k = i % 250;
+  if (k >= 100 && k < 120) return (int16_t)(a == 0 ? 3000 : (a == 2 ? 1000 : 0));
+  return gen_rest(a, i);
+}
+// clipped: a hard shake that saturates the +/-8 g range
+static int16_t gen_clip(int a, uint32_t i) { return (int16_t)(a == 0 && (i % 50) == 10 ? 8000 : gen_rest(a, i)); }
+// puck rotated 90 deg (dog lying on its side): gravity on +y
+static int16_t gen_side(int a, uint32_t i) { (void)i; return (int16_t)((a == 1 ? 1000 : 0) + noise(8)); }
+
+int main(int argc, char **argv) {
+  openpaw_state_t s;
+  openpaw_cfg_t cfg = openpaw_default_cfg();
+  uint32_t t = 0;
+  openpaw_init(&s, cfg);
+  CHECK(s.expected == 250, "expected 250 samples per 5 s epoch, got %u", s.expected);
+
+  // 1. rest: near-zero dynamic acceleration, upright, not active
+  openpaw_record_t rest = run_epoch(&s, gen_rest, &t);
+  CHECK(rest.version == 1, "version %u", rest.version);
+  CHECK(rest.seq == 0, "first seq %u", rest.seq);
+  CHECK(rest.vedba_mean_mg < 20, "rest vedba_mean %u", rest.vedba_mean_mg);
+  CHECK(rest.active_frac == 0, "rest active_frac %u", rest.active_frac);
+  CHECK(rest.bursts == 0, "rest bursts %u", rest.bursts);
+  CHECK(rest.pitch_deg >= -2 && rest.pitch_deg <= 2, "rest pitch %d", rest.pitch_deg);
+  CHECK(rest.roll_half_deg >= -1 && rest.roll_half_deg <= 1, "rest roll/2 %d", rest.roll_half_deg);
+  CHECK(!(rest.flags & OPENPAW_FLAG_CLIPPED), "rest should not clip");
+  CHECK(rest.battery_pct == 87, "battery passthrough %u", rest.battery_pct);
+
+  // 2. trot: clearly active, mean VeDBA in the hundreds of mg, much larger than rest
+  openpaw_record_t trot = run_epoch(&s, gen_trot, &t);
+  trot = run_epoch(&s, gen_trot, &t);  // second epoch: gravity estimate settled
+  CHECK(trot.seq == 2, "seq increments %u", trot.seq);
+  CHECK(trot.vedba_mean_mg > 250 && trot.vedba_mean_mg < 700, "trot vedba_mean %u", trot.vedba_mean_mg);
+  CHECK(trot.vedba_mean_mg > 10 * (rest.vedba_mean_mg + 1), "trot >> rest");
+  CHECK(trot.active_frac > 200, "trot active_frac %u", trot.active_frac);
+  CHECK(trot.bursts == 0, "trot is not a burst %u", trot.bursts);
+
+  // 3. lunge: exactly one burst per spike, peak near 3 g
+  openpaw_state_t s2; uint32_t t2 = 0; openpaw_init(&s2, cfg);
+  openpaw_record_t lunge = run_epoch(&s2, gen_lunge, &t2);
+  CHECK(lunge.bursts == 1, "one lunge = one burst, got %u", lunge.bursts);
+  CHECK(lunge.vedba_max_mg > 2500 && lunge.vedba_max_mg < 3300, "lunge peak %u", lunge.vedba_max_mg);
+  CHECK(lunge.active_frac < 40, "lunge epoch mostly still %u", lunge.active_frac);
+
+  // 4. clipping is flagged
+  openpaw_state_t s3; uint32_t t3 = 0; openpaw_init(&s3, cfg);
+  openpaw_record_t clip = run_epoch(&s3, gen_clip, &t3);
+  CHECK(clip.flags & OPENPAW_FLAG_CLIPPED, "clip flag missing");
+
+  // 5. orientation: on its side -> roll ~ +90 deg (roll/2 ~ 45), pitch ~ 0
+  openpaw_state_t s4; uint32_t t4 = 0; openpaw_init(&s4, cfg);
+  openpaw_record_t side = run_epoch(&s4, gen_side, &t4);
+  CHECK(side.roll_half_deg >= 43 && side.roll_half_deg <= 47, "side roll/2 %d", side.roll_half_deg);
+  CHECK(side.pitch_deg >= -2 && side.pitch_deg <= 2, "side pitch %d", side.pitch_deg);
+
+  // 6. flush closes a partial epoch with GAP
+  openpaw_state_t s5; openpaw_init(&s5, cfg);
+  openpaw_record_t part; memset(&part, 0, sizeof part);
+  for (int i = 0; i < 60; i++) { openpaw_push(&s5, 0, 0, 1000, 1, 0, 50, 0, &part); }
+  CHECK(openpaw_flush(&s5, 2, 0, 50, &part) == 1, "flush returns 1");
+  CHECK(part.flags & OPENPAW_FLAG_GAP, "flush sets GAP");
+  CHECK(openpaw_flush(&s5, 2, 0, 50, &part) == 0, "empty flush returns 0");
+
+  // 7. encode/decode round trip incl. negative angles and big values
+  openpaw_record_t a = {1, OPENPAW_FLAG_HR_VALID | OPENPAW_FLAG_CHARGING, 0xA1B2C3D4u, 86400u * 30,
+                        65535, 4321, 255, -73, -90, 7, 112, 100};
+  uint8_t buf[OPENPAW_RECORD_SIZE]; openpaw_record_t b;
+  openpaw_encode(&a, buf); openpaw_decode(buf, &b);
+  CHECK(memcmp(&a, &b, sizeof a) == 0 || (a.seq == b.seq && a.uptime_s == b.uptime_s && a.pitch_deg == b.pitch_deg &&
+        a.roll_half_deg == b.roll_half_deg && a.vedba_mean_mg == b.vedba_mean_mg && a.hr_bpm == b.hr_bpm), "round trip");
+  CHECK(buf[2] == 0xD4 && buf[5] == 0xA1, "little endian seq");
+
+  // 8. ring buffer wraps, keeps newest, find() works
+  uint8_t store[8 * OPENPAW_RECORD_SIZE]; openpaw_ring_t q; openpaw_ring_init(&q, store, 8);
+  for (uint32_t i = 0; i < 13; i++) { openpaw_record_t r = rest; r.seq = 100 + i; openpaw_ring_put(&q, &r); }
+  CHECK(q.count == 8, "ring count %u", q.count);
+  uint8_t o[OPENPAW_RECORD_SIZE]; openpaw_record_t d;
+  openpaw_ring_get(&q, 0, o); openpaw_decode(o, &d); CHECK(d.seq == 105, "oldest seq %u", d.seq);
+  openpaw_ring_get(&q, 7, o); openpaw_decode(o, &d); CHECK(d.seq == 112, "newest seq %u", d.seq);
+  CHECK(openpaw_ring_find(&q, 110) == 5, "find 110 -> %u", openpaw_ring_find(&q, 110));
+  CHECK(openpaw_ring_find(&q, 0) == 0, "find 0 -> oldest");
+  CHECK(openpaw_ring_find(&q, 999) == 8, "find past end -> count");
+  CHECK(openpaw_ring_get(&q, 8, o) == 0, "get out of range");
+
+  if (argc > 1) {  // golden vectors for app/test: hex packet + expected decoded fields
+    FILE *f = fopen(argv[1], "w");
+    if (!f) { perror("golden"); return 2; }
+    openpaw_record_t g[] = {rest, trot, lunge, clip, side, a};
+    const char *names[] = {"rest", "trot", "lunge", "clip", "side", "roundtrip"};
+    fprintf(f, "[\n");
+    for (int i = 0; i < 6; i++) {
+      openpaw_encode(&g[i], buf);
+      fprintf(f, "  {\"name\":\"%s\",\"hex\":\"", names[i]);
+      for (int j = 0; j < OPENPAW_RECORD_SIZE; j++) fprintf(f, "%02x", buf[j]);
+      fprintf(f, "\",\"version\":%u,\"flags\":%u,\"seq\":%u,\"uptime_s\":%u,\"vedba_mean_mg\":%u,\"vedba_max_mg\":%u,"
+                 "\"active_frac\":%u,\"pitch_deg\":%d,\"roll_deg\":%d,\"bursts\":%u,\"hr_bpm\":%u,\"battery_pct\":%u}%s\n",
+              g[i].version, g[i].flags, g[i].seq, g[i].uptime_s, g[i].vedba_mean_mg, g[i].vedba_max_mg, g[i].active_frac,
+              g[i].pitch_deg, g[i].roll_half_deg * 2, g[i].bursts, g[i].hr_bpm, g[i].battery_pct, i < 5 ? "," : "");
+    }
+    fprintf(f, "]\n");
+    fclose(f);
+  }
+
+  printf("rest  mean=%u max=%u act=%u pitch=%d roll=%d\n", rest.vedba_mean_mg, rest.vedba_max_mg, rest.active_frac, rest.pitch_deg, rest.roll_half_deg * 2);
+  printf("trot  mean=%u max=%u act=%u bursts=%u\n", trot.vedba_mean_mg, trot.vedba_max_mg, trot.active_frac, trot.bursts);
+  printf("lunge mean=%u max=%u act=%u bursts=%u\n", lunge.vedba_mean_mg, lunge.vedba_max_mg, lunge.active_frac, lunge.bursts);
+  printf("side  roll=%d pitch=%d\n", side.roll_half_deg * 2, side.pitch_deg);
+  if (failures) { printf("%d FAILED\n", failures); return 1; }
+  printf("ALL PASS\n");
+  return 0;
+}

@@ -1,0 +1,8 @@
+[
+  {"name":"rest","hex":"0100000000000500000009001000000000000057","version":1,"flags":0,"seq":0,"uptime_s":5,"vedba_mean_mg":9,"vedba_max_mg":16,"active_frac":0,"pitch_deg":0,"roll_deg":0,"bursts":0,"hr_bpm":0,"battery_pct":87},
+  {"name":"trot","hex":"0100020000000f000000ac01ae02f20000000057","version":1,"flags":0,"seq":2,"uptime_s":15,"vedba_mean_mg":428,"vedba_max_mg":686,"active_frac":242,"pitch_deg":0,"roll_deg":0,"bursts":0,"hr_bpm":0,"battery_pct":87},
+  {"name":"lunge","hex":"01000000000005000000fc00b70b14ff00010057","version":1,"flags":0,"seq":0,"uptime_s":5,"vedba_mean_mg":252,"vedba_max_mg":2999,"active_frac":20,"pitch_deg":-1,"roll_deg":0,"bursts":1,"hr_bpm":0,"battery_pct":87},
+  {"name":"clip","hex":"01040000000005000000a900421f050000050057","version":1,"flags":4,"seq":0,"uptime_s":5,"vedba_mean_mg":169,"vedba_max_mg":8002,"active_frac":5,"pitch_deg":0,"roll_deg":0,"bursts":5,"hr_bpm":0,"battery_pct":87},
+  {"name":"side","hex":"010000000000050000000900130000002d000057","version":1,"flags":0,"seq":0,"uptime_s":5,"vedba_mean_mg":9,"vedba_max_mg":19,"active_frac":0,"pitch_deg":0,"roll_deg":90,"bursts":0,"hr_bpm":0,"battery_pct":87},
+  {"name":"roundtrip","hex":"0103d4c3b2a1008d2700ffffe110ffb7a6077064","version":1,"flags":3,"seq":2712847316,"uptime_s":2592000,"vedba_mean_mg":65535,"vedba_max_mg":4321,"active_frac":255,"pitch_deg":-73,"roll_deg":-180,"bursts":7,"hr_bpm":112,"battery_pct":100}
+]
