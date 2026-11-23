@@ -29,7 +29,7 @@ jobs:
           mkdir -p _site/app
           cp -R site/. _site/
           rm -rf _site/test
-          cp app/index.html app/openpaw-ble.js _site/app/
+          cp app/*.html app/*.js _site/app/
           touch _site/.nojekyll
           # every local href/src in the landing page must exist in the staged site
           grep -oE '(href|src)="[^"#:]+"' _site/index.html | sed -E 's/.*="([^"]+)"/\1/' | while read -r f; do

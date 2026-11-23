@@ -28,11 +28,14 @@
   label { font-size:14px; color:var(--mute); }
   input[type=text] { font:inherit; padding:7px 10px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--ink); width:180px; }
   .fine { font-size:12px; color:var(--mute); }
+.appnav { display:flex; gap:14px; flex-wrap:wrap; font:500 11px/1.2 ui-monospace,Menlo,monospace; letter-spacing:.09em; text-transform:uppercase; margin:0 0 10px; }
+.appnav a { color:inherit; opacity:.65; text-decoration:none; } .appnav a:hover { opacity:1; }
 </style>
 </head>
 <body>
 <main>
   <p class="fine" style="margin:0"><a href="../">← OpenPaw home</a></p>
+  <nav class="appnav" aria-label="OpenPaw"><a href="../">Home</a><b aria-current="page">Collar</b><a href="./track.html">Track</a><a href="./field.html">Field</a><a href="./learn.html">Learn</a></nav>
   <h1>OpenPaw Collar</h1>
   <p class="sub">Movement and posture from your dog's collar, stored only in this browser. Measurements, not diagnoses.</p>
 
@@ -90,22 +93,9 @@ const $ = (id) => document.getElementById(id);
 const logEl = $('log');
 const log = (m) => { logEl.textContent = `${new Date().toLocaleTimeString()}  ${m}\n` + logEl.textContent.slice(0, 4000); };
 
-// ---------- storage (IndexedDB, local only) ----------
-const db = await new Promise((res, rej) => {
-  const r = indexedDB.open('openpaw', 1);
-  r.onupgradeneeded = () => {
-    r.result.createObjectStore('events', { keyPath: 'event_id' });
-    r.result.createObjectStore('meta');
-  };
-  r.onsuccess = () => res(r.result);
-  r.onerror = () => rej(r.error);
-});
-const tx = (store, mode = 'readonly') => db.transaction(store, mode).objectStore(store);
-const putEvents = (evs) => new Promise((res) => { const t = db.transaction('events', 'readwrite'); evs.forEach((e) => t.objectStore('events').put(e)); t.oncomplete = res; });
-const allEvents = () => new Promise((res) => { const r = tx('events').getAll(); r.onsuccess = () => res(r.result); });
-const countEvents = () => new Promise((res) => { const r = tx('events').count(); r.onsuccess = () => res(r.result); });
-const getMeta = (k) => new Promise((res) => { const r = tx('meta').get(k); r.onsuccess = () => res(r.result); });
-const setMeta = (k, v) => new Promise((res) => { const r = tx('meta', 'readwrite').put(v, k); r.onsuccess = res; });
+// ---------- storage (shared IndexedDB, local only: app/store.js) ----------
+import * as S from './store.js';
+const putEvents = S.putEvents, allEvents = S.allEvents, countEvents = S.countEvents, getMeta = S.getMeta, setMeta = S.setMeta;
 
 $('dogId').value = (await getMeta('dogId')) || 'my-dog';
 $('dogId').onchange = () => setMeta('dogId', $('dogId').value.trim() || 'my-dog');
@@ -269,7 +259,7 @@ $('btnExport').onclick = async () => {
 };
 $('btnClear').onclick = async () => {
   if (!confirm('Delete all OpenPaw data stored in this browser? Export first if you want a copy.')) return;
-  await new Promise((res) => { const r = tx('events', 'readwrite').clear(); r.onsuccess = res; });
+  await S.clearEvents();
   series.length = 0; draw(); refreshStats(); log('cleared');
 };
 </script>
