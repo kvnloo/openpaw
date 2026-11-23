@@ -9,6 +9,14 @@ OpenPaw is intended to preserve the origin of ideas, evidence, design decisions,
 - **Veterinary and behavior foundations:** future protocol decisions should cite the specific veterinarian, behavior professional, researcher, paper, or guideline that motivated them.
 - **Open hardware and wearable ecosystem:** OpenPaw should reuse and credit existing work where possible instead of presenting established sensing/tracking primitives as novel.
 
+## Reference collar
+
+- QMA6100P accelerometer init sequence (T1000-E): Seeed Studio, `Tracker_T1000_E_LoRaWAN_Examples` (MIT), shipped with the Seeed nRF52 Arduino core.
+- Bluetooth stack and bootloader: Adafruit nRF52 Arduino core / Bluefruit and the Adafruit UF2 bootloader, via Seeed's fork (LGPL-2.1 / MIT).
+- VeDBA as an activity measure: standard biologging practice (e.g. Qasem et al. 2012, PLoS ONE, doi:10.1371/journal.pone.0031187).
+- Collar accelerometer evidence used to set expectations: Kumpulainen et al. 2021 (doi:10.1016/j.applanim.2021.105393; dataset by Vehkaoja et al., CC BY 4.0, doi:10.17632/vxhx934tbn.4) and Chambers et al. 2021.
+- The printed T1000-E collar cases linked in docs/COLLAR.md are by their MakerWorld/Thingiverse authors.
+
 ## Contribution provenance
 
 When an external expert or contributor materially influences a design:

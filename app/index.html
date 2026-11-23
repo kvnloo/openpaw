@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenPaw Collar</title>
+<meta name="description" content="Connect an OpenPaw collar over Bluetooth, see live movement, and export your dog's raw data. Runs entirely in your browser.">
+<style>
+  :root { --bg:#f6f4ef; --ink:#1d1c1a; --mute:#6f6a61; --line:#dcd7cc; --accent:#2f6f5e; --warn:#a4552b; --card:#fffdf8; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#151513; --ink:#ecebe6; --mute:#9a958b; --line:#33312c; --accent:#6fbfa6; --warn:#e0925f; --card:#1d1c19; } }
+  * { box-sizing:border-box; }
+  body { margin:0; font:16px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; background:var(--bg); color:var(--ink); }
+  main { max-width:760px; margin:0 auto; padding:20px 16px 64px; }
+  h1 { font-size:22px; margin:4px 0 2px; letter-spacing:-0.01em; }
+  .sub { color:var(--mute); margin:0 0 18px; font-size:14px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin:12px 0; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  button { font:inherit; border:1px solid var(--line); background:var(--card); color:var(--ink); padding:9px 14px; border-radius:9px; cursor:pointer; }
+  button.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
+  button:disabled { opacity:.45; cursor:default; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:10px; }
+  .metric { border:1px solid var(--line); border-radius:10px; padding:10px 12px; }
+  .metric b { display:block; font-size:22px; font-variant-numeric:tabular-nums; }
+  .metric span { color:var(--mute); font-size:12px; }
+  canvas { width:100%; height:140px; display:block; }
+  .log { font:12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; color:var(--mute); max-height:120px; overflow:auto; white-space:pre-wrap; }
+  .warn { color:var(--warn); }
+  label { font-size:14px; color:var(--mute); }
+  input[type=text] { font:inherit; padding:7px 10px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--ink); width:180px; }
+  .fine { font-size:12px; color:var(--mute); }
+</style>
+</head>
+<body>
+<main>
+  <h1>OpenPaw Collar</h1>
+  <p class="sub">Movement and posture from your dog's collar, stored only in this browser. Measurements, not diagnoses.</p>
+
+  <div id="support" class="card warn" hidden></div>
+
+  <div class="card">
+    <div class="row">
+      <button id="btnConnect" class="primary">Connect collar</button>
+      <button id="btnHr">Add heart-rate strap</button>
+      <button id="btnDemo">Try demo data</button>
+      <button id="btnFind" disabled>Beep / blink collar</button>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <label for="dogId">Dog ID</label>
+      <input id="dogId" type="text" value="my-dog" autocomplete="off">
+      <span class="fine">Pseudonymous; goes into every exported event.</span>
+    </div>
+    <p id="state" class="fine" style="margin:10px 0 0">Not connected.</p>
+  </div>
+
+  <div class="card">
+    <div class="grid">
+      <div class="metric"><span>Movement (VeDBA, mg)</span><b id="mVedba">-</b></div>
+      <div class="metric"><span>Active share of epoch</span><b id="mActive">-</b></div>
+      <div class="metric"><span>Bursts (&gt;1.5 g)</span><b id="mBursts">-</b></div>
+      <div class="metric"><span>Head pitch / roll</span><b id="mPose">-</b></div>
+      <div class="metric"><span>Heart rate (strap)</span><b id="mHr">-</b></div>
+      <div class="metric"><span>Collar battery</span><b id="mBatt">-</b></div>
+    </div>
+    <p id="simBanner" class="warn fine" hidden>Showing SIMULATED demo data, not a real dog.</p>
+    <canvas id="chart" aria-label="Movement over the last hour"></canvas>
+    <p class="fine">Line: mean movement per 5 s epoch. Ticks: bursts (lunges, shakes, jumps). Red dot: sensor range exceeded.</p>
+  </div>
+
+  <div class="card">
+    <div class="row">
+      <button id="btnSync" disabled>Download backlog from collar</button>
+      <button id="btnExport" disabled>Export OpenPaw JSONL</button>
+      <button id="btnClear">Clear stored data</button>
+    </div>
+    <p id="stats" class="fine" style="margin:10px 0 0">0 events stored.</p>
+  </div>
+
+  <div class="card"><div id="log" class="log"></div></div>
+
+  <p class="fine">Open source (GPL-3.0): <a href="https://github.com/kvnloo/openpaw">github.com/kvnloo/openpaw</a>. Needs Chrome or Edge on Android, Windows, macOS, Linux or ChromeOS (Web Bluetooth). On iPhone use the Bluefy browser.</p>
+</main>
+
+<script type="module">
+import { UUIDS, decodeRecord, decodeChunk, decodeStatus, encodeDumpFrom, CMD_FIND_ME, parseHeartRate,
+         recordToEvents, heartRateToEvents, makeClock, toJsonl } from './openpaw-ble.js';
+
+const $ = (id) => document.getElementById(id);
+const logEl = $('log');
+const log = (m) => { logEl.textContent = `${new Date().toLocaleTimeString()}  ${m}\n` + logEl.textContent.slice(0, 4000); };
+
+// ---------- storage (IndexedDB, local only) ----------
+const db = await new Promise((res, rej) => {
+  const r = indexedDB.open('openpaw', 1);
+  r.onupgradeneeded = () => {
+    r.result.createObjectStore('events', { keyPath: 'event_id' });
+    r.result.createObjectStore('meta');
+  };
+  r.onsuccess = () => res(r.result);
+  r.onerror = () => rej(r.error);
+});
+const tx = (store, mode = 'readonly') => db.transaction(store, mode).objectStore(store);
+const putEvents = (evs) => new Promise((res) => { const t = db.transaction('events', 'readwrite'); evs.forEach((e) => t.objectStore('events').put(e)); t.oncomplete = res; });
+const allEvents = () => new Promise((res) => { const r = tx('events').getAll(); r.onsuccess = () => res(r.result); });
+const countEvents = () => new Promise((res) => { const r = tx('events').count(); r.onsuccess = () => res(r.result); });
+const getMeta = (k) => new Promise((res) => { const r = tx('meta').get(k); r.onsuccess = () => res(r.result); });
+const setMeta = (k, v) => new Promise((res) => { const r = tx('meta', 'readwrite').put(v, k); r.onsuccess = res; });
+
+$('dogId').value = (await getMeta('dogId')) || 'my-dog';
+$('dogId').onchange = () => setMeta('dogId', $('dogId').value.trim() || 'my-dog');
+const dogId = () => $('dogId').value.trim() || 'my-dog';
+
+async function refreshStats() {
+  const n = await countEvents();
+  $('stats').textContent = `${n} events stored in this browser.`;
+  $('btnExport').disabled = n === 0;
+}
+refreshStats();
+window.addEventListener('resize', () => draw());
+
+// ---------- chart ----------
+const series = [];  // {t, vedba, bursts, clipped}
+function draw() {
+  const c = $('chart'), g = c.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  c.width = Math.round(c.clientWidth * dpr); c.height = Math.round(140 * dpr);
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  const css = getComputedStyle(document.documentElement);
+  g.clearRect(0, 0, c.width, c.height);
+  g.scale(dpr, dpr);
+  const W = c.clientWidth, H = 140;
+  const pts = series.slice(-720);  // last hour at 5 s
+  if (!pts.length) return;
+  const max = Math.max(300, ...pts.map((p) => p.vedba)) * 1.1;
+  const x = (i) => (i / 719) * W, y = (v) => H - 16 - (v / max) * (H - 30);
+  g.strokeStyle = css.getPropertyValue('--line'); g.lineWidth = 1;
+  g.beginPath(); g.moveTo(0, y(0)); g.lineTo(W, y(0)); g.stroke();
+  g.strokeStyle = css.getPropertyValue('--accent'); g.lineWidth = 2; g.lineJoin = 'round'; g.beginPath();
+  pts.forEach((p, i) => (i ? g.lineTo(x(i), y(p.vedba)) : g.moveTo(x(i), y(p.vedba))));
+  g.stroke();
+  pts.forEach((p, i) => {
+    if (p.bursts) { g.fillStyle = css.getPropertyValue('--warn'); g.fillRect(x(i) - 1.5, H - 12, 3, 10); }
+    if (p.clipped) { g.fillStyle = '#c0392b'; g.beginPath(); g.arc(x(i), 8, 4, 0, 7); g.fill(); }
+  });
+}
+
+function show(rec) {
+  $('mVedba').textContent = rec.vedba_mean_mg;
+  $('mActive').textContent = `${Math.round((rec.active_frac / 255) * 100)}%`;
+  $('mBursts').textContent = rec.bursts;
+  $('mPose').textContent = `${rec.pitch_deg}° / ${rec.roll_deg}°`;
+  if (rec.battery_pct !== 255) $('mBatt').textContent = `${rec.battery_pct}%`;
+  series.push({ vedba: rec.vedba_mean_mg, bursts: rec.bursts, clipped: rec.clipped });
+  draw();
+}
+
+// ---------- collar ----------
+let collar = null;  // {device, chr: {...}, clock, epochS, name}
+let pendingSync = null;
+
+if (!navigator.bluetooth) {
+  $('support').hidden = false;
+  $('support').textContent = 'This browser has no Web Bluetooth. Use Chrome or Edge (Android, Windows, macOS, Linux, ChromeOS), or Bluefy on iPhone. Demo data still works here.';
+  $('btnConnect').disabled = true; $('btnHr').disabled = true;
+}
+
+async function ingest(records, origin = 'sensor') {
+  const evs = records.flatMap((r) => recordToEvents(r, { dogId: dogId(), deviceId: collar?.name || 'demo-collar', clock: collar?.clock, epochS: collar?.epochS || 5, origin }));
+  await putEvents(evs);
+  const maxSeq = Math.max(...records.map((r) => r.seq));
+  if (collar && origin === 'sensor') await setMeta(`lastSeq:${collar.name}:${collar.bootKey}`, maxSeq);
+  refreshStats();
+}
+
+$('btnConnect').onclick = async () => {
+  try {
+    const device = await navigator.bluetooth.requestDevice({ filters: [{ services: [UUIDS.service] }], optionalServices: ['battery_service'] });
+    $('state').textContent = `Connecting to ${device.name}...`;
+    const server = await device.gatt.connect();
+    const svc = await server.getPrimaryService(UUIDS.service);
+    const chr = {};
+    for (const k of ['live', 'log', 'control', 'status']) chr[k] = await svc.getCharacteristic(UUIDS[k]);
+    const st = decodeStatus(await chr.status.readValue());
+    // Uptime is the collar's only clock. Anchor it to wall time now.
+    const clock = makeClock(Date.now(), st.uptime_s);
+    // A reboot resets uptime/seq; key the sync cursor by approximate boot time.
+    const bootKey = Math.round((Date.now() - st.uptime_s * 1000) / 60000);
+    collar = { device, chr, clock, epochS: st.epoch_s, name: device.name || 'OpenPaw', bootKey };
+    device.addEventListener('gattserverdisconnected', () => { $('state').textContent = 'Disconnected. Tap Connect to reconnect.'; $('btnSync').disabled = true; $('btnFind').disabled = true; log('collar disconnected'); });
+    chr.live.addEventListener('characteristicvaluechanged', async (e) => { const r = decodeRecord(e.target.value); show(r); await ingest([r]); });
+    await chr.live.startNotifications();
+    chr.log.addEventListener('characteristicvaluechanged', async (e) => {
+      const { records, done } = decodeChunk(e.target.value);
+      if (records.length) await ingest(records);
+      if (pendingSync) { pendingSync.n += records.length; $('state').textContent = `Downloading backlog... ${pendingSync.n} epochs`; }
+      if (done && pendingSync) { log(`backlog done: ${pendingSync.n} epochs`); $('state').textContent = `Connected to ${collar.name}. Backlog synced (${pendingSync.n} epochs).`; pendingSync = null; }
+    });
+    await chr.log.startNotifications();
+    $('state').textContent = `Connected to ${collar.name} (${st.board}, ${st.stored} epochs stored, epoch ${st.epoch_s} s).`;
+    $('btnSync').disabled = false; $('btnFind').disabled = false;
+    log(`connected ${collar.name} board=${st.board} next_seq=${st.next_seq} uptime=${st.uptime_s}s`);
+    $('btnSync').click();  // pull anything recorded while we were away
+  } catch (e) { log(`connect failed: ${e.message}`); $('state').textContent = `Could not connect: ${e.message}`; }
+};
+
+$('btnSync').onclick = async () => {
+  if (!collar) return;
+  const from = ((await getMeta(`lastSeq:${collar.name}:${collar.bootKey}`)) ?? -1) + 1;
+  pendingSync = { n: 0 };
+  log(`requesting backlog from seq ${from}`);
+  await collar.chr.control.writeValue(encodeDumpFrom(from));
+};
+
+$('btnFind').onclick = async () => { if (collar) await collar.chr.control.writeValue(CMD_FIND_ME); };
+
+// ---------- heart-rate strap (standard BLE Heart Rate Service, e.g. Polar H10) ----------
+$('btnHr').onclick = async () => {
+  try {
+    const device = await navigator.bluetooth.requestDevice({ filters: [{ services: ['heart_rate'] }] });
+    const server = await device.gatt.connect();
+    const c = await (await server.getPrimaryService('heart_rate')).getCharacteristic('heart_rate_measurement');
+    let seq = 0;
+    c.addEventListener('characteristicvaluechanged', async (e) => {
+      const hr = parseHeartRate(e.target.value);
+      $('mHr').textContent = hr.contact === false ? 'no contact' : `${hr.bpm} bpm`;
+      if (hr.contact !== false) await putEvents(heartRateToEvents(hr, { dogId: dogId(), deviceId: device.name || 'hr-strap', timestamp: new Date().toISOString(), seq: `${Date.now()}-${seq++}` }));
+    });
+    await c.startNotifications();
+    log(`heart-rate strap connected: ${device.name}`);
+  } catch (e) { log(`strap failed: ${e.message}`); }
+};
+
+// ---------- demo ----------
+$('btnDemo').onclick = async () => {
+  const now = Date.now();
+  collar = collar || { name: 'demo-collar', clock: makeClock(now, 3600), epochS: 5, bootKey: 0, demo: true };
+  const recs = [];
+  for (let i = 0; i < 720; i++) {
+    const t = i / 720, walk = t > 0.35 && t < 0.7, lunge = i === 430 || i === 431;
+    const vedba = walk ? 380 + 120 * Math.sin(i / 7) + Math.random() * 60 : 12 + Math.random() * 10;
+    recs.push({ version: 1, flags: lunge ? 4 : 0, seq: i, uptime_s: 3600 - (720 - i) * 5, vedba_mean_mg: Math.round(vedba), vedba_max_mg: Math.round(lunge ? 3400 : vedba * 1.8),
+      active_frac: walk ? 230 : 3, pitch_deg: walk ? -12 : 4, roll_deg: walk ? 2 : 0, bursts: lunge ? 1 : 0, hr_bpm: 0, battery_pct: 78, clipped: lunge && i === 430, gap: false });
+  }
+  $('simBanner').hidden = false;
+  recs.forEach(show);
+  await ingest(recs, 'simulated');
+  log('loaded 1 h of simulated data (labelled origin=simulated)');
+};
+
+// ---------- export ----------
+$('btnExport').onclick = async () => {
+  const evs = (await allEvents()).sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+  const blob = new Blob([toJsonl(evs)], { type: 'application/x-ndjson' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `openpaw-${dogId()}-${new Date().toISOString().slice(0, 10)}.jsonl`;
+  a.click();
+  log(`exported ${evs.length} events`);
+};
+$('btnClear').onclick = async () => {
+  if (!confirm('Delete all OpenPaw data stored in this browser? Export first if you want a copy.')) return;
+  await new Promise((res) => { const r = tx('events', 'readwrite').clear(); r.onsuccess = res; });
+  series.length = 0; draw(); refreshStats(); log('cleared');
+};
+</script>
+</body>
+</html>

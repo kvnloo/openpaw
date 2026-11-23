@@ -47,6 +47,7 @@ The first pretotype should demonstrate:
 
 See:
 
+- **[Build the reference collar](docs/COLLAR.md)**: about $50, no soldering, drag-and-drop firmware, browser app. In Claude Code, run `/build-collar`.
 - [Protocol v0](docs/PROTOCOL.md)
 - [Pretotype plan](docs/PRETOTYPE.md)
 - [Expert interview guide](docs/EXPERT-INTERVIEWS.md)
