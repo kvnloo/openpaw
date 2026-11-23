@@ -30,6 +30,8 @@ jobs:
           cp -R site/. _site/
           rm -rf _site/test
           cp app/*.html app/*.js _site/app/
+          # app pages reference ../site/fonts (works in the repo checkout); publish the same path
+          mkdir -p _site/site && cp -R site/fonts _site/site/fonts
           touch _site/.nojekyll
           # every local href/src in the landing page must exist in the staged site
           grep -oE '(href|src)="[^"#:]+"' _site/index.html | sed -E 's/.*="([^"]+)"/\1/' | while read -r f; do
