@@ -5,6 +5,7 @@ OpenPaw is intended to preserve the origin of ideas, evidence, design decisions,
 ## Project framing
 
 - **OpenPaw concept / project direction:** Kevin Rajan (@kvnloo).
+- **Behavior inspiration:** Pet Harmony's force-free, consent-based behavior work (body language, consent checks, owner-led training). OpenPaw is not officially affiliated with or endorsed by Pet Harmony.
 - **Blueprint framing inspiration:** Bryan Johnson's public Blueprint work around longitudinal measurement, personal baselines, and iterative protocols. OpenPaw is independent and unaffiliated.
 - **Veterinary and behavior foundations:** future protocol decisions should cite the specific veterinarian, behavior professional, researcher, paper, or guideline that motivated them.
 - **Open hardware and wearable ecosystem:** OpenPaw should reuse and credit existing work where possible instead of presenting established sensing/tracking primitives as novel.
