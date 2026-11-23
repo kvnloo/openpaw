@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenPaw: the open-source dog collar</title>
+<meta name="description" content="A $50 collar you build in 15 minutes. Movement, bursts and recovery every 5 seconds. Your data, no subscription. Open source, GPL-3.0.">
+<meta property="og:title" content="OpenPaw: know your dog's baseline">
+<meta property="og:description" content="An open-source dog collar you build in 15 minutes. No subscription. Raw data export.">
+<meta property="og:image" content="img/hero-exploded.jpg">
+<meta name="theme-color" content="#0c0c0a">
+<link rel="preload" href="fonts/fraunces-latin-opsz-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="nav">
+  <div class="wrap nav-in">
+    <a class="logo" href="#top" aria-label="OpenPaw home">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="20" r="6.5"/><circle cx="7.5" cy="12.5" r="3"/><circle cx="13" cy="7.5" r="3"/><circle cx="19" cy="7.5" r="3"/><circle cx="24.5" cy="12.5" r="3"/></svg>
+      OpenPaw
+    </a>
+    <nav aria-label="Primary">
+      <a href="#how">How it works</a>
+      <a href="#measures">What it measures</a>
+      <a href="#build">Build</a>
+      <a href="https://github.com/kvnloo/openpaw">GitHub</a>
+    </nav>
+    <a class="btn btn-ghost btn-sm" href="#build">Build yours</a>
+  </div>
+</header>
+
+<main id="main">
+<!-- HERO -->
+<section class="hero" id="top">
+  <div class="wrap hero-in">
+    <div class="hero-copy">
+      <p class="eyebrow">Open-source dog collar <span class="pill">Preview edition</span></p>
+      <h1>Know your<br>dog’s<br>baseline.</h1>
+      <p class="lede">A $50 collar you build in 15 minutes. Movement, bursts and recovery every 5 seconds. Your data, no subscription.</p>
+      <div class="ctas">
+        <a class="btn btn-gold" href="#build">Build yours</a>
+        <a class="btn btn-ghost mono" href="app/">Try the live demo</a>
+      </div>
+      <ul class="fine mono">
+        <li>GPL-3.0</li><li>No subscription</li><li>Raw data export</li>
+      </ul>
+    </div>
+    <figure class="hero-art">
+      <span class="br tl"></span><span class="br tr"></span><span class="br bl"></span><span class="br br-"></span>
+      <img src="img/hero-exploded.jpg" width="1645" height="1800" alt="Exploded view of the collar sensor: sealed shell, battery, circuit board with Bluetooth radio and accelerometer, base with magnetic charging contacts" fetchpriority="high">
+      <span class="call mono" style="--x:71.1%;--y:20%;--l:44px">IP65</span>
+      <span class="call mono" style="--x:65.5%;--y:35%;--l:52px">700 mAh</span>
+      <span class="call left mono" style="--x:34.3%;--y:57%;--l:150px">nRF52840</span>
+      <span class="call mono" style="--x:59.1%;--y:53%;--l:96px">accelerometer</span>
+      <span class="call left mono" style="--x:23.1%;--y:86%;--l:44px">magnetic charge</span>
+      <div class="specs"><span>IP65</span><span>700 mAh</span><span>nRF52840</span><span>accelerometer</span></div>
+      <figcaption class="mono">Illustrative render · SenseCAP T1000-E class card</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- REACTIVE -->
+<section class="sec" id="how">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>Built for reactive dogs.</h2>
+      <p class="muted">A reaction is a story, not a score: what the baseline looked like, what set it off, how big it got, and how long it took to come back down. OpenPaw records the movement side of that story every 5 seconds, and you add what you saw.</p>
+    </div>
+    <div class="chart" role="img" aria-label="Illustrative movement timeline with baseline, trigger, reaction and recovery phases">
+      <div class="phases mono"><span style="--w:24%">Baseline</span><span style="--w:14%">Trigger</span><span style="--w:30%">Reaction</span><span style="--w:32%">Recovery</span></div>
+      <svg id="tl" viewBox="0 0 1000 220" preserveAspectRatio="none" aria-hidden="true"></svg>
+      <div class="chart-foot mono"><span>movement (VeDBA, mg) · 5 s epochs</span><span>simulated example</span></div>
+    </div>
+    <div class="three-up">
+      <div><p class="k mono">01 · Baseline</p><p>Learn what calm looks like for <em>your</em> dog, not an average dog.</p></div>
+      <div><p class="k mono">02 · Trigger &amp; reaction</p><p>Bursts mark lunges and shakes. Tap “trigger seen” in the app to tie them to what happened.</p></div>
+      <div><p class="k mono">03 · Recovery</p><p>Time back to baseline is the number trainers care about, and it’s the one owners can’t eyeball.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- STEPS -->
+<section class="sec" id="build">
+  <div class="wrap">
+    <div class="sec-head"><h2>Three steps. No soldering.</h2>
+      <p class="muted">No toolchain, no app store, no account. If you can drag a file, you can build it.</p></div>
+    <ol class="steps">
+      <li class="card">
+        <svg viewBox="0 0 220 110" aria-hidden="true" class="ill"><rect x="20" y="22" width="92" height="58" rx="12"/><circle cx="100" cy="34" r="3"/><rect x="128" y="40" width="70" height="30" rx="6"/><path d="M128 55h-8M198 55h8"/><path d="M40 96h40M140 96h46" class="dim"/></svg>
+        <h3><span class="n">1</span> Order the parts</h3>
+        <p class="mono sub">About $50</p>
+        <p class="muted small">A SenseCAP T1000-E card ($39.90), a collar case and a flat collar. Parts list with links in the guide.</p>
+      </li>
+      <li class="card">
+        <svg viewBox="0 0 220 110" aria-hidden="true" class="ill"><path d="M28 18h40l14 14v60H28z"/><path d="M68 18v14h14"/><path d="M98 56h30M120 48l8 8-8 8"/><rect x="142" y="30" width="58" height="52" rx="8"/><rect x="160" y="47" width="22" height="18" rx="2"/></svg>
+        <h3><span class="n">2</span> Drag the firmware</h3>
+        <p class="mono sub">One file, no install</p>
+        <p class="muted small">Plug it in, a drive appears, drop <span class="mono">openpaw-collar.uf2</span> on it. Done.</p>
+      </li>
+      <li class="card">
+        <svg viewBox="0 0 220 110" aria-hidden="true" class="ill"><rect x="22" y="14" width="176" height="84" rx="8"/><path d="M22 30h176"/><circle cx="34" cy="22" r="2.5"/><circle cx="44" cy="22" r="2.5"/><circle cx="54" cy="22" r="2.5"/><path d="M36 82 L66 80 L80 78 L92 60 L100 70 L110 46 L120 66 L130 54 L140 70 L156 76 L184 80"/></svg>
+        <h3><span class="n">3</span> Open the app</h3>
+        <p class="mono sub">Runs in your browser</p>
+        <p class="muted small">Chrome or Edge connects over Bluetooth. On iPhone, use Bluefy. Your data never leaves the device unless you export it.</p>
+      </li>
+    </ol>
+    <div class="claude">
+      <div>
+        <p class="eyebrow">Have a Claude subscription?</p>
+        <h3>Let Claude walk you through it.</h3>
+        <p class="muted">Open the repo in Claude Code and run one command. It picks the kit with you, writes the order list, and checks each step before moving on.</p>
+      </div>
+      <pre class="term mono" aria-label="Terminal"><span class="dim">~/openpaw $</span> claude
+<span class="gold">&gt;</span> /build-collar
+<span class="dim">  Which do you want: zero tools (T1000-E card)
+  or cheapest (XIAO board, two solder joints)?</span></pre>
+    </div>
+  </div>
+</section>
+
+<!-- MEASURES -->
+<section class="sec" id="measures">
+  <div class="wrap">
+    <div class="sec-head"><h2>What it measures.</h2>
+      <p class="muted">Every 5 seconds the collar turns 250 accelerometer samples into one small, honest record.</p></div>
+    <div class="metrics">
+      <div class="metric"><p class="mono k">VeDBA</p><p class="big">412<small> mg</small></p><p class="muted small">Movement intensity. A standard measure in animal-tracking research.</p></div>
+      <div class="metric"><p class="mono k">Active share</p><p class="big">91<small>%</small></p><p class="muted small">How much of the epoch your dog was moving.</p></div>
+      <div class="metric"><p class="mono k">Bursts</p><p class="big">1</p><p class="muted small">Sharp events above 1.5 g: lunges, shakes, jumps. Counted once each.</p></div>
+      <div class="metric"><p class="mono k">Posture</p><p class="big">−12°<small> / 2°</small></p><p class="muted small">Head pitch and roll: nose down sniffing vs head up scanning.</p></div>
+    </div>
+    <div class="split">
+      <div class="panel">
+        <p class="mono k">Add a chest strap (optional)</p>
+        <p>Pair a Polar H10 and the app records heart rate and beat-to-beat intervals next to movement.</p>
+      </div>
+      <div class="panel honest">
+        <p class="mono k">What it will never claim</p>
+        <ul class="x">
+          <li>To know what your dog feels</li>
+          <li>A diagnosis or a “stress score”</li>
+          <li>Treatment or training advice</li>
+        </ul>
+        <p class="muted small">It records evidence. You, your vet and your trainer interpret it.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- APP -->
+<section class="sec">
+  <div class="wrap app-row">
+    <div class="phone"><img src="img/app-demo.jpg" width="780" height="1640" alt="The OpenPaw web app showing live movement metrics and a one-hour movement chart" loading="lazy"></div>
+    <div>
+      <p class="eyebrow">The app</p>
+      <h2>Opens in a tab.<br>Keeps your data.</h2>
+      <ul class="ticks">
+        <li>Live movement, bursts and posture</li>
+        <li>Pulls in what the collar logged while you were away</li>
+        <li>Stored in your browser, not on our servers (we don't have any)</li>
+        <li>Export everything as open JSONL, any time</li>
+      </ul>
+      <a class="btn btn-gold" href="app/">Try it with demo data</a>
+    </div>
+  </div>
+</section>
+
+<!-- COMPARE -->
+<section class="sec" id="compare">
+  <div class="wrap">
+    <div class="sec-head"><h2>Open by default.</h2>
+      <p class="muted">Commercial collars are polished, and they do things OpenPaw doesn't, like cellular GPS and escape alerts. If you need a lost-dog tracker, buy one. If you want to understand behavior, here is the trade.</p></div>
+    <div class="cost">
+      <p class="mono k">First-year cost at list price · device + cheapest required plan</p>
+      <ul class="bars mono">
+        <li class="us" style="--v:50"><span>OpenPaw (DIY)</span><b></b><em>~$50</em></li>
+        <li style="--v:166"><span>FitBark GPS</span><b></b><em>$166</em></li>
+        <li style="--v:223"><span>Tractive DOG 6</span><b></b><em>$223</em></li>
+        <li style="--v:318"><span>Fi Series 3+</span><b></b><em>$318</em></li>
+        <li style="--v:699"><span>PetPace 3.0</span><b></b><em>$699</em></li>
+        <li style="--v:719"><span>Halo Collar 5</span><b></b><em>$719+</em></li>
+      </ul>
+      <p class="cmp-src mono">Prices from each maker's site on 2026-11-23 (<a href="https://www.fitbark.com/plans">FitBark</a>, <a href="https://tractive.com/en/pd/gps-tracker-dog">Tractive</a>, <a href="https://tryfi.com">Fi</a>, <a href="https://petpace.com">PetPace</a>, <a href="https://www.halocollar.com">Halo</a>). These products include GPS and cellular service; OpenPaw does not.</p>
+    </div>
+    <div class="table-wrap">
+      <table class="cmp">
+        <thead><tr><th></th><th class="us">OpenPaw</th><th>Typical subscription collar</th></tr></thead>
+        <tbody>
+          <tr><td>Monthly fee</td><td data-l="OpenPaw" class="us">None, ever</td><td data-l="Subscription collar">Required for core features on most</td></tr>
+          <tr><td>Your raw data</td><td data-l="OpenPaw" class="us">Every 5-second record as open JSONL</td><td data-l="Subscription collar">In-app charts, PDF reports or GPS export</td></tr>
+          <tr><td>How numbers are computed</td><td data-l="OpenPaw" class="us">Open source, one readable C file</td><td data-l="Subscription collar">Proprietary scores</td></tr>
+          <tr><td>Built around reactivity episodes</td><td data-l="OpenPaw" class="us">Baseline, trigger, reaction, recovery</td><td data-l="Subscription collar">Activity, sleep and health counters</td></tr>
+          <tr><td>GPS / escape alerts</td><td data-l="OpenPaw" class="us no">No</td><td data-l="Subscription collar">Yes, with a plan</td></tr>
+          <tr><td>Polish and support</td><td data-l="OpenPaw" class="us no">Preview edition, community</td><td data-l="Subscription collar">Finished product, company support</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="vanish">
+      <p class="mono k">If we disappear, your collar still works</p>
+      <p>In 2025 a popular pet tracker was acquired and <a href="https://www.theverge.com/news/714775/tractive-whistle-pet-tracker-acquisition">its devices were switched off</a>. OpenPaw has no server to switch off: the firmware is GPL-3.0, the app runs in your browser, and the protocol is a documented file format.</p>
+    </div>
+  </div>
+</section>
+
+<!-- PROFESSIONALS -->
+<section class="band" style="--img:url(img/dog-night.jpg)">
+  <div class="wrap band-in">
+    <p class="eyebrow">For your vet and behaviorist</p>
+    <h2>Bring evidence,<br>not memories.</h2>
+    <p class="lede">“He was fine and then he lost it” becomes a week of timestamped episodes they can scroll, annotate and question. Every number traces back to its raw record.</p>
+  </div>
+</section>
+
+<!-- FIT -->
+<section class="sec">
+  <div class="wrap fit">
+    <img src="img/walk-field.jpg" width="1800" height="1013" alt="An owner walking a German Shepherd on a harness at golden hour; the sensor sits on a separate flat collar" loading="lazy">
+    <div>
+      <h2>Fits like it should.</h2>
+      <ul class="ticks">
+        <li>Its own flat collar; leash on a harness. Never on a slip, prong or martingale collar.</li>
+        <li>Card under the neck, same way up every time. Two-finger fit.</li>
+        <li>32 grams. Rain and splashes are fine; take it off to swim.</li>
+        <li>Charge off the dog. Keep it away from chewers.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- STATUS -->
+<section class="sec" id="status">
+  <div class="wrap">
+    <div class="sec-head"><h2>Where it is today.</h2>
+      <p class="muted">We'd rather tell you than have you find out.</p></div>
+    <ol class="status mono">
+      <li class="done"><span>Open protocol and event schema</span></li>
+      <li class="done"><span>Firmware for two boards, tested on a computer</span></li>
+      <li class="done"><span>Browser app, downloadable firmware files</span></li>
+      <li class="now"><span>First real-dog hardware trials</span></li>
+      <li><span>Week-long storage, battery tuning</span></li>
+      <li><span>Review with vets and behaviorists</span></li>
+    </ol>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section class="sec" id="faq">
+  <div class="wrap faq">
+    <h2>Questions.</h2>
+    <div>
+      <details><summary>Do I need to know electronics or code?</summary><p>No. Kit A needs no tools: you drag one file onto the card and open a web page. The guide, or Claude with <span class="mono">/build-collar</span>, walks you through it.</p></details>
+      <details><summary>Does it track location?</summary><p>Not yet. The card has GPS hardware, but the firmware doesn't use it today. If you need a lost-dog tracker, a commercial GPS collar is the better tool right now.</p></details>
+      <details><summary>Will it tell me if my dog is stressed?</summary><p>No, and be wary of anything that says it can from a collar. OpenPaw measures movement (and heart rate with a strap). Interpreting it is a job for you and a qualified professional.</p></details>
+      <details><summary>Does it work on iPhone?</summary><p>Yes, in the free Bluefy browser, which supports Web Bluetooth. Chrome and Edge work on Android, Windows, macOS and ChromeOS.</p></details>
+      <details><summary>Where does my data go?</summary><p>Nowhere. It's stored in your browser. There is no OpenPaw server or account. Export it as a file whenever you want to share it.</p></details>
+      <details><summary>How long does the battery last?</summary><p>We haven't measured it on real hardware yet, so we won't guess here. It will be published from real runs.</p></details>
+    </div>
+  </div>
+</section>
+
+<section class="cta-end">
+  <div class="wrap">
+    <h2>Know your dog’s baseline.</h2>
+    <div class="ctas center">
+      <a class="btn btn-gold" href="https://github.com/kvnloo/openpaw/blob/main/docs/COLLAR.md">Read the build guide</a>
+      <a class="btn btn-ghost mono" href="https://github.com/kvnloo/openpaw/releases?q=collar">Download firmware</a>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer class="foot">
+  <div class="wrap foot-in mono">
+    <span>OpenPaw · open hardware &amp; software · GPL-3.0</span>
+    <span>Measurements, not diagnoses. For health or behavior concerns, see a veterinarian or qualified behavior professional.</span>
+    <a href="https://github.com/kvnloo/openpaw">github.com/kvnloo/openpaw</a>
+  </div>
+</footer>
+<script src="site.js" defer></script>
+</body>
+</html>
