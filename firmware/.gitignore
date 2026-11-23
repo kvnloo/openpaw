@@ -1,0 +1,4 @@
+# Local arduino-cli builds export these next to the sketch; release UF2s come from CI.
+*.uf2
+*.hex
+*.zip
