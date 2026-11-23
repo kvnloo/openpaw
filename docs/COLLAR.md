@@ -60,7 +60,7 @@ The collar keeps recording while your phone is away and holds about the last 5.7
 | No USB drive appears | Use a data-capable cable (some cables only charge). On the T1000-E, retry the hold-button-and-connect-twice sequence. |
 | 5 fast blinks at startup | The motion sensor didn't answer. Reflash. If it keeps happening, open an issue with your board name. |
 | App can't find `OpenPaw-XXXX` | The collar advertises quickly for the first 30 s after boot or disconnect, then slows down. Wait a few seconds, keep the phone close and turn Bluetooth on. iPhone: use Bluefy. |
-| Battery shows `-` | The T1000-E battery reading isn't calibrated yet, so it reports "unknown" rather than a guess. |
+| Battery shows `-` | The collar couldn't see a battery (for example a bare board running on USB power), so it reports "unknown" rather than a guess. The percentage is a rough estimate from the battery voltage. |
 
 ## What it measures
 
