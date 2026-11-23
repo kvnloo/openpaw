@@ -15,6 +15,7 @@
 <body>
 <a class="skip" href="#main">Skip to content</a>
 
+<div class="progress" aria-hidden="true"><b id="progress"></b></div>
 <header class="nav">
   <div class="wrap nav-in">
     <a class="logo" href="#top" aria-label="OpenPaw home">
@@ -22,8 +23,9 @@
       OpenPaw
     </a>
     <nav aria-label="Primary">
-      <a href="#how">How it works</a>
-      <a href="#measures">What it measures</a>
+      <a href="#how">Reactivity lab</a>
+      <a href="#protocol">Protocol</a>
+      <a href="#team">For pros</a>
       <a href="#build">Build</a>
       <a href="https://github.com/kvnloo/openpaw">GitHub</a>
     </nav>
@@ -46,6 +48,11 @@
       <ul class="fine mono">
         <li>GPL-3.0</li><li>No subscription</li><li>Raw data export</li>
       </ul>
+      <div class="live mono" aria-hidden="true">
+        <span class="dot"></span><span>LIVE · simulated</span>
+        <svg id="live-svg" viewBox="0 0 240 36" preserveAspectRatio="none"></svg>
+        <span id="live-val">14 mg</span>
+      </div>
     </div>
     <figure class="hero-art">
       <span class="br tl"></span><span class="br tr"></span><span class="br bl"></span><span class="br br-"></span>
@@ -61,23 +68,52 @@
   </div>
 </section>
 
-<!-- REACTIVE -->
-<section class="sec" id="how">
+<!-- REACTIVITY LAB -->
+<section class="sec lab" id="how" aria-labelledby="lab-h">
   <div class="wrap">
-    <div class="sec-head">
-      <h2>Built for reactive dogs.</h2>
-      <p class="muted">A reaction is a story, not a score: what the baseline looked like, what set it off, how big it got, and how long it took to come back down. OpenPaw records the movement side of that story every 5 seconds, and you add what you saw.</p>
+    <p class="eyebrow">Reactivity lab · simulated</p>
+    <h2 id="lab-h">See the threshold before you hit it.</h2>
+    <p class="muted lab-intro">A reaction is a story, not a score: the baseline, what set it off, how high it went, how long the come-down took. Move the sliders to see how distance, trigger stacking, sleep and how quickly you create distance change that story. This is the feedback loop OpenPaw is built around.</p>
+    <div class="lab-grid">
+      <form class="controls" id="lab-controls" onsubmit="return false">
+        <div class="presets mono" role="group" aria-label="Scenarios">
+          <button type="button" data-preset="calm" class="chip">Calm day</button>
+          <button type="button" data-preset="stacked" class="chip">Stacked</button>
+          <button type="button" data-preset="close" class="chip">Too close</button>
+        </div>
+        <label class="ctl"><span class="mono">Trigger distance</span><output class="mono" for="in-d" id="out-d">25 ft</output>
+          <input type="range" id="in-d" min="8" max="60" step="1" value="25"></label>
+        <label class="ctl"><span class="mono">Since last trigger</span><output class="mono" for="in-s" id="out-s">60 min</output>
+          <input type="range" id="in-s" min="1" max="60" step="1" value="60"></label>
+        <label class="ctl"><span class="mono">Create distance after</span><output class="mono" for="in-i" id="out-i">6 s</output>
+          <input type="range" id="in-i" min="1" max="30" step="1" value="6"></label>
+        <div class="ctl"><span class="mono">Sleep last night</span>
+          <div class="seg mono" role="radiogroup" aria-label="Sleep last night">
+            <button type="button" role="radio" aria-checked="true" data-sleep="good">Good</button>
+            <button type="button" role="radio" aria-checked="false" data-sleep="short">Short</button>
+            <span class="seg-ind" aria-hidden="true"></span>
+          </div>
+        </div>
+      </form>
+      <div class="lab-viz">
+        <figure class="lab-chart" id="lab-chart">
+          <span class="br tl"></span><span class="br tr"></span><span class="br bl"></span><span class="br br-"></span>
+          <svg id="lab-svg" viewBox="0 0 800 300" preserveAspectRatio="none" role="img" aria-labelledby="lab-cap"></svg>
+          <div class="band-labels mono" aria-hidden="true"><span class="b-near">near threshold</span><span class="b-el">elevated</span><span class="b-base">baseline</span></div>
+          <div class="axis mono" aria-hidden="true"><span id="ax-trig" class="sr-hide">trigger</span><span id="ax-int">distance created</span></div>
+          <div class="ticks mono" id="lab-ticks" aria-hidden="true"></div>
+          <div class="scrub mono" id="lab-scrub" aria-hidden="true"><b></b><span></span></div>
+          <figcaption id="lab-cap" class="sr">Simulated arousal over ten minutes for the chosen scenario.</figcaption>
+        </figure>
+        <div class="stats">
+          <div><p class="mono">Peak</p><p class="big" id="st-peak">0.64</p></div>
+          <div><p class="mono">Over threshold</p><p class="big" id="st-over">5 s</p></div>
+          <div><p class="mono">Recovery</p><p class="big" id="st-rec">2 min 12 s</p></div>
+        </div>
+        <p class="insight" id="lab-insight" aria-live="polite"></p>
+      </div>
     </div>
-    <div class="chart" role="img" aria-label="Illustrative movement timeline with baseline, trigger, reaction and recovery phases">
-      <div class="phases mono"><span style="--w:24%">Baseline</span><span style="--w:14%">Trigger</span><span style="--w:30%">Reaction</span><span style="--w:32%">Recovery</span></div>
-      <svg id="tl" viewBox="0 0 1000 220" preserveAspectRatio="none" aria-hidden="true"></svg>
-      <div class="chart-foot mono"><span>movement (VeDBA, mg) · 5 s epochs</span><span>simulated example</span></div>
-    </div>
-    <div class="three-up">
-      <div><p class="k mono">01 · Baseline</p><p>Learn what calm looks like for <em>your</em> dog, not an average dog.</p></div>
-      <div><p class="k mono">02 · Trigger &amp; reaction</p><p>Bursts mark lunges and shakes. Tap “trigger seen” in the app to tie them to what happened.</p></div>
-      <div><p class="k mono">03 · Recovery</p><p>Time back to baseline is the number trainers care about, and it’s the one owners can’t eyeball.</p></div>
-    </div>
+    <p class="fine-print mono">Illustrative open model with made-up parameters (<a href="https://github.com/kvnloo/openpaw/blob/main/site/reactivity-model.js">source</a>). Not a diagnosis. The real version fits these curves to your dog’s recorded episodes and your consultant’s notes.</p>
   </div>
 </section>
 
@@ -112,10 +148,10 @@
         <h3>Let Claude walk you through it.</h3>
         <p class="muted">Open the repo in Claude Code and run one command. It picks the kit with you, writes the order list, and checks each step before moving on.</p>
       </div>
-      <pre class="term mono" aria-label="Terminal"><span class="dim">~/openpaw $</span> claude
+      <div class="term-wrap"><button class="copy mono" type="button" data-copy="claude\n/build-collar">Copy</button><pre class="term mono" aria-label="Terminal"><span class="dim">~/openpaw $</span> claude
 <span class="gold">&gt;</span> /build-collar
 <span class="dim">  Which do you want: zero tools (T1000-E card)
-  or cheapest (XIAO board, two solder joints)?</span></pre>
+  or cheapest (XIAO board, two solder joints)?</span></pre></div>
     </div>
   </div>
 </section>
@@ -164,6 +200,72 @@
       </ul>
       <a class="btn btn-gold" href="app/">Try it with demo data</a>
     </div>
+  </div>
+</section>
+
+<!-- PROTOCOL -->
+<section class="sec" id="protocol" aria-labelledby="pr-h">
+  <div class="wrap">
+    <p class="eyebrow">The protocol</p>
+    <h2 id="pr-h">Measure. Change one thing.<br>Measure again.</h2>
+    <div class="loop-wrap">
+      <ol class="loop mono" id="loop">
+        <li>Measure</li><li>Learn the baseline</li><li>Change one thing</li><li>Re-measure</li>
+      </ol>
+      <svg class="loop-back" viewBox="0 0 1000 40" preserveAspectRatio="none" aria-hidden="true"><path d="M757 2 V22 Q757 34 745 34 H19 Q7 34 7 22 V8"/><path d="M1 14 L7 6 L13 14" class="tip"/></svg>
+    </div>
+    <div class="proto-grid">
+      <figure class="proto-chart">
+        <span class="br tl"></span><span class="br tr"></span><span class="br bl"></span><span class="br br-"></span>
+        <div class="chips mono" role="tablist" aria-label="Metric" id="proto-chips">
+          <button role="tab" aria-selected="true" data-m="thresholdFt" class="chip">Threshold distance</button>
+          <button role="tab" aria-selected="false" data-m="recoveryS" class="chip">Median recovery</button>
+          <button role="tab" aria-selected="false" data-m="episodes" class="chip">Episodes per week</button>
+          <button role="tab" aria-selected="false" data-m="stacked" class="chip">Stacked triggers</button>
+        </div>
+        <div class="proto-plot">
+          <svg id="proto-svg" viewBox="0 0 900 300" preserveAspectRatio="none" role="img" aria-label="Simulated eight-week trend for the selected metric"></svg>
+          <div class="tip mono" id="proto-tip" hidden></div>
+          <div class="better mono" aria-hidden="true">↑ better</div>
+        </div>
+        <div class="weeks mono" aria-hidden="true"><span>W1</span><span>W2</span><span>W3</span><span>W4</span><span>W5</span><span>W6</span><span>W7</span><span>W8</span></div>
+      </figure>
+      <aside class="week-card" aria-live="polite">
+        <h3 id="wk-title">This week</h3>
+        <dl class="mono" id="wk-list"></dl>
+        <p class="muted small" id="wk-delta"></p>
+      </aside>
+    </div>
+    <p class="fine-print mono">Simulated 8 weeks. Threshold distance = the closest a trigger can be while your dog stays under threshold, so smaller is better. Longitudinal-protocol framing inspired by Bryan Johnson’s Blueprint; OpenPaw is independent and unaffiliated.</p>
+  </div>
+</section>
+
+<!-- LENSES -->
+<section class="sec" id="team" aria-labelledby="ln-h">
+  <div class="wrap">
+    <p class="eyebrow">For behavior consultants and veterinary teams</p>
+    <h2 id="ln-h">One episode, three lenses.</h2>
+    <p class="muted lab-intro">The owner lives the walk, the behavior consultant designs the plan, the vet rules out what hurts. They all look at the same episode, each with the detail their job needs.</p>
+    <div class="tabs mono" role="tablist" aria-label="Lens" id="lens-tabs">
+      <button role="tab" id="t-owner" aria-controls="lens-panel" aria-selected="false" tabindex="-1" data-l="owner">Owner</button>
+      <button role="tab" id="t-consult" aria-controls="lens-panel" aria-selected="true" data-l="consult"><span class="tl">Behavior consultant</span><span class="ts">Consultant</span></button>
+      <button role="tab" id="t-vet" aria-controls="lens-panel" aria-selected="false" tabindex="-1" data-l="vet"><span class="tl">Veterinarian</span><span class="ts">Vet</span></button>
+      <span class="tab-ind" aria-hidden="true"></span>
+    </div>
+    <div class="lens" id="lens-panel" role="tabpanel" aria-labelledby="t-consult">
+      <span class="br tl"></span><span class="br tr"></span><span class="br bl"></span><span class="br br-"></span>
+      <div class="lens-chart">
+        <div class="phases mono"><span>Before</span><span>Rising</span><span>Peak</span><span>Recovery</span></div>
+        <svg id="lens-svg" viewBox="0 0 520 220" preserveAspectRatio="none" aria-hidden="true"></svg>
+        <p class="mono axis-note">phase-scaled time · movement (VeDBA)</p>
+      </div>
+      <dl class="lens-rows" id="lens-rows"></dl>
+      <div class="evidence">
+        <h3>Evidence</h3>
+        <ul class="mono" id="lens-ev"></ul>
+      </div>
+    </div>
+    <p class="fine-print mono">Simulated episode. Every number links to the raw record behind it. Plan steps come from your professional, never from OpenPaw.</p>
   </div>
 </section>
 
@@ -278,6 +380,7 @@
     <a href="https://github.com/kvnloo/openpaw">github.com/kvnloo/openpaw</a>
   </div>
 </footer>
-<script src="site.js" defer></script>
+<div class="toast mono" id="toast" role="status" aria-live="polite"></div>
+<script type="module" src="site.js"></script>
 </body>
 </html>

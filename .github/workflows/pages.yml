@@ -23,11 +23,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: node --test app/test/*.test.mjs
+      - run: node --test app/test/*.test.mjs site/test/*.test.mjs
       - name: Stage site (landing at root, app under /app, no tests)
         run: |
           mkdir -p _site/app
           cp -R site/. _site/
+          rm -rf _site/test
           cp app/index.html app/openpaw-ble.js _site/app/
           touch _site/.nojekyll
           # every local href/src in the landing page must exist in the staged site
