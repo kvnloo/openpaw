@@ -128,19 +128,90 @@ static uint8_t lipo_pct(float v) {  // rough single-cell LiPo resting curve
   return 0;
 }
 static uint8_t battery_read_pct() {
+  analogReadResolution(12);
+  uint32_t raw = 0;
 #if BOARD_XIAO_SENSE
   // XIAO nRF52840: VBAT through 1M/510k divider on PIN_VBAT, enabled by VBAT_ENABLE low.
   pinMode(VBAT_ENABLE, OUTPUT);
   digitalWrite(VBAT_ENABLE, LOW);
-  analogReadResolution(12);
-  uint32_t raw = 0;
   for (int i = 0; i < 4; i++) raw += analogRead(PIN_VBAT);
-  float v = (raw / 4.0f) * (3.6f / 4096.0f) * (1510.0f / 510.0f);
-  if (v < 2.5f) return 255;  // no battery attached (USB only)
-  return lipo_pct(v);
+  uint16_t mv = openpaw_vbat_mv(raw, 4, 12, 3600, 1510, 510);
 #else
-  return 255;  // T1000-E divider ratio not verified yet: report unknown rather than guess
+  // T1000-E: VBAT through a 100k/100k divider (x2) on A0 = P0.02, 3.0 V reference.
+  // Sources: Seeed T1000-E LoRaWAN dev-board sensor.c (bat_v * 2), Meshtastic
+  // tracker-t1000-e variant.h (ADC_MULTIPLIER 2.0, AR_INTERNAL_3_0), SoftRF (100K + 100K).
+  analogReference(AR_INTERNAL_3_0);
+  for (int i = 0; i < 4; i++) raw += analogRead(BAT_ANALOG_INPUT);
+  analogReference(AR_DEFAULT);
+  uint16_t mv = openpaw_vbat_mv(raw, 4, 12, 3000, 2000, 1000);
 #endif
+  if (mv < 2500) return 255;  // no battery attached (USB only)
+  return lipo_pct(mv / 1000.0f);
+}
+
+// ---------------------------------------------------------------- storage probe
+// Ask the external NOR flash for its JEDEC ID (0x9F) with a bit-banged SPI read
+// on the QSPI pins, so no flash library is needed and an absent chip just reads
+// FF/00. The result picks QSPI vs internal-flash logging (openpaw_flash_identify).
+#if BOARD_T1000E
+// Seeed's T1000-E variant.h sets PIN_QSPI_IO3 to 33, but its own variant.cpp and
+// the Seeed wiki pin table put QSPI IO3 on P1.00 = pin 32 (33 is P1.01, LR1110
+// DIO9). The flash also has a power switch, "Flash Enable" P1.13 = pin 45, that
+// variant.h does not define (Seeed wiki pin table; SoftRF drives it HIGH).
+#define FLASH_SCK 19
+#define FLASH_CS 20
+#define FLASH_MOSI 21
+#define FLASH_MISO 22
+#define FLASH_WP 23
+#define FLASH_HOLD 32
+#define FLASH_POWER_EN 45
+#else
+#define FLASH_SCK PIN_QSPI_SCK
+#define FLASH_CS PIN_QSPI_CS
+#define FLASH_MOSI PIN_QSPI_IO0
+#define FLASH_MISO PIN_QSPI_IO1
+#define FLASH_WP PIN_QSPI_IO2
+#define FLASH_HOLD PIN_QSPI_IO3
+#endif
+static uint8_t g_flash_id[3] = {0xFF, 0xFF, 0xFF};
+static openpaw_flash_t g_flash;
+static char g_flash_line[40];
+
+static uint8_t flash_xfer(uint8_t out) {
+  uint8_t in = 0;
+  for (int i = 7; i >= 0; i--) {  // SPI mode 0, MSB first
+    digitalWrite(FLASH_MOSI, (out >> i) & 1);
+    delayMicroseconds(1);
+    digitalWrite(FLASH_SCK, HIGH);
+    in = (uint8_t)((in << 1) | (digitalRead(FLASH_MISO) ? 1 : 0));
+    delayMicroseconds(1);
+    digitalWrite(FLASH_SCK, LOW);
+  }
+  return in;
+}
+static void flash_probe() {
+#ifdef FLASH_POWER_EN
+  pinMode(FLASH_POWER_EN, OUTPUT);
+  digitalWrite(FLASH_POWER_EN, HIGH);
+  delay(5);  // NOR flash power-up time (tVSL) is well under 5 ms
+#endif
+  pinMode(FLASH_CS, OUTPUT); digitalWrite(FLASH_CS, HIGH);
+  pinMode(FLASH_SCK, OUTPUT); digitalWrite(FLASH_SCK, LOW);
+  pinMode(FLASH_MOSI, OUTPUT);
+  pinMode(FLASH_WP, OUTPUT); digitalWrite(FLASH_WP, HIGH);
+  pinMode(FLASH_HOLD, OUTPUT); digitalWrite(FLASH_HOLD, HIGH);  // HOLD# low would freeze the bus
+  pinMode(FLASH_MISO, INPUT_PULLUP);  // nothing there -> FF
+  delayMicroseconds(50);
+  digitalWrite(FLASH_CS, LOW);
+  flash_xfer(0xAB);  // release from deep power-down, in case a bootloader left it asleep
+  digitalWrite(FLASH_CS, HIGH); delayMicroseconds(50);
+  digitalWrite(FLASH_CS, LOW);
+  flash_xfer(0x9F);
+  for (int i = 0; i < 3; i++) g_flash_id[i] = flash_xfer(0x00);
+  digitalWrite(FLASH_CS, HIGH);
+  pinMode(FLASH_MISO, INPUT);
+  openpaw_flash_identify(g_flash_id, &g_flash);
+  openpaw_flash_describe(g_flash_id, &g_flash, g_flash_line, sizeof g_flash_line);
 }
 
 // ---------------------------------------------------------------- BLE
@@ -221,6 +292,7 @@ static void ble_begin() {
   dis.setManufacturer("OpenPaw (open hardware)");
   dis.setModel(BOARD_ID == 1 ? "XIAO nRF52840 Sense" : "SenseCAP T1000-E");
   dis.setFirmwareRev(OPENPAW_FW_VERSION);
+  dis.setHardwareRev(g_flash_line);  // storage found at boot, e.g. "flash P25Q16H 2048KB (856015)"
   dis.begin();
   bas.begin();
 
@@ -301,6 +373,7 @@ void setup() {
   openpaw_ring_init(&g_ring, g_ring_store, RING_RECORDS);
 
   bool ok = imu_begin();
+  flash_probe();  // g_flash.kind picks the log backend once flash persistence lands
   ble_begin();
   g_batt = battery_read_pct();
   bas.write(g_batt == 255 ? 0 : g_batt);
@@ -308,7 +381,8 @@ void setup() {
   // boot signal: 1 long blink = OK, 5 fast blinks = IMU not found
   if (ok) { led(true); delay(600); led(false); }
   else for (int i = 0; i < 5; i++) { led(true); delay(80); led(false); delay(80); }
-  Serial.printf("openpaw fw=%s board=%d imu=%s\n", OPENPAW_FW_VERSION, BOARD_ID, ok ? "ok" : "MISSING");
+  Serial.printf("openpaw fw=%s board=%d imu=%s storage=%s\n", OPENPAW_FW_VERSION, BOARD_ID, ok ? "ok" : "MISSING",
+                g_flash_line);
   Serial.println("seq,uptime_s,flags,vedba_mean_mg,vedba_max_mg,active_frac,pitch_deg,roll_deg,bursts,hr_bpm,battery_pct");
 }
 

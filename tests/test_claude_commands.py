@@ -92,6 +92,25 @@ class VerifyCollarTests(unittest.TestCase):
         header = re.search(r'Serial\.println\("(seq,[^"]+)"\)', FIRMWARE.read_text(encoding='utf-8')).group(1)
         self.assertIn(header, read('verify-collar.md'))
 
+    def test_serial_boot_line_keys_match_firmware(self):
+        fmt = re.search(r'Serial\.printf\("(openpaw [^"]+)\\n"', FIRMWARE.read_text(encoding='utf-8')).group(1)
+        keys = re.findall(r'(\w+)=%', fmt)
+        self.assertIn('storage', keys)
+        boot_line = re.search(r'The first line is `(openpaw [^`]+)`', read('verify-collar.md')).group(1)
+        for key in keys:
+            with self.subTest(key=key):
+                self.assertIn(f'{key}=', boot_line)
+
+    def test_docs_do_not_call_t1000e_battery_unknown_once_firmware_reads_it(self):
+        firmware = FIRMWARE.read_text(encoding='utf-8')
+        if 'openpaw_vbat_mv(raw, 4, 12, 3000, 2000, 1000)' not in firmware:
+            self.skipTest('T1000-E battery not read by firmware')
+        for path in (GUIDE, COMMANDS / 'verify-collar.md'):
+            text = path.read_text(encoding='utf-8').lower()
+            with self.subTest(path=path.name):
+                self.assertNotIn('normal on the t1000-e for now', text)
+                self.assertNotIn("t1000-e battery reading isn't calibrated", text)
+
     def test_jsonl_metrics_match_the_app(self):
         metrics = set(re.findall(r"'((?:movement|posture|device|physiology)\.[a-z_]+)'", APP_JS.read_text(encoding='utf-8')))
         self.assertGreaterEqual(len(metrics), 8)

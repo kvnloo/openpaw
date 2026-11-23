@@ -118,6 +118,43 @@ int main(int argc, char **argv) {
   CHECK(openpaw_ring_find(&q, 999) == 8, "find past end -> count");
   CHECK(openpaw_ring_get(&q, 8, o) == 0, "get out of range");
 
+  // 9. storage pick from a JEDEC ID (0x9F reply: manufacturer, type, capacity code)
+  openpaw_flash_t fl;
+  const uint8_t id_p25[3] = {0x85, 0x60, 0x15};   // Puya P25Q16H, 2 MB (Seeed variant.h)
+  const uint8_t id_gd[3] = {0xC8, 0x40, 0x17};    // GigaDevice GD25Q64C, 8 MB (SoftRF T1000-E note)
+  const uint8_t id_ff[3] = {0xFF, 0xFF, 0xFF};    // no chip: MISO floats high
+  const uint8_t id_00[3] = {0x00, 0x00, 0x00};    // no chip / unpowered: MISO low
+  const uint8_t id_odd[3] = {0xEF, 0x40, 0x03};   // capacity code out of range: not trusted
+  const uint8_t id_unk[3] = {0xEF, 0x40, 0x16};   // valid but not in our table (W25Q32, 4 MB)
+  CHECK(openpaw_flash_identify(id_p25, &fl) == OPENPAW_STORE_QSPI && fl.size_bytes == 2097152u &&
+        strcmp(fl.name, "P25Q16H") == 0, "P25Q16H -> qspi 2 MB, got %d %u %s", fl.kind, fl.size_bytes, fl.name);
+  CHECK(openpaw_flash_identify(id_gd, &fl) == OPENPAW_STORE_QSPI && fl.size_bytes == 8388608u &&
+        strcmp(fl.name, "GD25Q64C") == 0, "GD25Q64C -> qspi 8 MB");
+  CHECK(openpaw_flash_identify(id_ff, &fl) == OPENPAW_STORE_INTERNAL && fl.size_bytes == 0, "FFFFFF -> internal");
+  CHECK(openpaw_flash_identify(id_00, &fl) == OPENPAW_STORE_INTERNAL, "000000 -> internal");
+  CHECK(openpaw_flash_identify(id_odd, &fl) == OPENPAW_STORE_INTERNAL, "bad capacity -> internal");
+  CHECK(openpaw_flash_identify(id_unk, &fl) == OPENPAW_STORE_QSPI && fl.size_bytes == 4194304u &&
+        strcmp(fl.name, "unknown") == 0, "unlisted chip -> qspi by capacity code");
+
+  // 10. human-readable storage line for BLE Device Information "Hardware Revision" + serial boot line
+  char line[40];
+  openpaw_flash_identify(id_p25, &fl); openpaw_flash_describe(id_p25, &fl, line, sizeof line);
+  CHECK(strcmp(line, "flash P25Q16H 2048KB (856015)") == 0, "describe p25: '%s'", line);
+  openpaw_flash_identify(id_ff, &fl); openpaw_flash_describe(id_ff, &fl, line, sizeof line);
+  CHECK(strcmp(line, "flash none, internal (ffffff)") == 0, "describe none: '%s'", line);
+  char tiny[8];
+  openpaw_flash_identify(id_p25, &fl); openpaw_flash_describe(id_p25, &fl, tiny, sizeof tiny);
+  CHECK(strlen(tiny) == 7, "describe truncates safely");
+
+  // 11. battery millivolts from an averaged ADC reading through a divider
+  // T1000-E: 100k/100k (x2), 3.0 V reference, 12-bit (Seeed sensor.c bat_v*2; Meshtastic ADC_MULTIPLIER 2.0)
+  CHECK(openpaw_vbat_mv(2867u * 4, 4, 12, 3000, 2000, 1000) == 4200, "t1000e full: %u",
+        openpaw_vbat_mv(2867u * 4, 4, 12, 3000, 2000, 1000));
+  CHECK(openpaw_vbat_mv(2457u, 1, 12, 3000, 2000, 1000) == 3599, "t1000e mid: %u", openpaw_vbat_mv(2457u, 1, 12, 3000, 2000, 1000));
+  // XIAO: 1M/510k (x1510/510), 3.6 V reference
+  CHECK(openpaw_vbat_mv(1615u, 1, 12, 3600, 1510, 510) == 4203, "xiao: %u", openpaw_vbat_mv(1615u, 1, 12, 3600, 1510, 510));
+  CHECK(openpaw_vbat_mv(0, 0, 12, 3000, 2000, 1000) == 0, "zero samples -> 0");
+
   if (argc > 1) {  // golden vectors for app/test: hex packet + expected decoded fields
     FILE *f = fopen(argv[1], "w");
     if (!f) { perror("golden"); return 2; }

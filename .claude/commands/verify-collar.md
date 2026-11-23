@@ -8,7 +8,7 @@ Check the collar data file the user gave ($ARGUMENTS). If no file was given, ask
 If `tools/check_export.py` exists (run it only if it exists: `python3 tools/check_export.py <file>`), use its output. Otherwise read the file yourself as below. Never upload the file anywhere.
 
 ## Formats
-**Serial CSV** (USB serial, 115200 baud). The first line is `openpaw fw=... board=... imu=ok|MISSING`, then this header:
+**Serial CSV** (USB serial, 115200 baud). The first line is `openpaw fw=... board=... imu=ok|MISSING storage=flash ...`, then this header (`storage=` names the memory chip the collar found, e.g. `flash P25Q16H 2048KB (856015)`, or `flash none, internal (ffffff)` when it found none; both are fine for now):
 
 `seq,uptime_s,flags,vedba_mean_mg,vedba_max_mg,active_frac,pitch_deg,roll_deg,bursts,hr_bpm,battery_pct`
 
@@ -24,7 +24,7 @@ If `tools/check_export.py` exists (run it only if it exists: `python3 tools/chec
 4. **Still vs moving:** during the still period VeDBA mean should sit well below the 120 mg active threshold with active fraction near 0; while carried and walking, active fraction should rise clearly above it. Report the median and range of `vedba_mean` for each period. If both periods look the same, say the sensor may not be reading motion.
 5. **Bursts:** counts of events above 1.5 g. A still table should show none.
 6. **Posture:** pitch and roll should be steady while still. Large jumps on a still table are a warn.
-7. **Battery:** latest value, or "unknown" if 255 / no `device.battery` events (normal on the T1000-E for now).
+7. **Battery:** latest value, or "unknown" if 255 / no `device.battery` events (normal while the collar runs on USB power with no battery).
 
 End with one line: healthy, check X, or not working, and the next step from `docs/COLLAR.md`.
 

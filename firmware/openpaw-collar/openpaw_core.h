@@ -244,6 +244,74 @@ static inline uint32_t openpaw_ring_find(const openpaw_ring_t *q, uint32_t from_
   return q->count;
 }
 
+// ---- Storage pick from the external flash's JEDEC ID (command 0x9F). ----
+// Seeed's T1000-E variant.h declares a P25Q16H; one community source says the
+// T1000-E has no QSPI flash and another lists a GD25Q64. So the firmware asks
+// the chip at boot instead of trusting either, and logs to internal flash
+// when nothing answers.
+#define OPENPAW_STORE_INTERNAL 0
+#define OPENPAW_STORE_QSPI 1
+
+typedef struct {
+  int kind;               // OPENPAW_STORE_*
+  uint32_t size_bytes;    // 0 when internal
+  const char *name;       // part name, "unknown" if not in the table, "none" if absent
+} openpaw_flash_t;
+
+static inline int openpaw_flash_identify(const uint8_t id[3], openpaw_flash_t *out) {
+  static const struct { uint8_t m, t, c; const char *name; } known[] = {
+    {0x85, 0x60, 0x15, "P25Q16H"},    // Puya, 2 MB (XIAO nRF52840 + Seeed T1000-E variant.h)
+    {0xC8, 0x40, 0x17, "GD25Q64C"},   // GigaDevice, 8 MB (SoftRF lists it for the T1000-E)
+  };
+  out->kind = OPENPAW_STORE_INTERNAL; out->size_bytes = 0; out->name = "none";
+  const int blank = (id[0] == 0xFF && id[1] == 0xFF && id[2] == 0xFF) || (id[0] == 0 && id[1] == 0 && id[2] == 0);
+  // capacity code is log2(bytes): 0x10 = 64 KB .. 0x1A = 64 MB covers every serial NOR we would meet
+  if (blank || id[2] < 0x10 || id[2] > 0x1A) return out->kind;
+  out->kind = OPENPAW_STORE_QSPI;
+  out->size_bytes = (uint32_t)1u << id[2];
+  out->name = "unknown";
+  for (size_t i = 0; i < sizeof known / sizeof known[0]; i++)
+    if (known[i].m == id[0] && known[i].t == id[1] && known[i].c == id[2]) out->name = known[i].name;
+  return out->kind;
+}
+
+// One short line, e.g. "flash P25Q16H 2048KB (856015)" or "flash none, internal (ffffff)".
+// Published as BLE Device Information "Hardware Revision" and printed at boot.
+static inline void openpaw_flash_describe(const uint8_t id[3], const openpaw_flash_t *f, char *buf, size_t n) {
+  static const char hex[] = "0123456789abcdef";
+  char line[48], idhex[7];
+  for (int i = 0; i < 3; i++) { idhex[2 * i] = hex[id[i] >> 4]; idhex[2 * i + 1] = hex[id[i] & 15]; }
+  idhex[6] = 0;
+  if (f->kind == OPENPAW_STORE_QSPI) {
+    // hand-rolled so the header stays printf-free for the smallest builds
+    char kb[12]; uint32_t v = f->size_bytes / 1024u; int k = 0; char rev[12];
+    do { rev[k++] = (char)('0' + v % 10); v /= 10; } while (v && k < 11);
+    for (int i = 0; i < k; i++) kb[i] = rev[k - 1 - i];
+    kb[k] = 0;
+    line[0] = 0;
+    strcat(line, "flash "); strcat(line, f->name); strcat(line, " "); strcat(line, kb);
+    strcat(line, "KB ("); strcat(line, idhex); strcat(line, ")");
+  } else {
+    line[0] = 0;
+    strcat(line, "flash none, internal ("); strcat(line, idhex); strcat(line, ")");
+  }
+  if (n == 0) return;
+  strncpy(buf, line, n - 1);
+  buf[n - 1] = 0;
+}
+
+// ---- Battery: averaged ADC reading through a resistor divider -> millivolts. ----
+// raw_sum = sum of n readings at adc_bits resolution against aref_mv;
+// divider ratio = div_num / div_den (e.g. 2000/1000 for 100k/100k).
+static inline uint16_t openpaw_vbat_mv(uint32_t raw_sum, uint32_t n, uint8_t adc_bits, uint16_t aref_mv,
+                                       uint32_t div_num, uint32_t div_den) {
+  if (n == 0 || div_den == 0) return 0;
+  const uint64_t num = (uint64_t)raw_sum * aref_mv * div_num;
+  const uint64_t den = (uint64_t)n * ((uint64_t)1 << adc_bits) * div_den;
+  const uint64_t mv = (num + den / 2) / den;
+  return (uint16_t)(mv > 65535u ? 65535u : mv);
+}
+
 #ifdef __cplusplus
 }
 #endif
