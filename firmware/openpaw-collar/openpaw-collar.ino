@@ -5,8 +5,9 @@
 //   - Seeed SenseCAP T1000-E     (FQBN Seeeduino:nrf52:tracker_t1000_e_lorawan) IMU QMA6100P
 //
 // What it does: samples the accelerometer at 50 Hz, summarizes every 5 s into a
-// 20-byte record (openpaw_core.h), keeps the newest records in RAM, streams
-// each record live over BLE, and lets the OpenPaw web app download the backlog.
+// 20-byte record (openpaw_core.h), stores records in a power-loss-safe circular
+// log on the external flash (openpaw_flog.h; RAM ring if no flash answers),
+// streams each record live over BLE, and lets the OpenPaw web app download the backlog.
 // Measurements only: no emotion, stress or diagnosis claims.
 //
 // BLE service (all UUIDs c0de000X-0be4-4f3a-9c1e-6f70656e7061):
@@ -14,7 +15,8 @@
 //   0002 live    notify, 20 B record each epoch
 //   0003 log     notify, backlog chunks of N*20 B; a record whose version byte is 0xFF ends a dump
 //   0004 control write: 0x01 <from_seq u32 LE> start dump | 0x02 stop dump | 0x10 find-me (blink/beep)
-//   0005 status  read/notify 16 B: proto u8, board u8, epoch_s u16, next_seq u32, uptime_s u32, stored u32
+//   0005 status  read/notify 20 B: proto u8, board u8, epoch_s u16, next_seq u32, uptime_s u32, stored u32,
+//                boot_seq u32 (first seq of this boot; seq continues across reboots when the flash log is used)
 // plus the standard Battery Service (0x180F) and Device Information (0x180A).
 //
 // SPDX-License-Identifier: GPL-3.0-only
@@ -22,12 +24,13 @@
 #include <Wire.h>
 #include <bluefruit.h>
 #include "openpaw_core.h"
+#include "openpaw_flog.h"
 
-#define OPENPAW_FW_VERSION "0.1.0"
+#define OPENPAW_FW_VERSION "0.2.0"
 #define OPENPAW_PROTO 1
 #define SAMPLE_HZ 50
 #define SAMPLE_MS (1000 / SAMPLE_HZ)
-#define RING_RECORDS 4096  // 80 KB RAM = 5.7 h at 5 s epochs (flash persistence: see docs/COLLAR.md roadmap)
+#define RING_RECORDS 4096  // RAM fallback when no external flash answers: 80 KB = 5.7 h at 5 s epochs
 
 #if defined(ARDUINO_Seeed_XIAO_nRF52840_Sense) || defined(ARDUINO_Seeed_XIAO_nRF52840_Sense_Plus) || defined(PIN_LSM6DS3TR_C_POWER)
 #define BOARD_XIAO_SENSE 1
@@ -214,6 +217,59 @@ static void flash_probe() {
   openpaw_flash_describe(g_flash_id, &g_flash, g_flash_line, sizeof g_flash_line);
 }
 
+// Standard SPI NOR commands (P25Q16H / GD25Q64 datasheets): 0x03 read, 0x06 write
+// enable, 0x02 page program (max 256 B, must not cross a page), 0x20 4 KB sector
+// erase, 0x05 status (bit 0 = busy). Bit-banged on the same pins as the probe:
+// one 24-byte record every 5 s needs no QSPI peripheral.
+static void flash_cmd_addr(uint8_t cmd, uint32_t addr) {
+  flash_xfer(cmd);
+  flash_xfer((uint8_t)(addr >> 16)); flash_xfer((uint8_t)(addr >> 8)); flash_xfer((uint8_t)addr);
+}
+static int flash_wait(uint32_t timeout_ms) {
+  uint32_t t0 = millis();
+  for (;;) {
+    digitalWrite(FLASH_CS, LOW);
+    flash_xfer(0x05);
+    uint8_t sr = flash_xfer(0x00);
+    digitalWrite(FLASH_CS, HIGH);
+    if (!(sr & 1)) return 0;
+    if (millis() - t0 > timeout_ms) return -1;
+    if (timeout_ms > 10) delay(1);
+  }
+}
+static void flash_wren() { digitalWrite(FLASH_CS, LOW); flash_xfer(0x06); digitalWrite(FLASH_CS, HIGH); }
+static int fl_read(void *, uint32_t addr, uint8_t *buf, uint32_t n) {
+  digitalWrite(FLASH_CS, LOW);
+  flash_cmd_addr(0x03, addr);
+  for (uint32_t i = 0; i < n; i++) buf[i] = flash_xfer(0x00);
+  digitalWrite(FLASH_CS, HIGH);
+  return 0;
+}
+static int fl_prog(void *, uint32_t addr, const uint8_t *buf, uint32_t n) {
+  while (n) {
+    uint32_t room = 256 - (addr & 255), k = n < room ? n : room;
+    flash_wren();
+    digitalWrite(FLASH_CS, LOW);
+    flash_cmd_addr(0x02, addr);
+    for (uint32_t i = 0; i < k; i++) flash_xfer(buf[i]);
+    digitalWrite(FLASH_CS, HIGH);
+    if (flash_wait(10)) return -1;  // page program max is a few ms
+    addr += k; buf += k; n -= k;
+  }
+  return 0;
+}
+static int fl_erase(void *, uint32_t addr) {
+  flash_wren();
+  digitalWrite(FLASH_CS, LOW);
+  flash_cmd_addr(0x20, addr);
+  digitalWrite(FLASH_CS, HIGH);
+  return flash_wait(1000);  // 4 KB erase: tens of ms typical, < 1 s worst case
+}
+static void flash_bus_begin() {  // probe left MISO without pull-up; everything else is still set up
+  pinMode(FLASH_MISO, INPUT_PULLUP);
+  digitalWrite(FLASH_CS, HIGH);
+}
+
 // ---------------------------------------------------------------- BLE
 // 128-bit UUIDs, little-endian byte order for Bluefruit.
 #define OP_UUID(n) {0x61, 0x70, 0x6e, 0x65, 0x70, 0x6f, 0x1e, 0x9c, 0x3a, 0x4f, 0xe4, 0x0b, (n), 0x00, 0xde, 0xc0}
@@ -231,6 +287,34 @@ BLEDis dis;
 static openpaw_state_t g_core;
 static uint8_t g_ring_store[RING_RECORDS * OPENPAW_RECORD_SIZE];
 static openpaw_ring_t g_ring;
+static openpaw_flog_t g_flog;
+static bool g_use_flog = false;
+static uint32_t g_boot_seq = 0;
+
+// One log interface over the flash log or the RAM ring.
+static void log_begin() {
+  if (g_flash.kind == OPENPAW_STORE_QSPI) {
+    flash_bus_begin();
+    openpaw_flash_io_t io = {fl_read, fl_prog, fl_erase, nullptr, 0, g_flash.size_bytes};
+    uint32_t gen;
+    // the header read-back catches a write-protected or flaky chip: then stay on RAM
+    g_use_flog = openpaw_flog_mount(&g_flog, io) == 0 && openpaw__hdr(&g_flog, g_flog.head, &gen);
+  }
+  if (g_use_flog) g_core.seq = g_flog.next_seq;  // seq keeps counting across reboots
+  g_boot_seq = g_core.seq;
+}
+static void log_put(const openpaw_record_t *r) {
+  if (g_use_flog) openpaw_flog_put(&g_flog, r);  // a failed write loses that one record only
+  else openpaw_ring_put(&g_ring, r);
+}
+static uint32_t log_count() { return g_use_flog ? g_flog.count : g_ring.count; }
+static int log_get(uint32_t i, uint8_t out[OPENPAW_RECORD_SIZE]) {  // 1 ok, 0 end, -1 lost record
+  return g_use_flog ? openpaw_flog_get(&g_flog, i, out) : openpaw_ring_get(&g_ring, i, out);
+}
+static uint32_t log_find(uint32_t from_seq) {
+  return g_use_flog ? openpaw_flog_find(&g_flog, from_seq) : openpaw_ring_find(&g_ring, from_seq);
+}
+
 static volatile bool g_dump_req = false, g_dump_stop = false;
 static volatile uint32_t g_dump_from = 0;
 static volatile bool g_find_me = false;
@@ -265,12 +349,12 @@ static void disconnect_cb(uint16_t conn, uint8_t reason) {
 }
 
 static void status_update(uint32_t uptime_s) {
-  uint8_t b[16];
+  uint8_t b[20];
   b[0] = OPENPAW_PROTO;
   b[1] = BOARD_ID;
   b[2] = g_core.cfg.epoch_s & 0xFF; b[3] = g_core.cfg.epoch_s >> 8;
-  uint32_t v[3] = {g_core.seq, uptime_s, g_ring.count};
-  for (int k = 0; k < 3; k++)
+  uint32_t v[4] = {g_core.seq, uptime_s, log_count(), g_boot_seq};
+  for (int k = 0; k < 4; k++)
     for (int j = 0; j < 4; j++) b[4 + 4 * k + j] = (uint8_t)(v[k] >> (8 * j));
   chrStatus.write(b, sizeof b);
   if (g_conn != BLE_CONN_HANDLE_INVALID && chrStatus.notifyEnabled(g_conn)) chrStatus.notify(b, sizeof b);
@@ -312,7 +396,7 @@ static void ble_begin() {
   chrCtrl.begin();
   chrStatus.setProperties(CHR_PROPS_READ | CHR_PROPS_NOTIFY);
   chrStatus.setPermission(SECMODE_OPEN, SECMODE_NO_ACCESS);
-  chrStatus.setFixedLen(16);
+  chrStatus.setFixedLen(20);
   chrStatus.begin();
 
   Bluefruit.Advertising.addFlags(BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE);
@@ -333,13 +417,16 @@ static bool dump_step() {
   if (per > 12) per = 12;
   uint8_t buf[12 * OPENPAW_RECORD_SIZE];
   uint16_t n = 0;
-  while (n < per && openpaw_ring_get(&g_ring, g_dump_idx + n, buf + n * OPENPAW_RECORD_SIZE)) n++;
+  uint32_t idx = g_dump_idx;
+  while (n < per && idx < log_count()) {
+    if (log_get(idx++, buf + n * OPENPAW_RECORD_SIZE) == 1) n++;  // lost (power-cut) records are skipped
+  }
   if (n == 0) {
     memset(buf, 0xFF, OPENPAW_RECORD_SIZE);  // end-of-dump marker
     chrLog.notify(buf, OPENPAW_RECORD_SIZE);
     return false;
   }
-  if (chrLog.notify(buf, n * OPENPAW_RECORD_SIZE)) g_dump_idx += n;  // else: TX queue full, retry next loop
+  if (chrLog.notify(buf, n * OPENPAW_RECORD_SIZE)) g_dump_idx = idx;  // else: TX queue full, retry next loop
   return true;
 }
 
@@ -373,7 +460,8 @@ void setup() {
   openpaw_ring_init(&g_ring, g_ring_store, RING_RECORDS);
 
   bool ok = imu_begin();
-  flash_probe();  // g_flash.kind picks the log backend once flash persistence lands
+  flash_probe();
+  log_begin();  // flash log if the probe found a chip, else RAM ring
   ble_begin();
   g_batt = battery_read_pct();
   bas.write(g_batt == 255 ? 0 : g_batt);
@@ -381,8 +469,9 @@ void setup() {
   // boot signal: 1 long blink = OK, 5 fast blinks = IMU not found
   if (ok) { led(true); delay(600); led(false); }
   else for (int i = 0; i < 5; i++) { led(true); delay(80); led(false); delay(80); }
-  Serial.printf("openpaw fw=%s board=%d imu=%s storage=%s\n", OPENPAW_FW_VERSION, BOARD_ID, ok ? "ok" : "MISSING",
-                g_flash_line);
+  Serial.printf("openpaw fw=%s board=%d imu=%s storage=%s log=%s stored=%lu next_seq=%lu\n", OPENPAW_FW_VERSION,
+                BOARD_ID, ok ? "ok" : "MISSING", g_flash_line, g_use_flog ? "flash" : "ram",
+                (unsigned long)log_count(), (unsigned long)g_core.seq);
   Serial.println("seq,uptime_s,flags,vedba_mean_mg,vedba_max_mg,active_frac,pitch_deg,roll_deg,bursts,hr_bpm,battery_pct");
 }
 
@@ -392,7 +481,7 @@ void loop() {
 
   if (g_find_me) { g_find_me = false; find_me(); next_ms = millis(); }
   if (g_dump_stop) { g_dump_stop = false; g_dumping = false; }
-  if (g_dump_req) { g_dump_req = false; g_dump_idx = openpaw_ring_find(&g_ring, g_dump_from); g_dumping = true; }
+  if (g_dump_req) { g_dump_req = false; g_dump_idx = log_find(g_dump_from); g_dumping = true; }
   if (g_dumping && g_conn != BLE_CONN_HANDLE_INVALID) g_dumping = dump_step();
 
   uint32_t now = millis();
@@ -420,7 +509,7 @@ void loop() {
   }
   if (!have) return;
 
-  openpaw_ring_put(&g_ring, &rec);
+  log_put(&rec);
   uint8_t pkt[OPENPAW_RECORD_SIZE];
   openpaw_encode(&rec, pkt);
   chrLive.write(pkt, sizeof pkt);

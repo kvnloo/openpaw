@@ -25,6 +25,10 @@ jobs:
           /tmp/test_core /tmp/golden.json
           # the committed golden vectors must match what the core produces today
           diff -u app/test/golden.json /tmp/golden.json
+      - name: Host tests for the flash log (wrap, reboot, simulated power cuts)
+        run: |
+          cc -std=c99 -O1 -Wall -Wextra -Werror -o /tmp/test_flog firmware/test/test_flog.c -lm
+          /tmp/test_flog
       - uses: actions/setup-node@v4
         with:
           node-version: '22'

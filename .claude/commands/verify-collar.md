@@ -8,7 +8,7 @@ Check the collar data file the user gave ($ARGUMENTS). If no file was given, ask
 If `tools/check_export.py` exists (run it only if it exists: `python3 tools/check_export.py <file>`), use its output. Otherwise read the file yourself as below. Never upload the file anywhere.
 
 ## Formats
-**Serial CSV** (USB serial, 115200 baud). The first line is `openpaw fw=... board=... imu=ok|MISSING storage=flash ...`, then this header (`storage=` names the memory chip the collar found, e.g. `flash P25Q16H 2048KB (856015)`, or `flash none, internal (ffffff)` when it found none; both are fine for now):
+**Serial CSV** (USB serial, 115200 baud). The first line is `openpaw fw=... board=... imu=ok|MISSING storage=flash ... log=flash|ram stored=... next_seq=...`, then this header (`storage=` names the memory chip the collar found, e.g. `flash P25Q16H 2048KB (856015)`, or `flash none, internal (ffffff)` when it found none. `log=flash` means records survive a restart (about 5 days on a 2 MB chip); `log=ram` means the collar keeps only the last ~5.7 hours and a restart clears them. Firmware 0.1.x has no `log=` key and is always RAM. `stored=` is how many epochs are saved, `next_seq=` the number the next epoch gets):
 
 `seq,uptime_s,flags,vedba_mean_mg,vedba_max_mg,active_frac,pitch_deg,roll_deg,bursts,hr_bpm,battery_pct`
 

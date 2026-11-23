@@ -180,6 +180,19 @@ class JsonlTests(unittest.TestCase):
         r = self.m.check_text(text + json.dumps(strap) + '\n', '.jsonl')
         self.assertEqual(r['epochs'], 240)
 
+    def test_flash_log_restart_keeps_seq_but_resets_uptime(self):
+        # firmware >= 0.2 with the flash log: seq keeps counting after a reboot, uptime starts again
+        boot1 = [still(i) for i in range(100)]
+        boot2 = [[s, (s - 100 + 1) * 5] + still(s)[2:] for s in range(100, 160)]
+        r = self.m.check_text(jsonl_text(boot1 + boot2), '.jsonl')
+        sp = by_name(r)['spacing']
+        self.assertEqual(sp['reboots'], 1, sp)
+        self.assertEqual(sp['missing_epochs'], 0, sp)
+        self.assertEqual(sp['odd_steps'], 0, sp)
+        c = self.m.check_text(csv_text(boot1) + csv_text(boot2), '.csv')
+        self.assertEqual(by_name(c)['spacing']['reboots'], 1)
+        self.assertEqual(by_name(c)['spacing']['odd_steps'], 0)
+
 
 class DriftTests(unittest.TestCase):
     """The checker must read exactly what the firmware prints and the app exports."""

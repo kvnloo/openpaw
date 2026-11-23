@@ -36,6 +36,13 @@ def _epoch(seq, up, clipped, gap, vm, vx, af, pitch, roll, bursts, batt):
             'active_frac': af, 'pitch': pitch, 'roll': roll, 'bursts': bursts, 'battery': batt}
 
 
+def _restarted(prev, e):
+    """seq went back (firmware 0.1, RAM only) or uptime went back while seq kept counting (flash log)."""
+    if e['seq'] < prev['seq']:
+        return True
+    return e['uptime_s'] is not None and prev['uptime_s'] is not None and e['uptime_s'] < prev['uptime_s']
+
+
 def parse_csv(text):
     boot, epochs, segment, skipped = None, [], 0, 0
     last_seq = None
@@ -59,11 +66,11 @@ def parse_csv(text):
             skipped += 1
             continue
         seq, up, flags, vm, vx, af, pitch, roll, bursts, _hr, batt = v
-        if last_seq is not None and seq < last_seq:
-            segment += 1
-        last_seq = seq
         e = _epoch(seq, up, bool(flags & FLAG_CLIPPED), bool(flags & FLAG_GAP), vm, vx, round(af / 255, 3),
                    pitch, roll, bursts, None if batt == 255 else batt)
+        if last_seq is not None and _restarted(last_seq, e):
+            segment += 1
+        last_seq = e
         e['segment'] = segment
         epochs.append(e)
     if boot is None and not epochs:
@@ -107,12 +114,14 @@ def parse_jsonl(text):
             epoch_s = pay['window_s'] if field == 'vedba_mean' else epoch_s
     if not by_key and skipped:
         raise NotOpenPaw('not an OpenPaw serial CSV or JSONL export')
-    epochs = sorted(by_key.values(), key=lambda e: (e['uptime_s'] or 0, e['seq']))
+    # Firmware >= 0.2 keeps seq counting across reboots (flash log), so seq order is time order
+    # and a restart shows up as uptime starting again.
+    epochs = sorted(by_key.values(), key=lambda e: (e['seq'], e['uptime_s'] or 0))
     seg, last = 0, None
     for e in epochs:
-        if last is not None and e['seq'] < last:
+        if last is not None and _restarted(last, e):
             seg += 1
-        last = e['seq']
+        last = e
         e['segment'] = seg
     return {'boot': None, 'epochs': epochs, 'skipped_lines': skipped, 'simulated': simulated, 'epoch_s': epoch_s}
 
@@ -158,7 +167,7 @@ def check_spacing(data):
     if odd:
         bits.append(f'{odd} steps not {step} s apart')
     if reboots:
-        bits.append(f'{reboots} restarts (seq went back)')
+        bits.append(f'{reboots} restarts (seq or uptime went back)')
     status = 'warn' if bits else 'pass'
     detail = '; '.join(bits) if bits else f'every step {step} s, no missing seq'
     return _check('spacing', status, detail, missing_epochs=missing, gaps=gaps, odd_steps=odd, reboots=reboots)
