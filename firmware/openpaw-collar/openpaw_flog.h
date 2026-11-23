@@ -147,7 +147,7 @@ static inline int openpaw_flog_mount(openpaw_flog_t *L, openpaw_flash_io_t io) {
   for (uint32_t k = OPENPAW_FLOG_SLOTS; k > 0; k--)
     if (openpaw__slot(L, best, k - 1, 0) != OPENPAW__EMPTY) { L->head_slot = k; break; }
   L->count = steps * OPENPAW_FLOG_SLOTS + L->head_slot;
-  uint8_t b[OPENPAW_RECORD_SIZE];
+  uint8_t b[OPENPAW_RECORD_SIZE] = {0};
   for (uint32_t i = L->count; i > 0; i--)
     if (openpaw_flog_get(L, i - 1, b) == 1) { L->next_seq = openpaw__le32(b + 2) + 1; break; }
   return 0;
@@ -180,7 +180,7 @@ static inline int openpaw_flog_put(openpaw_flog_t *L, const openpaw_record_t *r)
 // (binary search; records are stored in seq order, torn slots are stepped over).
 static inline uint32_t openpaw_flog_find(const openpaw_flog_t *L, uint32_t from_seq) {
   uint32_t lo = 0, hi = L->count, ans = L->count;
-  uint8_t b[OPENPAW_RECORD_SIZE];
+  uint8_t b[OPENPAW_RECORD_SIZE] = {0};  // only read after get() == 1 filled it; init for gcc's flow analysis
   while (lo < hi) {
     const uint32_t mid = lo + (hi - lo) / 2;
     uint32_t j = mid;
