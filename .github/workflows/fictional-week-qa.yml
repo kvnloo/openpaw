@@ -1,0 +1,28 @@
+name: OpenPaw fictional-week fixture QA
+
+on:
+  pull_request:
+    paths:
+      - 'fixtures/fictional-week.jsonl'
+      - 'fixtures/README.md'
+      - 'schema/openpaw-event.schema.json'
+      - 'tests/test_synthetic_week.py'
+      - '.github/workflows/fictional-week-qa.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fictional-week:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install JSON Schema validator
+        run: python -m pip install --disable-pip-version-check jsonschema==4.26.0
+      - name: Validate deterministic fictional-week contract
+        run: python -m unittest discover -s tests -p 'test_synthetic_week.py' -v
