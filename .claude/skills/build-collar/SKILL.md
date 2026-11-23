@@ -13,7 +13,7 @@ You are guiding someone who may never have touched electronics. Go one step at a
 3. **Flash.** When the parts arrive, find the newest `collar-v*` release with `gh release list -R kvnloo/openpaw` if `gh` is available, otherwise give the releases link. Walk them through update mode for their board, then the drag-and-drop. Ask what the light did after restart:
    - 1 long blink: good.
    - 5 fast blinks: sensor not found, go to troubleshooting.
-4. **Connect.** Send them to https://kvnloo.github.io/openpaw/ (Chrome/Edge; Bluefy on iPhone). Ask them to tap "Beep / blink collar" and confirm the collar reacted.
+4. **Connect.** Send them to https://kvnloo.github.io/openpaw/app/ (Chrome/Edge; Bluefy on iPhone). Ask them to tap "Beep / blink collar" and confirm the collar reacted.
 5. **Check it is healthy.** Ask them to export the JSONL after 10 minutes on a table, then 10 minutes of walking around with it in hand. If they share the file, run `python3 tools/check_export.py <file>` when it exists; otherwise read it yourself. Resting epochs should show movement near 0–30 mg and the walking ones hundreds of mg. Report what you see as measurements only.
 6. **Fit.** Separate flat collar, card under the neck, the same way up every time, two-finger fit, leash on a harness. Off for swimming. Charge off the dog.
 7. **First walk.** Remind them the phone does not need to stay connected: reconnect after the walk and tap "Download backlog".

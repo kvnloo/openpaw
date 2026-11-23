@@ -36,7 +36,7 @@ Use only this USB drag-and-drop method. Don't use phone "OTA" or "DFU" updater a
 
 ## 3. Open the app and connect
 
-Open **https://kvnloo.github.io/openpaw/** in Chrome or Edge (Android, Windows, macOS, ChromeOS). On iPhone, use the free [Bluefy](https://apps.apple.com/app/bluefy-web-ble-browser/id1492822055) browser. There's nothing to install and no account.
+Open **https://kvnloo.github.io/openpaw/app/** in Chrome or Edge (Android, Windows, macOS, ChromeOS). On iPhone, use the free [Bluefy](https://apps.apple.com/app/bluefy-web-ble-browser/id1492822055) browser. There's nothing to install and no account.
 
 1. Tap **Connect collar** and pick `OpenPaw-XXXX`.
 2. You'll see live movement every 5 seconds. Tap **Beep / blink collar** to confirm you're connected to the right device.
