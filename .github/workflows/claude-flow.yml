@@ -9,6 +9,8 @@ on:
       - 'app/openpaw-ble.js'
       - 'firmware/openpaw-collar/**'
       - 'tests/test_claude_commands.py'
+      - 'tools/**'
+      - 'tests/test_check_export.py'
       - '.github/workflows/claude-flow.yml'
   push:
     branches: [main]
@@ -18,6 +20,8 @@ on:
       - 'app/openpaw-ble.js'
       - 'firmware/openpaw-collar/**'
       - 'tests/test_claude_commands.py'
+      - 'tools/**'
+      - 'tests/test_check_export.py'
   workflow_dispatch:
 permissions:
   contents: read
@@ -32,3 +36,5 @@ jobs:
           python-version: '3.13'
       - name: Check Claude commands against the repo
         run: python -m unittest discover -s tests -p 'test_claude_commands.py' -v
+      - name: Check tools/check_export.py (formats match firmware and app)
+        run: python -m unittest discover -s tests -p 'test_check_export.py' -v
