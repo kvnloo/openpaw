@@ -79,6 +79,18 @@ export function decodeStatus(bytes) {
   };
 }
 
+// Standard Device Information Service strings (model 0x2A24, firmware 0x2A26).
+export function decodeDisString(bytes) {
+  const v = view(bytes);
+  const raw = new Uint8Array(v.buffer, v.byteOffset, v.byteLength);
+  return new TextDecoder().decode(raw).replace(/\0+$/, '').trim();
+}
+
+// One human line for the connect banner and bug reports.
+export function deviceLabel({ model, firmware, board }) {
+  return `${model || board}, firmware ${firmware || 'unknown'}`;
+}
+
 export function encodeDumpFrom(fromSeq) {
   const b = new Uint8Array(5);
   b[0] = 0x01;
@@ -111,7 +123,7 @@ export function makeClock(anchorWallMs, anchorUptimeS) {
 }
 
 // One collar record -> OpenPaw v0.1 measurement events (schema/openpaw-event.schema.json).
-export function recordToEvents(rec, { dogId, deviceId, clock, epochS = 5, origin = 'sensor' }) {
+export function recordToEvents(rec, { dogId, deviceId, clock, epochS = 5, origin = 'sensor', firmwareVersion = null }) {
   const ts = clock(rec.uptime_s);
   const base = (metric, value, unit, extra = {}) => ({
     schema_version: '0.1',
@@ -128,6 +140,7 @@ export function recordToEvents(rec, { dogId, deviceId, clock, epochS = 5, origin
       device_seq: rec.seq,
       device_uptime_s: rec.uptime_s,
       quality: { clipped: rec.clipped, gap: rec.gap },
+      ...(firmwareVersion ? { firmware_version: firmwareVersion } : {}),
     },
     payload: { metric, value, unit, window_s: epochS, method: extra.method || null, ...extra.payload },
   });

@@ -51,6 +51,7 @@
       <span class="fine">Pseudonymous; goes into every exported event.</span>
     </div>
     <p id="state" class="fine" style="margin:10px 0 0">Not connected.</p>
+    <p id="deviceRow" class="fine" style="margin:4px 0 0" hidden>Collar: <b id="device" style="color:var(--ink);font-weight:600"></b> <span>(quote this in bug reports)</span></p>
   </div>
 
   <div class="card">
@@ -83,7 +84,7 @@
 
 <script type="module">
 import { UUIDS, decodeRecord, decodeChunk, decodeStatus, encodeDumpFrom, CMD_FIND_ME, parseHeartRate,
-         recordToEvents, heartRateToEvents, makeClock, toJsonl } from './openpaw-ble.js';
+         recordToEvents, heartRateToEvents, makeClock, toJsonl, decodeDisString, deviceLabel } from './openpaw-ble.js';
 
 const $ = (id) => document.getElementById(id);
 const logEl = $('log');
@@ -165,7 +166,7 @@ if (!navigator.bluetooth) {
 }
 
 async function ingest(records, origin = 'sensor') {
-  const evs = records.flatMap((r) => recordToEvents(r, { dogId: dogId(), deviceId: collar?.name || 'demo-collar', clock: collar?.clock, epochS: collar?.epochS || 5, origin }));
+  const evs = records.flatMap((r) => recordToEvents(r, { dogId: dogId(), deviceId: collar?.name || 'demo-collar', clock: collar?.clock, epochS: collar?.epochS || 5, origin, firmwareVersion: collar?.firmware || null }));
   await putEvents(evs);
   const maxSeq = Math.max(...records.map((r) => r.seq));
   if (collar && origin === 'sensor') await setMeta(`lastSeq:${collar.name}:${collar.bootKey}`, maxSeq);
@@ -174,9 +175,17 @@ async function ingest(records, origin = 'sensor') {
 
 $('btnConnect').onclick = async () => {
   try {
-    const device = await navigator.bluetooth.requestDevice({ filters: [{ services: [UUIDS.service] }], optionalServices: ['battery_service'] });
+    const device = await navigator.bluetooth.requestDevice({ filters: [{ services: [UUIDS.service] }], optionalServices: ['battery_service', 'device_information'] });
     $('state').textContent = `Connecting to ${device.name}...`;
     const server = await device.gatt.connect();
+    // Standard Device Information: model + firmware version, for bug reports and /verify-collar.
+    const info = { model: null, firmware: null };
+    try {
+      const dis = await server.getPrimaryService('device_information');
+      for (const [k, c] of [['model', 'model_number_string'], ['firmware', 'firmware_revision_string']]) {
+        try { info[k] = decodeDisString(await (await dis.getCharacteristic(c)).readValue()) || null; } catch (_) { /* optional */ }
+      }
+    } catch (e) { log(`device info not available: ${e.message}`); }
     const svc = await server.getPrimaryService(UUIDS.service);
     const chr = {};
     for (const k of ['live', 'log', 'control', 'status']) chr[k] = await svc.getCharacteristic(UUIDS[k]);
@@ -185,7 +194,7 @@ $('btnConnect').onclick = async () => {
     const clock = makeClock(Date.now(), st.uptime_s);
     // A reboot resets uptime/seq; key the sync cursor by approximate boot time.
     const bootKey = Math.round((Date.now() - st.uptime_s * 1000) / 60000);
-    collar = { device, chr, clock, epochS: st.epoch_s, name: device.name || 'OpenPaw', bootKey };
+    collar = { device, chr, clock, epochS: st.epoch_s, name: device.name || 'OpenPaw', bootKey, firmware: info.firmware, label: deviceLabel({ ...info, board: st.board }) };
     device.addEventListener('gattserverdisconnected', () => { $('state').textContent = 'Disconnected. Tap Connect to reconnect.'; $('btnSync').disabled = true; $('btnFind').disabled = true; log('collar disconnected'); });
     chr.live.addEventListener('characteristicvaluechanged', async (e) => { const r = decodeRecord(e.target.value); show(r); await ingest([r]); });
     await chr.live.startNotifications();
@@ -196,9 +205,10 @@ $('btnConnect').onclick = async () => {
       if (done && pendingSync) { log(`backlog done: ${pendingSync.n} epochs`); $('state').textContent = `Connected to ${collar.name}. Backlog synced (${pendingSync.n} epochs).`; pendingSync = null; }
     });
     await chr.log.startNotifications();
-    $('state').textContent = `Connected to ${collar.name} (${st.board}, ${st.stored} epochs stored, epoch ${st.epoch_s} s).`;
+    $('state').textContent = `Connected to ${collar.name} (${st.stored} epochs stored, epoch ${st.epoch_s} s).`;
+    $('device').textContent = collar.label; $('deviceRow').hidden = false;
     $('btnSync').disabled = false; $('btnFind').disabled = false;
-    log(`connected ${collar.name} board=${st.board} next_seq=${st.next_seq} uptime=${st.uptime_s}s`);
+    log(`connected ${collar.name} board=${st.board} model=${info.model} fw=${info.firmware} next_seq=${st.next_seq} uptime=${st.uptime_s}s`);
     $('btnSync').click();  // pull anything recorded while we were away
   } catch (e) { log(`connect failed: ${e.message}`); $('state').textContent = `Could not connect: ${e.message}`; }
 };

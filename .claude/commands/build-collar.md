@@ -32,4 +32,4 @@ Tap **Export OpenPaw JSONL**. The file uses a pseudonymous dog ID; suggest one t
 ## Rules
 - Measurements only. Never diagnose, never read emotions, no "stress score", no treatment advice. Movement numbers describe movement; the owner, trainer and vet interpret them.
 - Ask for no personal data beyond what the step needs.
-- If a step fails twice, help them open a GitHub issue with: board, the release name of the `.uf2` they flashed, the light pattern, what they did. Leave personal details out.
+- If a step fails twice, help them open a GitHub issue with: the "Collar:" line under the Connect button (board plus the firmware version the app shows; if the collar never connects, the release name of the file they flashed), the light pattern, what they did. Leave personal details out.
