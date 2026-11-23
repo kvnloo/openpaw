@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   hexToBytes, decodeRecord, decodeChunk, decodeStatus, encodeDumpFrom, parseHeartRate,
-  recordToEvents, heartRateToEvents, makeClock, toJsonl, RECORD_SIZE,
+  recordToEvents, heartRateToEvents, makeClock, toJsonl, RECORD_SIZE, decodeDisString, deviceLabel,
 } from '../openpaw-ble.js';
 
 const golden = JSON.parse(readFileSync(new URL('./golden.json', import.meta.url)));
@@ -84,4 +84,27 @@ test('records become schema-valid OpenPaw measurement events with provenance', (
   const lines = toJsonl(events).trim().split('\n');
   assert.equal(lines.length, events.length);
   lines.forEach((l) => validate(JSON.parse(l)));
+});
+
+test('Device Information strings decode as UTF-8 and drop trailing NULs', () => {
+  const enc = new TextEncoder();
+  assert.equal(decodeDisString(enc.encode('0.1.0')), '0.1.0');
+  const padded = new Uint8Array(8); padded.set(enc.encode('0.1.0'));
+  assert.equal(decodeDisString(padded), '0.1.0');
+  assert.equal(decodeDisString(new DataView(enc.encode(' SenseCAP T1000-E ').buffer)), 'SenseCAP T1000-E');
+});
+
+test('connection label names model and firmware, and says when firmware is unknown', () => {
+  assert.equal(deviceLabel({ model: 'SenseCAP T1000-E', firmware: '0.1.0', board: 't1000-e' }), 'SenseCAP T1000-E, firmware 0.1.0');
+  assert.equal(deviceLabel({ model: null, firmware: null, board: 'xiao-nrf52840-sense' }), 'xiao-nrf52840-sense, firmware unknown');
+});
+
+test('events carry the firmware version in provenance when known, and stay schema-valid', () => {
+  const clock = makeClock(Date.UTC(2026, 10, 23, 15, 0, 0), 100);
+  const rec = decodeRecord(hexToBytes(golden.find((g) => g.name === 'rest').hex));
+  const withFw = recordToEvents(rec, { dogId: 'dog-demo', deviceId: 'OpenPaw-ABCD', clock, firmwareVersion: '0.1.0' });
+  withFw.forEach(validate);
+  assert.ok(withFw.every((e) => e.provenance.firmware_version === '0.1.0'));
+  const noFw = recordToEvents(rec, { dogId: 'dog-demo', deviceId: 'OpenPaw-ABCD', clock });
+  assert.ok(noFw.every((e) => !('firmware_version' in e.provenance)));
 });

@@ -78,6 +78,14 @@ class BuildCollarTests(unittest.TestCase):
     def test_points_at_the_guide_as_source_of_truth(self):
         self.assertIn('`docs/COLLAR.md`', read('build-collar.md'))
 
+    def test_issue_report_asks_for_the_firmware_version_the_app_shows(self):
+        app_html = (ROOT / 'app' / 'index.html').read_text(encoding='utf-8')
+        self.assertIn("'firmware_revision_string'", app_html, 'app must read the DIS firmware revision')
+        self.assertIn('dis.setFirmwareRev(OPENPAW_FW_VERSION)', FIRMWARE.read_text(encoding='utf-8'))
+        text = read('build-collar.md')
+        self.assertIn('firmware version the app shows', text)
+        self.assertNotIn('release name of the `.uf2`', text)
+
 
 class VerifyCollarTests(unittest.TestCase):
     def test_serial_csv_header_matches_firmware(self):
