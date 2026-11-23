@@ -114,6 +114,8 @@ Software and protocol work in this repository are licensed under GPL-3.0. Future
 
 The "Blueprint" framing is inspired by Bryan Johnson's public quantified-self/longitudinal measurement work. OpenPaw is independent and not affiliated with Bryan Johnson or Blueprint.
 
+The behavior side (body language, consent-based handling, recovery as a first-class measure, owner-led force-free training) is inspired by [Pet Harmony](https://petharmonytraining.com/). OpenPaw is not officially affiliated with or endorsed by Pet Harmony.
+
 OpenPaw also builds on the work of veterinary researchers, behavior professionals, open-hardware communities, and existing pet-wearable teams who established many of the sensing and longitudinal-monitoring primitives this project hopes to connect rather than reinvent.
 
 See [CREDITS.md](CREDITS.md) for provenance.
