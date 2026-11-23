@@ -36,8 +36,8 @@ jobs:
             [ -e "_site/${f%/}" ] || [ -e "_site/${f}index.html" ] || { echo "missing: $f"; exit 1; }
           done
       - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: _site
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
