@@ -87,7 +87,7 @@
 
 <script type="module">
 import { UUIDS, decodeRecord, decodeChunk, decodeStatus, encodeDumpFrom, CMD_FIND_ME, parseHeartRate,
-         recordToEvents, heartRateToEvents, makeClock, toJsonl, decodeDisString, deviceLabel } from './openpaw-ble.js';
+         recordToEvents, heartRateToEvents, makeClock, toJsonl, decodeDisString, deviceLabel, syncFrom } from './openpaw-ble.js';
 
 const $ = (id) => document.getElementById(id);
 const logEl = $('log');
@@ -184,7 +184,7 @@ $('btnConnect').onclick = async () => {
     const clock = makeClock(Date.now(), st.uptime_s);
     // A reboot resets uptime/seq; key the sync cursor by approximate boot time.
     const bootKey = Math.round((Date.now() - st.uptime_s * 1000) / 60000);
-    collar = { device, chr, clock, epochS: st.epoch_s, name: device.name || 'OpenPaw', bootKey, firmware: info.firmware, label: deviceLabel({ ...info, board: st.board }) };
+    collar = { device, chr, clock, epochS: st.epoch_s, name: device.name || 'OpenPaw', bootKey, bootSeq: st.boot_seq, firmware: info.firmware, label: deviceLabel({ ...info, board: st.board }) };
     device.addEventListener('gattserverdisconnected', () => { $('state').textContent = 'Disconnected. Tap Connect to reconnect.'; $('btnSync').disabled = true; $('btnFind').disabled = true; log('collar disconnected'); });
     chr.live.addEventListener('characteristicvaluechanged', async (e) => { const r = decodeRecord(e.target.value); show(r); await ingest([r]); });
     await chr.live.startNotifications();
@@ -205,7 +205,7 @@ $('btnConnect').onclick = async () => {
 
 $('btnSync').onclick = async () => {
   if (!collar) return;
-  const from = ((await getMeta(`lastSeq:${collar.name}:${collar.bootKey}`)) ?? -1) + 1;
+  const from = syncFrom(await getMeta(`lastSeq:${collar.name}:${collar.bootKey}`), { boot_seq: collar.bootSeq });
   pendingSync = { n: 0 };
   log(`requesting backlog from seq ${from}`);
   await collar.chr.control.writeValue(encodeDumpFrom(from));

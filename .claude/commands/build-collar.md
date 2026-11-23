@@ -24,7 +24,7 @@ Give the latest release link from the guide and the file name for their board. W
 Send them to https://kvnloo.github.io/openpaw/ (Chrome or Edge; Bluefy on iPhone). Ask them to tap **Connect collar**, pick `OpenPaw-XXXX`, and tap **Beep / blink collar**. Then the health check: 10 minutes still on a table, then 10 minutes carried while walking, then **Export OpenPaw JSONL**. If they share the file, run `/verify-collar` on it and report its answer.
 
 ## 5. First walk
-Fit: a separate flat collar, card under the neck, same way up every time, two fingers under the collar, leash on a harness. The phone does not need to stay connected. Afterwards: reconnect and tap **Download backlog**. Remind them memory holds about the last 5.7 hours and a reboot or flat battery clears it, so sync after each walk.
+Fit: a separate flat collar, card under the neck, same way up every time, two fingers under the collar, leash on a harness. The phone does not need to stay connected. Afterwards: reconnect and tap **Download backlog**. Remind them to sync after each walk: firmware 0.2+ saves about 5 days to the collar's flash chip and keeps it through a restart (compiles and is host-tested; not yet run on hardware), firmware 0.1.x holds only the last 5.7 hours in memory. After a restart the app downloads only what was recorded since that restart.
 
 ## 6. Export and share
 Tap **Export OpenPaw JSONL**. The file uses a pseudonymous dog ID; suggest one that is not the dog's name. They choose who sees it (trainer, vet, or nobody). Offer `/verify-collar` again on the walk file.

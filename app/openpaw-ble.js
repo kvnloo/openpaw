@@ -76,7 +76,16 @@ export function decodeStatus(bytes) {
     next_seq: v.getUint32(4, true),
     uptime_s: v.getUint32(8, true),
     stored: v.getUint32(12, true),
+    // First seq of the current boot. 16-byte status (firmware 0.1.x, RAM only) restarts seq at 0.
+    boot_seq: v.byteLength >= 20 ? v.getUint32(16, true) : 0,
   };
+}
+
+// Where a backlog download should start. The flash log keeps records from earlier boots,
+// but their uptime clock cannot be anchored to wall time any more, so never ask for them.
+export function syncFrom(lastSeq, status) {
+  const next = lastSeq == null ? 0 : lastSeq + 1;
+  return Math.max(next, status.boot_seq || 0);
 }
 
 // Standard Device Information Service strings (model 0x2A24, firmware 0x2A26).

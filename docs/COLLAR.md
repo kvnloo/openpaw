@@ -43,7 +43,7 @@ Open **https://kvnloo.github.io/openpaw/app/** in Chrome or Edge (Android, Windo
 3. Optional: tap **Add heart-rate strap** for the Polar H10.
 4. Tap **Export OpenPaw JSONL** any time to download everything. Your data stays in your browser until you export it.
 
-The collar keeps recording while your phone is away and holds about the last 5.7 hours in memory today (longer storage is on the roadmap). Reconnect and tap **Download backlog** to fill the gaps. A reboot or a flat battery clears that memory.
+The collar keeps recording while your phone is away. Reconnect and tap **Download backlog** to fill the gaps. Firmware 0.2 and later saves epochs to the board's flash chip, about 5 days on the 2 MB chip, and keeps them through a restart or a flat battery (this compiles and passes host tests, including simulated power cuts, but has not yet run on a real board). After a restart the app downloads only what was recorded since that restart, because the collar has no clock to date older epochs. If no flash chip answers at startup, or on firmware 0.1.x, the collar holds only the last 5.7 hours in memory, and a restart clears it.
 
 ## Fit and safety
 

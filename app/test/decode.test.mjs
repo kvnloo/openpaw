@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   hexToBytes, decodeRecord, decodeChunk, decodeStatus, encodeDumpFrom, parseHeartRate,
-  recordToEvents, heartRateToEvents, makeClock, toJsonl, RECORD_SIZE, decodeDisString, deviceLabel,
+  recordToEvents, heartRateToEvents, makeClock, toJsonl, RECORD_SIZE, decodeDisString, deviceLabel, syncFrom,
 } from '../openpaw-ble.js';
 
 const golden = JSON.parse(readFileSync(new URL('./golden.json', import.meta.url)));
@@ -43,8 +43,28 @@ test('status and control encoding', () => {
   const s = new Uint8Array(16);
   const dv = new DataView(s.buffer);
   s[0] = 1; s[1] = 2; dv.setUint16(2, 5, true); dv.setUint32(4, 1234, true); dv.setUint32(8, 6170, true); dv.setUint32(12, 1234, true);
-  assert.deepEqual(decodeStatus(s), { proto: 1, board: 't1000-e', epoch_s: 5, next_seq: 1234, uptime_s: 6170, stored: 1234 });
+  // 16-byte status = firmware 0.1.x: seq restarts at 0 every boot, so this boot began at 0
+  assert.deepEqual(decodeStatus(s), { proto: 1, board: 't1000-e', epoch_s: 5, next_seq: 1234, uptime_s: 6170, stored: 1234, boot_seq: 0 });
   assert.deepEqual([...encodeDumpFrom(0x01020304)], [1, 4, 3, 2, 1]);
+});
+
+test('20-byte status carries boot_seq (flash log keeps records and seq across reboots)', () => {
+  const s = new Uint8Array(20);
+  const dv = new DataView(s.buffer);
+  s[0] = 1; s[1] = 1; dv.setUint16(2, 5, true); dv.setUint32(4, 90000, true); dv.setUint32(8, 600, true);
+  dv.setUint32(12, 86870, true); dv.setUint32(16, 89880, true);
+  const st = decodeStatus(s);
+  assert.equal(st.boot_seq, 89880);
+  assert.equal(st.stored, 86870);
+});
+
+test('backlog sync never asks for records from an earlier boot (their uptime clock is gone)', () => {
+  const st = { boot_seq: 89880 };
+  assert.equal(syncFrom(null, st), 89880, 'new boot, nothing synced yet: start at this boot');
+  assert.equal(syncFrom(89900, st), 89901, 'resume after the last synced record');
+  assert.equal(syncFrom(10, st), 89880, 'a stale cursor never reaches back before this boot');
+  assert.equal(syncFrom(null, { boot_seq: 0 }), 0, 'old firmware: from 0 as before');
+  assert.equal(syncFrom(41, { boot_seq: 0 }), 42);
 });
 
 test('heart rate measurement with RR intervals (Polar H10 style)', () => {
