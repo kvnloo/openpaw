@@ -99,6 +99,35 @@ test('session-check signs tapped before the reaction join the precursors, labell
   assert.deepEqual(consultRows(onlyCheck, null)[1], ['Precursors', 'won\u2019t take food, can\u2019t look away (session check)']);
 });
 
+// Owners often tap body tags only after the reaction is over. A tag saved after Reaction with
+// seen: 'before_reaction' counts as a precursor but stays labelled as recalled, so a consultant
+// can weigh it; an unmarked after-Reaction tag is still left out.
+test('body tags marked "seen before the reaction" after the fact join the precursors, labelled recalled', () => {
+  const D = 'ep:dddd';
+  const evs = [
+    ev('2026-11-22T08:00:00.000Z', 'trigger.seen', 'trigger', D, '10-20', { trigger_class: 'person' }),
+    ev('2026-11-22T08:00:02.000Z', 'body_language.tags', 'observation', D, ['freeze']),
+    ev('2026-11-22T08:00:05.000Z', 'behavior.reacted', 'observation', D, true),
+    ev('2026-11-22T08:00:40.000Z', 'body_language.tags', 'observation', D, ['hard stare', 'freeze'], { seen: 'before_reaction' }),
+    ev('2026-11-22T08:00:50.000Z', 'body_language.tags', 'observation', D, ['panting']),
+  ];
+  const [d] = episodesFrom(evs);
+  assert.deepEqual(d.precursors, ['freeze']);
+  assert.deepEqual(d.recalledPrecursors, ['hard stare'], 'already-tagged signs are not repeated');
+  assert.deepEqual(consultRows(d, null)[1],
+    ['Precursors', 'freeze (owner tags); hard stare (owner tags, recalled after the reaction)']);
+  const onlyRecalled = episodesFrom([evs[0], evs[2], evs[3]])[0];
+  assert.deepEqual(consultRows(onlyRecalled, null)[1],
+    ['Precursors', 'hard stare, freeze (owner tags, recalled after the reaction)']);
+});
+
+test('the tag sheet offers "seen before the reaction" and the save stores it', () => {
+  const html = readFileSync(new URL('../field.html', import.meta.url), 'utf8');
+  const js = readFileSync(new URL('../field.js', import.meta.url), 'utf8');
+  assert.match(html, /id="optBefore"/);
+  assert.match(js, /\.seen = 'before_reaction'/);
+});
+
 test('the field page shows the last episode in lens form', () => {
   const html = readFileSync(new URL('../field.html', import.meta.url), 'utf8');
   const js = readFileSync(new URL('../field.js', import.meta.url), 'utf8');
