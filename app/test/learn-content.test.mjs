@@ -81,6 +81,16 @@ test('stacking card: session footage of triggers adding up, then distance and re
   assert.match(c.explain, /minutes/);
 });
 
+test('sniff card: a first sniff after a reaction is the start of recovery, not the end, with timestamped footage', () => {
+  const c = CARDS.find((x) => x.id === 'c-sniff');
+  assert.ok(Array.isArray(c.examples) && c.examples.length >= 2, 'video examples');
+  for (const e of c.examples) assert.match(e.url, /^https:\/\/www\.youtube\.com\/watch\?v=[\w-]{11}&t=\d+s$/, e.url);
+  assert.ok(c.examples.some((e) => /nose|sniff/i.test(e.label) && /seconds/i.test(e.label)), 'an example shows sniffing returning within seconds');
+  assert.ok(c.examples.some((e) => /tail/i.test(e.label) && /(again|back up)/i.test(e.label)), 'an example shows arousal signs coming back after the first sniff');
+  assert.match(c.explain, /start of recovery, not the end/i);
+  assert.ok(c.evidence && c.evidence.includes('beerda1998-behavioural-saliva-cortisol-and-heart-rate-responses-to'), 'cites docs/evidence');
+});
+
 test('every card example is a timestamped https link with a label', () => {
   for (const c of CARDS.filter((x) => x.examples)) {
     for (const e of c.examples) {
