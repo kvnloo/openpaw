@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-only
 """Default 50 Hz OpenPaw feature core; input signed integer milligravity."""
 import math
 

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-only
 """Compare Python feature output with C-generated golden packet fields."""
 import json
 from pathlib import Path
