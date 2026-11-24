@@ -13,8 +13,8 @@
 
 | Field | Observed counts (including missing) |
 |---|---|
-| breed_group | mixed breed: 302; herding: 147; missing: 78; retriever: 34; companion: 33; terrier: 32; spitz: 27; molossian: 15; sighthound: 13; hound: 12; pointer: 9; flushing: 8; other: 6; pinscher: 6 |
-| age_band | 2_to_under_7y: 306; 7y_and_over: 247; missing: 142; 1_to_under_2y: 25; under_1y: 2 |
+| breed_group | mixed breed: 302; herding: 146; missing: 78; retriever: 35; companion: 33; terrier: 32; spitz: 27; molossian: 15; sighthound: 13; hound: 12; pointer: 9; flushing: 8; other: 6; pinscher: 6 |
+| age_band | 2_to_under_7y: 306; 7y_and_over: 247; missing: 142; 1_to_under_2y: 24; under_1y: 3 |
 | sex | male: 326; female: 319; missing: 77 |
 | neutered | True: 569; False: 149; missing: 4 |
 | weight_band | missing: 721; 10_to_under_25kg: 1 |

@@ -35,6 +35,22 @@ test('stable unique case IDs and row-level source references', () => {
   assert.equal(rows.filter(r => sources.get(r.source_id) === 'owner_survey').length, 639);
 });
 
+test('Monteny & Moons 2020 dogs match Table 1 (breed group, sex, neuter, age at first visit)', () => {
+  // Table 1, doi:10.3390/ani10010161 — A/B Labrador retriever 14 mo, C Malinois 7 mo,
+  // D Border collie 64 mo (neutered), E Shiba Inu 10 mo.
+  const want = {
+    A: ['retriever', 'male', false, '1_to_under_2y'],
+    B: ['retriever', 'male', false, '1_to_under_2y'],
+    C: ['herding', 'female', false, 'under_1y'],
+    D: ['herding', 'male', true, '2_to_under_7y'],
+    E: ['spitz', 'male', false, 'under_1y'],
+  };
+  for (const [key, [breed, sex, neutered, age]] of Object.entries(want)) {
+    const s = rows.find(r => r.case_id === `monteny2020-${key}`).signalment;
+    assert.deepEqual([s.breed_group, s.sex, s.neutered, s.age_band], [breed, sex, neutered, age], key);
+  }
+});
+
 test('missing location, invalid values and undeclared fields are rejected', () => {
   const row = rows[0];
   assert.ok(!validate({ ...row, source_location: '  ' }));

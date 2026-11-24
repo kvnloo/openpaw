@@ -78,8 +78,8 @@ def survey(workbook):
 def clinical():
     data = [
         ("A", "retriever", 14, "male", False, 14, None, "Restlessness, jumping and following owners subsided."),
-        ("B", "herding", 14, "male", False, 3, None, "Repetitive play and barking at owners stopped; more resting at home."),
-        ("C", "herding", 17, "female", False, 14, None, "Following subsided; occasional nudging persisted."),
+        ("B", "retriever", 14, "male", False, 3, None, "Repetitive play and barking at owners stopped; more resting at home."),
+        ("C", "herding", 7, "female", False, 14, None, "Following subsided; occasional nudging persisted."),
         ("D", "herding", 64, "male", True, 24, None, "No further snaps or bites during the program."),
         ("E", "spitz", 10, "male", False, 27, ["freezing"], "Less inhibition at home; could rest near the previously avoided family member."),
     ]
