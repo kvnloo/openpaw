@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import * as S from './store.js';
 import { TEMPLATES, findPatterns, demoHistory, metricFor, slug, ENGINE_VERSION } from './patterns.js';
+import { packGroups } from './tile-pack.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -70,8 +71,10 @@ function renderTiles() {
   // phone layout: two consecutive one-tile groups share a row (class "pair") instead of each leaving half a row empty
   groups.forEach((g, i) => { g.n = Math.min(4, g.ts.length + (g.cat === 'custom' ? 1 : 0)); });
   for (let i = 0; i + 1 < groups.length; i++) if (groups[i].n === 1 && groups[i + 1].n === 1) { groups[i].pair = groups[i + 1].pair = true; i++; }
-  $('#tiles').innerHTML = groups.map(({ cat, label, ts, n, pair }) => {
-    return `<div class="grp${pair ? ' pair' : ''}" style="--n:${n}"><div class="micro cat">${label}</div><div class="tiles">${ts.map((t) => {
+  // desktop layout: a row's leftover cells go to its last group, whose last tile spans them (no empty cells)
+  packGroups(groups.map((g) => g.n)).forEach((p, i) => Object.assign(groups[i], p));
+  $('#tiles').innerHTML = groups.map(({ cat, label, ts, span, last, pair }) => {
+    return `<div class="grp${pair ? ' pair' : ''}" style="--n:${span};--last:${last}"><div class="micro cat">${label}</div><div class="tiles">${ts.map((t) => {
       const tot = totalToday(t);
       const today = tot ? (t.type === 'scale' ? `avg ${fmt(tot.v)}` : t.type === 'check' ? `${tot.n}× today` : `${fmt(tot.v)} ${t.unit || ''}`) : '';
       return `<button class="tile" data-t="${esc(t.id)}"><span class="tap" aria-hidden="true">+</span><span class="nm">${esc(t.name)}</span><span>${today ? `<span class="today">${esc(today)}</span>` : `<span class="meta">${esc(t.unit || (t.type === 'check' ? 'tap to log' : t.type))}</span>`}</span></button>`;
