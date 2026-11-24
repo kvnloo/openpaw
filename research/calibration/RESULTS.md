@@ -28,7 +28,7 @@ From repo root, with Python 3.12 and a C99 compiler:
 ```sh
 python3 -m venv .venv
 .venv/bin/python -m pip install -r research/calibration/requirements.txt
-.venv/bin/python -I research/calibration/test_golden.py
+.venv/bin/python -I research/calibration/golden_check.py
 .venv/bin/python -I research/calibration/evaluate.py DogMoveData_csv_format.zip --external df_raw.csv --output score.json
 ```
 
