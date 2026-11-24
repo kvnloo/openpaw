@@ -53,7 +53,8 @@ export function renderNow(root, epochs, { tz, now, simulated }) {
       <path d="${d}L${x(lp.t)} ${H}L${x(pts[0].t)} ${H}Z" fill="url(#spg)"/><path d="${d}" fill="none" stroke="#d7b986" stroke-width="1.5" stroke-linejoin="round"/>
       ${pts.filter((e) => e.bursts).map((e) => `<line x1="${x(e.t)}" x2="${x(e.t)}" y1="2" y2="${H}" stroke="#e8a35f" stroke-width="1.2" stroke-dasharray="2 3"/>`).join('')}
       <circle class="head" cx="${x(lp.t)}" cy="${y(lp.vedba)}" r="3.2" fill="#d7b986"/><circle class="pulse" cx="${x(lp.t)}" cy="${y(lp.vedba)}" r="3.2" fill="none" stroke="#d7b986"/>`;
-  } else sp.innerHTML = '';
+  } else sp.innerHTML = `<line class="base" x1="0" x2="${W}" y1="${H - 4}" y2="${H - 4}" stroke="#4a463d" stroke-dasharray="2 4" vector-effect="non-scaling-stroke"/>
+      <text class="empty" x="${W / 2}" y="${H / 2 + 2}" text-anchor="middle">No samples in the last 10 min</text>`;
   // chips
   const typical = s.typicalActiveSoFar;
   const delta = typical && typical > 1 ? Math.round(((s.activeToday - typical) / typical) * 100) : null;
