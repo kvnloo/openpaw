@@ -8,6 +8,7 @@
 import * as S from './store.js';
 import { UUIDS, decodeRecord, decodeStatus, recordToEvents, makeClock } from './openpaw-ble.js';
 import { episodesFrom, consultRows, ownerRows, vetRows } from './episodes.js';
+import { reportHtml } from './episode-report.js';
 import { SESSION_SIGNS, sessionAdvice, sessionCheckPayload } from './session-check.js';
 
 const $ = (id) => document.getElementById(id);
@@ -164,6 +165,12 @@ async function renderEpisode() {
     row.append(dt, dd); box.append(row);
   }
 }
+
+// One-page report for a vet or consultant: fill the print-only block, then the browser's Print (or Save as PDF).
+$('btnReport').addEventListener('click', async () => {
+  $('epReport').innerHTML = reportHtml(episodesFrom(await S.allEvents()));
+  window.print();
+});
 
 function renderLog() {
   const ol = $('log');
