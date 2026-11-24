@@ -79,6 +79,8 @@ static bool imu_begin() {
   i2c_write(LSM_ADDR, 0x15, 0x10);  // CTRL6_C: XL_HM_MODE=1 (low-power accel at 52 Hz)
   return true;
 }
+// Still mode: ODR 12.5 Hz low-power (9 uA vs 25 uA at 52 Hz, ST AN5130 table 7), FS +/-8 g kept.
+static void imu_set_low_rate(bool low) { i2c_write(LSM_ADDR, 0x10, low ? 0x1C : 0x3C); }
 static bool imu_read_mg(int16_t *x, int16_t *y, int16_t *z) {
   uint8_t b[6];
   if (!i2c_read(LSM_ADDR, 0x28, b, 6)) return false;
@@ -120,6 +122,9 @@ static bool imu_read_mg(int16_t *x, int16_t *y, int16_t *z) {
   *z = (int16_t)(((int16_t)(b[4] | (b[5] << 8)) >> 2) * 0.977f);
   return true;
 }
+// QMA6100P current depends on its master clock, not the ODR (38 uA at MCLK 51.2 kHz,
+// QST datasheet Rev F): still mode only polls it less often.
+static void imu_set_low_rate(bool) {}
 #endif
 
 // ---------------------------------------------------------------- battery
@@ -328,6 +333,9 @@ static bool g_dumping = false;
 static uint16_t g_conn = BLE_CONN_HANDLE_INVALID;
 static uint8_t g_batt = 255;
 static uint32_t g_imu_errors = 0;
+static openpaw_power_t g_pwr;          // still mode: 10 Hz after 5 min still with no phone (openpaw_core.h)
+static float g_rate_hz = SAMPLE_HZ;
+static uint32_t g_sample_ms = SAMPLE_MS;
 
 static void ctrl_write_cb(uint16_t conn, BLECharacteristic *chr, uint8_t *data, uint16_t len) {
   (void)conn; (void)chr;
@@ -466,6 +474,7 @@ void setup() {
   cfg.sample_hz = SAMPLE_HZ;
   openpaw_init(&g_core, cfg);
   openpaw_ring_init(&g_ring, g_ring_store, RING_RECORDS);
+  openpaw_power_init(&g_pwr);
 
   bool ok = imu_begin();
   flash_probe();
@@ -502,8 +511,8 @@ void loop() {
     if (!g_dumping) delay(next_ms - now);  // FreeRTOS delay = CPU sleeps between samples
     return;
   }
-  next_ms += SAMPLE_MS;
-  if ((int32_t)(now - next_ms) > 1000) next_ms = now + SAMPLE_MS;  // fell behind (e.g. find-me): resync
+  next_ms += g_sample_ms;
+  if ((int32_t)(now - next_ms) > 1000) next_ms = now + g_sample_ms;  // fell behind (e.g. find-me): resync
 
   int16_t x, y, z;
   openpaw_record_t rec;
@@ -521,6 +530,15 @@ void loop() {
     }
   }
   if (!have) return;
+
+  // the epoch just closed, so a rate change starts cleanly with the next one
+  float want_hz = openpaw_power_step(&g_pwr, &rec, g_conn != BLE_CONN_HANDLE_INVALID);
+  if (want_hz != g_rate_hz) {
+    g_rate_hz = want_hz;
+    openpaw_set_rate(&g_core, want_hz);
+    imu_set_low_rate(want_hz < SAMPLE_HZ);
+    g_sample_ms = (uint32_t)(1000.0f / want_hz + 0.5f);
+  }
 
   log_put(&rec);
   uint8_t pkt[OPENPAW_RECORD_SIZE];

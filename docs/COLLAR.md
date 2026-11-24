@@ -45,6 +45,8 @@ Open **https://kvnloo.github.io/openpaw/app/** in Chrome or Edge (Android, Windo
 
 The collar keeps recording while your phone is away. Reconnect and tap **Download backlog** to fill the gaps. Firmware 0.2 and later saves epochs to the board's flash chip, about 5 days on the 2 MB chip, and keeps them through a restart or a flat battery (this compiles and passes host tests, including simulated power cuts, but has not yet run on a real board). With firmware 0.2, after a restart the app downloads only what was recorded since that restart, because the collar has no clock to date older epochs. Firmware 0.3 and later can date those too (host-tested, not yet run on hardware): each time the app connects it tells the collar the time, the collar saves that next to its epochs, and later downloads use it. Epochs from a stretch when no phone connected at all between two restarts still can't be dated; the app skips them and says how many. If no flash chip answers at startup, or on firmware 0.1.x, the collar holds only the last 5.7 hours in memory, and a restart clears it.
 
+To save battery, the next firmware (0.4) samples 10 times a second instead of 50 once the dog has been still for 5 minutes and no phone is connected. It goes back to 50 at the next 5-second epoch once the dog moves. The export marks those epochs `low_rate`. The power budget is in [POWER.md](POWER.md). It is estimated from datasheets and has not been measured on hardware yet.
+
 ## Fit and safety
 
 - **Fit:** snug enough that two fingers slide under the collar. Mount the card **under the neck, the same way up every time** (mark the top with a sticker). The weight (about 32 g) is negligible for medium and large dogs.

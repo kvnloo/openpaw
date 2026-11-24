@@ -172,6 +172,52 @@ int main(int argc, char **argv) {
             an2.unix_s == an.unix_s && an2.boot_seq == an.boot_seq, "anchor round trip");
   CHECK(openpaw_decode_anchor(buf, &an2) == 0, "an epoch record is not an anchor");
 
+  // 12. still mode: after 5 min of still epochs with no phone connected the collar
+  // samples at 10 Hz instead of 50 (fewer CPU wake-ups, IMU in its 12.5 Hz low-power
+  // mode); records say so with the LOWRATE flag; any non-still epoch goes back to 50 Hz.
+  CHECK(OPENPAW_FLAG_LOWRATE == 0x10, "LOWRATE flag is 0x10");
+  openpaw_power_t pw; openpaw_power_init(&pw);
+  openpaw_record_t still_r = rest; still_r.flags = 0; still_r.vedba_mean_mg = 12; still_r.bursts = 0;
+  float hz = 0;
+  for (int i = 0; i < OPENPAW_STILL_EPOCHS - 1; i++) hz = openpaw_power_step(&pw, &still_r, 0);
+  CHECK(hz == 50.0f, "59 still epochs (4 min 55 s) stay at 50 Hz, got %g", (double)hz);
+  hz = openpaw_power_step(&pw, &still_r, 0);
+  CHECK(hz == OPENPAW_HZ_LOW && OPENPAW_HZ_LOW == 10.0f, "60th still epoch (5 min) -> 10 Hz, got %g", (double)hz);
+  CHECK(openpaw_power_step(&pw, &still_r, 0) == OPENPAW_HZ_LOW, "stays low while still");
+  CHECK(openpaw_power_step(&pw, &still_r, 1) == 50.0f, "a connected phone (live view) gets 50 Hz");
+  CHECK(openpaw_power_step(&pw, &still_r, 0) == 50.0f, "after a connection the 5 min count starts again");
+  openpaw_power_init(&pw);
+  for (int i = 0; i < OPENPAW_STILL_EPOCHS; i++) openpaw_power_step(&pw, &still_r, 0);
+  openpaw_record_t moving_r = still_r; moving_r.vedba_mean_mg = OPENPAW_STILL_MG;
+  CHECK(openpaw_power_step(&pw, &moving_r, 0) == 50.0f, "one epoch at the still limit wakes to 50 Hz");
+  for (int i = 0; i < OPENPAW_STILL_EPOCHS; i++) openpaw_power_step(&pw, &still_r, 0);
+  openpaw_record_t burst_r = still_r; burst_r.bursts = 1;
+  CHECK(openpaw_power_step(&pw, &burst_r, 0) == 50.0f, "a burst wakes to 50 Hz");
+  for (int i = 0; i < OPENPAW_STILL_EPOCHS; i++) openpaw_power_step(&pw, &still_r, 0);
+  openpaw_record_t gap_r = still_r; gap_r.flags = OPENPAW_FLAG_GAP;
+  CHECK(openpaw_power_step(&pw, &gap_r, 0) == 50.0f, "a sensor gap is not 'still': back to 50 Hz");
+
+  // the rate change applies at the next epoch boundary, never inside an epoch
+  openpaw_state_t s6; uint32_t t6 = 0; openpaw_init(&s6, cfg);
+  openpaw_record_t r6; memset(&r6, 0, sizeof r6);
+  for (int i = 0; i < 100; i++) openpaw_push(&s6, 0, 0, 1000, 1, 0, 50, 0, &r6);
+  openpaw_set_rate(&s6, OPENPAW_HZ_LOW);
+  CHECK(s6.expected == 250, "mid-epoch rate change waits: expected %u", s6.expected);
+  int closed_at = -1;
+  for (int i = 0; i < 200; i++) if (openpaw_push(&s6, 0, 0, 1000, 1, 0, 50, 0, &r6)) { closed_at = i; break; }
+  CHECK(closed_at == 149, "the 50 Hz epoch still closes after 250 samples (at %d)", closed_at);
+  CHECK(!(r6.flags & OPENPAW_FLAG_LOWRATE), "that epoch was sampled at 50 Hz: no LOWRATE");
+  CHECK(s6.expected == 50, "next epoch: 10 Hz x 5 s = 50 samples, got %u", s6.expected);
+  rng = 777;
+  openpaw_record_t low = run_epoch(&s6, gen_rest, &t6);
+  CHECK(low.flags & OPENPAW_FLAG_LOWRATE, "10 Hz epoch carries LOWRATE");
+  CHECK(low.vedba_mean_mg < 20 && low.active_frac == 0 && low.bursts == 0, "rest at 10 Hz still reads as rest (%u)",
+        low.vedba_mean_mg);
+  openpaw_set_rate(&s6, 50.0f);
+  CHECK(s6.expected == 250, "back to 50 Hz at once when between epochs, got %u", s6.expected);
+  openpaw_record_t back = run_epoch(&s6, gen_rest, &t6);
+  CHECK(!(back.flags & OPENPAW_FLAG_LOWRATE) && back.seq == low.seq + 1, "50 Hz again, seq continues");
+
   if (argc > 1) {  // golden vectors for app/test: hex packet + expected decoded fields
     FILE *f = fopen(argv[1], "w");
     if (!f) { perror("golden"); return 2; }

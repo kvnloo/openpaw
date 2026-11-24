@@ -30,6 +30,7 @@ extern "C" {
 #define OPENPAW_FLAG_CHARGING 0x02
 #define OPENPAW_FLAG_CLIPPED 0x04   // a sample hit the sensor's full-scale range
 #define OPENPAW_FLAG_GAP 0x08       // fewer samples than expected (sensor stall)
+#define OPENPAW_FLAG_LOWRATE 0x10   // epoch sampled at OPENPAW_HZ_LOW (still mode), not the full rate
 
 typedef struct {
   float sample_hz;          // nominal IMU rate, e.g. 50
@@ -70,6 +71,8 @@ typedef struct {
   int above_burst;
   int clipped;
   uint32_t seq;
+  float full_hz;            // rate from openpaw_init; epochs below it are flagged LOWRATE
+  float pending_hz;         // openpaw_set_rate() asked mid-epoch: applied when the epoch closes
 } openpaw_state_t;
 
 static inline openpaw_cfg_t openpaw_default_cfg(void) {
@@ -94,13 +97,28 @@ static inline void openpaw_epoch_reset(openpaw_state_t *s) {
   s->clipped = 0;
 }
 
+static inline void openpaw__apply_rate(openpaw_state_t *s, float hz) {
+  s->cfg.sample_hz = hz;
+  float dt = 1.0f / hz;
+  s->alpha = dt / (s->cfg.static_tau_s + dt);  // same gravity time constant in seconds at any rate
+  s->expected = (uint32_t)(hz * s->cfg.epoch_s + 0.5f);
+  s->pending_hz = 0;
+}
+
 static inline void openpaw_init(openpaw_state_t *s, openpaw_cfg_t cfg) {
   memset(s, 0, sizeof(*s));
   s->cfg = cfg;
-  float dt = 1.0f / cfg.sample_hz;
-  s->alpha = dt / (cfg.static_tau_s + dt);
-  s->expected = (uint32_t)(cfg.sample_hz * cfg.epoch_s + 0.5f);
+  s->full_hz = cfg.sample_hz;
+  openpaw__apply_rate(s, cfg.sample_hz);
   openpaw_epoch_reset(s);
+}
+
+// Change the sampling rate. Between epochs it applies at once; inside an epoch it
+// waits for that epoch to close, so one record never mixes two rates.
+static inline void openpaw_set_rate(openpaw_state_t *s, float hz) {
+  if (hz <= 0) return;
+  if (s->n == 0) openpaw__apply_rate(s, hz);
+  else s->pending_hz = hz;
 }
 
 static inline void openpaw__close(openpaw_state_t *s, uint32_t uptime_s, uint8_t hr_bpm,
@@ -108,7 +126,8 @@ static inline void openpaw__close(openpaw_state_t *s, uint32_t uptime_s, uint8_t
   const float mean = (float)(s->sum_vedba / s->n);
   out->version = OPENPAW_RECORD_VERSION;
   out->flags = extra_flags | (s->clipped ? OPENPAW_FLAG_CLIPPED : 0) |
-               (hr_bpm ? OPENPAW_FLAG_HR_VALID : 0);
+               (hr_bpm ? OPENPAW_FLAG_HR_VALID : 0) |
+               (s->cfg.sample_hz < s->full_hz ? OPENPAW_FLAG_LOWRATE : 0);
   out->seq = s->seq++;
   out->uptime_s = uptime_s;
   out->vedba_mean_mg = (uint16_t)(mean > 65535.0f ? 65535 : mean + 0.5f);
@@ -120,6 +139,7 @@ static inline void openpaw__close(openpaw_state_t *s, uint32_t uptime_s, uint8_t
   out->hr_bpm = hr_bpm;
   out->battery_pct = battery_pct;
   openpaw_epoch_reset(s);
+  if (s->pending_hz > 0) openpaw__apply_rate(s, s->pending_hz);
 }
 
 // Feed one sample in milli-g. Returns 1 when an epoch completed and *out was filled.
@@ -171,6 +191,30 @@ static inline int openpaw_flush(openpaw_state_t *s, uint32_t uptime_s, uint8_t h
   if (s->n == 0) return 0;
   openpaw__close(s, uptime_s, hr_bpm, battery_pct, OPENPAW_FLAG_GAP, out);
   return 1;
+}
+
+// ---- Still mode (power). A dog lying still for 5 min gets sampled at 10 Hz instead
+// of 50: the CPU wakes 5x less often and the XIAO's IMU drops to its 12.5 Hz
+// low-power mode (docs/POWER.md). Any epoch that is not clearly still (mean VeDBA at
+// or above OPENPAW_STILL_MG, a burst, or a sensor gap), or a connected phone, returns
+// to the full rate at the next epoch. OPENPAW_STILL_MG is a provisional power
+// setting, tighter than the app's "still" band (250 mg, which includes standing).
+#define OPENPAW_STILL_EPOCHS 60   // 60 x 5 s = 5 min
+#define OPENPAW_STILL_MG 60
+#define OPENPAW_HZ_LOW 10.0f
+
+typedef struct {
+  uint32_t still_epochs;  // consecutive still epochs with no phone connected
+} openpaw_power_t;
+
+static inline void openpaw_power_init(openpaw_power_t *p) { p->still_epochs = 0; }
+
+// Feed each closed epoch; returns the sampling rate (Hz) to use from the next epoch on.
+static inline float openpaw_power_step(openpaw_power_t *p, const openpaw_record_t *r, int connected) {
+  const int still = r->vedba_mean_mg < OPENPAW_STILL_MG && r->bursts == 0 && !(r->flags & OPENPAW_FLAG_GAP);
+  if (connected || !still) p->still_epochs = 0;
+  else if (p->still_epochs < OPENPAW_STILL_EPOCHS) p->still_epochs++;
+  return p->still_epochs >= OPENPAW_STILL_EPOCHS ? OPENPAW_HZ_LOW : 50.0f;
 }
 
 // Little-endian wire format, 20 bytes. Must match app/openpaw-ble.js decodeRecord().

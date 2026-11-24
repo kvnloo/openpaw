@@ -12,7 +12,7 @@ export const UUIDS = {
   control: uuid(4),
   status: uuid(5),
 };
-export const FLAGS = { HR_VALID: 1, CHARGING: 2, CLIPPED: 4, GAP: 8 };
+export const FLAGS = { HR_VALID: 1, CHARGING: 2, CLIPPED: 4, GAP: 8, LOWRATE: 16 };  // LOWRATE: still mode, 10 Hz
 export const BOARDS = { 1: 'xiao-nrf52840-sense', 2: 't1000-e' };
 export const ALGORITHM_VERSION = 'openpaw-collar-core/1';
 
@@ -63,6 +63,7 @@ export function decodeRecord(bytes, offset = 0) {
     battery_pct: v.getUint8(offset + 19),
     clipped: Boolean(flags & FLAGS.CLIPPED),
     gap: Boolean(flags & FLAGS.GAP),
+    low_rate: Boolean(flags & FLAGS.LOWRATE),
   };
 }
 
@@ -225,7 +226,7 @@ export function recordToEvents(rec, { dogId, deviceId, clock, epochS = 5, origin
       confidence: null,
       device_seq: rec.seq,
       device_uptime_s: rec.uptime_s,
-      quality: { clipped: rec.clipped, gap: rec.gap },
+      quality: { clipped: rec.clipped, gap: rec.gap, low_rate: Boolean(rec.low_rate) },
       ...(firmwareVersion ? { firmware_version: firmwareVersion } : {}),
     },
     payload: { metric, value, unit, window_s: epochS, method: extra.method || null, ...extra.payload },
