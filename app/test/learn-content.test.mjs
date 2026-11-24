@@ -111,6 +111,23 @@ test('route card: a dog refusing a route after a loud event gets a different rou
   assert.ok(c.examples.some((e) => /pain|vet/i.test(e.label) && /fear|noise/i.test(e.label)), 'an example where a trainer rules out pain and fear first');
 });
 
+test('c-sound card: stops eating during sound practice = step too big; go quieter, never louder', () => {
+  const c = CARDS.find((x) => x.id === 'c-sound');
+  assert.ok(c, 'c-sound card exists');
+  assert.equal(c.lesson, 'threshold');
+  const right = c.choices[c.answer];
+  assert.match(right, /quieter|lower|turn it down/i);
+  assert.match(right, /stop|end/i);
+  assert.doesNotMatch(right, /louder|turn it up|more volume/i);
+  assert.ok(c.choices.some((x, i) => i !== c.answer && /louder|turn it up/i.test(x)), 'a distractor pushes the volume up');
+  assert.ok(c.evidence && c.evidence.includes('riemer2023-therapy-and-prevention-of-noise-fears-in-dogs'), 'cites riemer2023');
+  assert.match(c.explain, /refus\w* food|stops? eating/i);
+  assert.match(c.explain, /tucked tail/i);
+  assert.match(c.explain, /owner/i, 'success rates are labelled as owner reports');
+  assert.ok(Array.isArray(c.examples) && c.examples.length >= 2, 'video examples');
+  for (const e of c.examples) assert.match(e.url, /^https:\/\/www\.youtube\.com\/watch\?v=[\w-]{11}&t=\d+s$/, e.url);
+});
+
 test('every card example is a timestamped https link with a label', () => {
   for (const c of CARDS.filter((x) => x.examples)) {
     for (const e of c.examples) {
