@@ -3,20 +3,23 @@
 // "still" is low movement, not sleep; "vigorous" is high movement, not excitement.
 // SPDX-License-Identifier: GPL-3.0-only
 
-export const ANALYTICS_VERSION = 'openpaw-collar-analytics/0.2';
+export const ANALYTICS_VERSION = 'openpaw-collar-analytics/0.3';
 
 // Provisional VeDBA bands (mg), fitted to Vehkaoja et al. (10.17632/vxhx934tbn.4).
-// See research/calibration/RESULTS.md: walking and sniffing overlap strongly.
+// See research/calibration/RESULTS.md: walking and sniffing overlap strongly, so they share
+// one "active" band (held-out 3-band macro-F1 0.914; a separate 570-585 mg band scored F1 0.004).
 export const LEVELS = [
   { id: 'still', label: 'Still', max: 250 },
-  { id: 'low', label: 'Low', max: 570 },
-  { id: 'moderate', label: 'Moderate', max: 585 },
+  { id: 'active', label: 'Active', max: 585 },
   { id: 'vigorous', label: 'Vigorous', max: Infinity },
 ];
+export const VIGOROUS = LEVELS.length - 1;
 export function levelOf(vedba) {
   for (let i = 0; i < LEVELS.length; i++) if (vedba < LEVELS[i].max) return i;
-  return LEVELS.length - 1;
+  return VIGOROUS;
 }
+// Minutes in every non-still band of one dayBudget row.
+export const activeMinutes = (d) => d.minutes.reduce((s, m, i) => s + (i ? m : 0), 0);
 
 // Stored OpenPaw events -> epochs [{t, vedba, max, active, bursts, pitch, roll, hr, batt, clipped, origin, w}]
 export function epochsFromEvents(events) {
@@ -61,7 +64,7 @@ export function baseline(epochs, { now = Date.now(), days = 7 } = {}) {
 // Minutes per level per local day, newest last.
 export function dayBudget(epochs, { tz = 0, now = Date.now(), days = 7 } = {}) {
   const out = [];
-  for (let i = days - 1; i >= 0; i--) out.push({ day: localDay(now - i * 864e5, tz), minutes: [0, 0, 0, 0], bursts: 0, covered: 0 });
+  for (let i = days - 1; i >= 0; i--) out.push({ day: localDay(now - i * 864e5, tz), minutes: LEVELS.map(() => 0), bursts: 0, covered: 0 });
   const idx = new Map(out.map((d, i) => [d.day, i]));
   for (const e of epochs) {
     const i = idx.get(localDay(e.t, tz)); if (i === undefined) continue;
@@ -99,13 +102,13 @@ export function burstEvents(epochs, { gapS = 30 } = {}) {
     else out.push({ start: e.t, end: e.t, count: e.bursts, peak: e.max || 0, clipped: e.clipped });
   }
   for (const b of out) for (const e of epochs) if (e.t >= b.start && e.t <= b.end) b.peak = Math.max(b.peak, e.max || 0);
-  // settle: seconds from the burst until movement is back in the still/low band for 60 s straight
+  // settle: seconds from the burst until movement is back below the vigorous band for 60 s straight
   for (const b of out) {
     let calmSince = null;
     for (const e of epochs) {
       if (e.t <= b.end) continue;
       if (e.t - b.end > 30 * 60000) break;
-      if (levelOf(e.vedba) <= 1) { calmSince ??= e.t; if (e.t - calmSince >= 60000) { b.settleS = Math.round((calmSince - b.end) / 1000); break; } }
+      if (levelOf(e.vedba) < VIGOROUS) { calmSince ??= e.t; if (e.t - calmSince >= 60000) { b.settleS = Math.round((calmSince - b.end) / 1000); break; } }
       else calmSince = null;
     }
     b.settleS ??= null;
@@ -129,15 +132,14 @@ export function summary(epochs, { tz = 0, now = Date.now() } = {}) {
   const budget = dayBudget(epochs, { tz, now, days: 8 });
   const today = budget[budget.length - 1];
   const prev = budget.slice(0, -1).filter((d) => d.covered > 60);
-  const activeMin = (d) => d.minutes[2] + d.minutes[3];
-  const typicalActive = prev.length ? prev.reduce((s, d) => s + activeMin(d), 0) / prev.length : null;
+  const typicalActive = prev.length ? prev.reduce((s, d) => s + activeMinutes(d), 0) / prev.length : null;
   // compare today so far against the same part of a typical day
   const frac = Math.max(0.05, minuteOfDay(now, tz) / 1440);
   const bursts = burstEvents(epochs);
   const lastBurst = bursts[bursts.length - 1] || null;
   return {
     last, level: last ? levelOf(last.vedba) : null,
-    activeToday: activeMin(today), typicalActiveSoFar: typicalActive === null ? null : typicalActive * frac,
+    activeToday: activeMinutes(today), typicalActiveSoFar: typicalActive === null ? null : typicalActive * frac,
     burstsToday: today.bursts, minutesSinceBurst: lastBurst ? Math.round((now - lastBurst.end) / 60000) : null,
     base: baseline(epochs, { now }),
     battery: [...epochs].reverse().find((e) => e.batt !== null)?.batt ?? null,
