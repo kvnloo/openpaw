@@ -71,6 +71,16 @@ test('food card: unedited footage where food and name stop working before the re
   assert.ok(c.examples.some((e) => /distance|away/i.test(e.label)), 'an example shows the distance response');
 });
 
+test('stacking card: session footage of triggers adding up, then distance and recovery, citing evidence', () => {
+  const c = CARDS.find((x) => x.id === 'c-stack');
+  assert.ok(Array.isArray(c.examples) && c.examples.length >= 2, 'video examples');
+  for (const e of c.examples) assert.match(e.url, /^https:\/\/www\.youtube\.com\/watch\?v=Sp3B0KmBVFQ&t=\d+s$/, e.url);
+  assert.ok(c.examples.some((e) => /car/i.test(e.label) && /dog/i.test(e.label)), 'an example names the stacked triggers');
+  assert.ok(c.examples.some((e) => /distance|away|leav/i.test(e.label) && /sniff|nose/i.test(e.label)), 'an example shows distance then a recovery cue');
+  assert.ok(c.evidence && c.evidence.includes('beerda1998-behavioural-saliva-cortisol-and-heart-rate-responses-to'), 'cites docs/evidence');
+  assert.match(c.explain, /minutes/);
+});
+
 test('every card example is a timestamped https link with a label', () => {
   for (const c of CARDS.filter((x) => x.examples)) {
     for (const e of c.examples) {
