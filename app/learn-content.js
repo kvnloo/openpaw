@@ -332,7 +332,11 @@ export const CARDS = [
   { id: 'c-food', lesson: 'threshold', art: { posture: 'stiff', ears: 'forward', eye: 'hard', mouth: 'closed', tail: 'high' },
     context: 'Near a trigger, your dog suddenly will not take even his favourite treat and does not respond to his name.',
     choices: ['He is full', 'He is likely over threshold; add distance before trying to teach anything', 'He is being stubborn', 'Offer a bigger treat closer to the trigger'], answer: 1,
-    explain: 'Refusing food and not hearing you are common signs a dog is over threshold. Move further away first.', sources: [SRC.foreverHounds, SRC.latEastBay] },
+    explain: 'Refusing food and not hearing you are common signs a dog is over threshold. Move further away first.', sources: [SRC.foreverHounds, SRC.latEastBay],
+    examples: [
+      { url: 'https://www.youtube.com/watch?v=MiMU7y93x4Y&t=1014s', label: 'Stops answering his name and ignores food before the trainer sees anything; a man and dog step out from behind a tree about 30 s later (16:54, unedited walk, Happy Hounds Dog Training)' },
+      { url: 'https://www.youtube.com/watch?v=MiMU7y93x4Y&t=1317s', label: 'Tense and leaning forward, then rearing as the man and dog turn back; the trainer adds distance and scatters treats to sniff (21:57)' },
+    ] },
   { id: 'c-consent', lesson: 'consent', art: { posture: 'turn', ears: 'back', eye: 'whale', mouth: 'lick', tail: 'low', prop: 'hand' },
     context: 'You pet your dog for three seconds and stop. She shakes off, licks her lips and steps away.',
     choices: ['Keep petting, she likes it', 'That reads as "no thanks"; give her space', 'She wants a belly rub', 'She is cold'], answer: 1,

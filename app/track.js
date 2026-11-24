@@ -85,6 +85,7 @@ const LABELS = {
   'intervention.reward': () => ['Treat / reward', ''], 'intervention.distance': (p) => ['Created distance', p.value || ''],
   'consent.check': (p) => ['Consent check', `${String(p.value).replace('_', ' ')}${p.area ? ' · ' + p.area : ''}`],
   'body_language.tags': (p) => ['Body language', Array.isArray(p.value) ? p.value.join(', ') : ''],
+  'session.check': (p) => ['Session check', Array.isArray(p.value) && p.value.length ? p.value.join(', ') : 'no stop signs marked'],
 };
 function describe(e) {
   const p = e.payload, m = p.metric;

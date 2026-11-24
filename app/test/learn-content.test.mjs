@@ -63,6 +63,14 @@ test('held-still card: stillness close to a trigger is not read as relaxed, with
   }
 });
 
+test('food card: unedited footage where food and name stop working before the reaction', () => {
+  const c = CARDS.find((x) => x.id === 'c-food');
+  assert.ok(Array.isArray(c.examples) && c.examples.length >= 2, 'video examples');
+  for (const e of c.examples) assert.match(e.url, /^https:\/\/www\.youtube\.com\/watch\?v=MiMU7y93x4Y&t=\d+s$/, e.url);
+  assert.ok(c.examples.some((e) => /name|food|treat/i.test(e.label)), 'an example shows food/name stopping');
+  assert.ok(c.examples.some((e) => /distance|away/i.test(e.label)), 'an example shows the distance response');
+});
+
 test('every card example is a timestamped https link with a label', () => {
   for (const c of CARDS.filter((x) => x.examples)) {
     for (const e of c.examples) {

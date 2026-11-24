@@ -21,6 +21,10 @@ OpenPaw is intended to preserve the origin of ideas, evidence, design decisions,
 - Collar band calibration: Vehkaoja et al., [Movement Sensor Dataset for Dog Behavior Classification v4](https://data.mendeley.com/datasets/vxhx934tbn/4) (CC BY 4.0), with [data descriptor](https://jyx.jyu.fi/bitstreams/f82fe7ff-533f-4e48-a444-f29a636fa607/download) and [original study](https://researchportal.tuni.fi/en/publications/dog-behaviour-classification-with-movement-sensors-placed-on-the-/). Marcato et al., [Inertial sensor dataset for Dog Posture Recognition v1](https://data.mendeley.com/datasets/mpph6bmn7g/1) (CC BY 4.0; [publication](https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0286311)) is used for the external classifier check. See [methods and results](research/calibration/RESULTS.md).
 - The printed T1000-E collar cases linked in docs/COLLAR.md are by their MakerWorld/Thingiverse authors.
 
+## App guidance
+
+- Field "Session check" stop rule (`app/session-check.js`): threshold signs (can't look away, stops taking favourite food) and "make distance" from East Bay SPCA's [Look At That handout](https://eastbayspca.org/wp-content/uploads/2024/05/Look-At-That_A-Reactivity-Exercise.pdf) (CC BY-NC 4.0; LAT by Leslie McDevitt); shivering, pacing, panting -> stop or add distance from Grisha Stewart's [BAT demo](https://www.youtube.com/watch?v=Q9BsLd6KQqM&t=350s) (5:50); reward-based, distance-first framing from AVSAB 2021; the panting caveat from Clark et al. 2020 (panting common in therapy-dog visits, cortisol unchanged). Wording is ours; no endorsement implied.
+
 ## Contribution provenance
 
 When an external expert or contributor materially influences a design:
