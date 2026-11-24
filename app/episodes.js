@@ -33,18 +33,25 @@ export function episodesFrom(events) {
     const reacted = first('behavior.reacted');
     const calm = first('behavior.calm');
     // Body tags and session-check signs marked before Reaction are precursors, kept apart by source.
-    const precursors = [], sessionSigns = [];
+    // Body tags saved after Reaction but marked seen: 'before_reaction' are recalled precursors, labelled as such.
+    const precursors = [], sessionSigns = [], recalledPrecursors = [];
     for (const e of evs) {
-      const into = e.payload.metric === 'body_language.tags' ? precursors : e.payload.metric === 'session.check' ? sessionSigns : null;
-      if (!into || (reacted && ms(e.timestamp) > ms(reacted.timestamp))) continue;
+      const isTag = e.payload.metric === 'body_language.tags';
+      const after = reacted && ms(e.timestamp) > ms(reacted.timestamp);
+      const into = !isTag && e.payload.metric !== 'session.check' ? null
+        : !after ? (isTag ? precursors : sessionSigns)
+          : isTag && e.payload.seen === 'before_reaction' ? recalledPrecursors : null;
+      if (!into) continue;
       for (const t of e.payload.value || []) if (!into.includes(t)) into.push(t);
     }
+    for (let i = recalledPrecursors.length - 1; i >= 0; i--) if (precursors.includes(recalledPrecursors[i])) recalledPrecursors.splice(i, 1);
     const interventions = evs.filter((e) => e.payload.metric === 'intervention.distance' || e.payload.metric === 'intervention.reward')
       .map((e) => ({ type: e.payload.metric === 'intervention.distance' ? 'u-turn' : 'treat', afterS: secs(start, e.timestamp) }));
     eps.push({
       id, start, end: calm ? calm.timestamp : null,
       trigger: { cls: trig ? trig.payload.trigger_class || null : null, band: trig ? trig.payload.value || null : null },
       precursors,
+      recalledPrecursors,
       sessionSigns,
       reactionAfterS: reacted ? secs(start, reacted.timestamp) : null,
       interventions,
@@ -67,6 +74,7 @@ const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 function precursorText(ep) {
   const parts = [];
   if (ep.precursors.length) parts.push(`${ep.precursors.join(', ')} (owner tags)`);
+  if (ep.recalledPrecursors && ep.recalledPrecursors.length) parts.push(`${ep.recalledPrecursors.join(', ')} (owner tags, recalled after the reaction)`);
   if (ep.sessionSigns && ep.sessionSigns.length) parts.push(`${ep.sessionSigns.join(', ')} (session check)`);
   return parts.length ? parts.join('; ') : 'None marked';
 }

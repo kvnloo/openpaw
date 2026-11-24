@@ -186,7 +186,7 @@ function describe(e) {
     case 'behavior.calm': return `Calm again · ${fmt(p.value)} to calm`;
     case 'intervention.reward': return 'Treat / reward';
     case 'intervention.distance': return 'U-turn / distance';
-    case 'body_language.tags': return `Body: ${p.value.join(', ')}${p.photo ? ' · photo kept' : ''}`;
+    case 'body_language.tags': return `Body: ${p.value.join(', ')}${p.seen === 'before_reaction' ? ' · seen before the reaction' : ''}${p.photo ? ' · photo kept' : ''}`;
     case 'session.check': return `Session check · ${p.value.length ? p.value.join(', ') : 'no stop signs marked'}`;
     case 'owner.retract': return 'Undid last entry';
     default: return p.metric;
@@ -338,6 +338,9 @@ function openTags(withSnapshot) {
     box.append(b);
   }
   $('tagSave').disabled = true;
+  // After Reaction, the owner can say the signs came earlier; they then count as recalled precursors (app/episodes.js).
+  $('beforeRow').hidden = !(ep && ep.reactionAt != null);
+  $('optBefore').checked = false;
   $('snapPreview').hidden = !withSnapshot;
   $('tagSheet').hidden = false;
 }
@@ -347,6 +350,7 @@ $('tagSave').onclick = async () => {
   const tags = [...$('tagChips').querySelectorAll('[aria-pressed="true"]')].map((b) => b.dataset.tag);
   const keep = Boolean(snapDataUrl) && $('optKeepPhoto').checked;
   const extra = { input: snapDataUrl ? 'camera-snapshot' : 'tap', tag_vocabulary: 'openpaw-field/1', photo_kept: keep };
+  if (!$('beforeRow').hidden && $('optBefore').checked) extra.seen = 'before_reaction';
   if (keep) { extra.photo = snapDataUrl; extra.photo_consent = 'owner chose to keep this photo on this device'; }
   const e = S.ownerEvent({ dog, kind: 'observation', metric: ACTS.tags.metric, value: tags, episodeId: ep ? ep.id : null, sourceId: SOURCE, extra });
   if (ep) ep.chain.push({ act: 'tags', t: Date.now(), eventId: e.event_id });
