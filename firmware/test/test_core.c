@@ -17,6 +17,9 @@ static openpaw_record_t run_epoch(openpaw_state_t *s, int16_t (*gen)(int axis, u
   openpaw_record_t r; memset(&r, 0, sizeof r);
   for (uint32_t i = 0;; i++) {
     int16_t x = gen(0, *t), y = gen(1, *t), z = gen(2, *t);
+#ifdef OPENPAW_DUMP_GOLDEN_SAMPLES
+    printf("sample %d %d %d\n", x, y, z);
+#endif
     (*t)++;
     if (openpaw_push(s, x, y, z, *t / 50, 0, 87, 0, &r)) return r;
     if (i > 100000) { CHECK(0, "epoch never closed"); return r; }

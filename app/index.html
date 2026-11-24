@@ -231,7 +231,7 @@
         <span><i style="background:#d7b986"></i>movement</span>
         <span><svg viewBox="0 0 8 12" width="8" height="12" aria-hidden="true"><path d="M4 0l4 6-4 6-4-6z" fill="#e8a35f"/></svg>burst &gt; 1.5 g</span>
         <span><i style="background:#c0392b;border-radius:50%;width:6px;height:6px"></i>sensor clipped</span>
-        <span>bands: still &lt; 30 · low &lt; 150 · moderate &lt; 500 mg (uncalibrated)</span>
+        <span id="bandLimits"></span><span>Experimental bands; not calibrated for individual dogs.</span>
       </div>
     </section>
 
@@ -281,8 +281,10 @@ import { UUIDS, decodeRecord, decodeChunk, decodeStatus, encodeDumpFrom, CMD_FIN
 const $ = (id) => document.getElementById(id);
 const logEl = $('log');
 const log = (m) => { logEl.textContent = `${new Date().toLocaleTimeString()}  ${m}\n` + logEl.textContent.slice(0, 4000); };
-import { epochsFromEvents, demoWeek } from './collar-analytics.js';
+import { epochsFromEvents, demoWeek, LEVELS } from './collar-analytics.js';
 import { renderNow, renderTimeline, renderRhythm, renderBudget, renderBursts } from './collar-view.js';
+$('bandLimits').textContent = 'bands: ' + LEVELS.filter((level) => Number.isFinite(level.max))
+  .map((level) => level.id + ' < ' + level.max).join(' · ') + ' mg';
 
 // ---------- storage (shared IndexedDB, local only: app/store.js) ----------
 import * as S from './store.js';
