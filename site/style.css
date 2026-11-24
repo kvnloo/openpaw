@@ -1,4 +1,4 @@
-@font-face { font-family: "Fraunces"; src: url(fonts/fraunces-latin-opsz-normal.woff2) format("woff2"); font-weight: 100 900; font-display: swap; }
+@font-face { font-family: "Fraunces"; src: url(fonts/fraunces-latin-opsz-normal.woff2) format("woff2"); font-weight: 400 600; font-display: swap; }
 /* OpenPaw landing: warm night, cream ink, one gold accent. Fonts are self-hosted (SIL OFL). */
 @font-face { font-family: "Hanken Grotesk"; src: url(fonts/hanken-grotesk-latin-400-normal.woff2) format("woff2"); font-weight: 400; font-display: swap; }
 @font-face { font-family: "Hanken Grotesk"; src: url(fonts/hanken-grotesk-latin-500-normal.woff2) format("woff2"); font-weight: 500; font-display: swap; }
