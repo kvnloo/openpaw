@@ -68,11 +68,12 @@ function renderTiles() {
   $('#tiles').innerHTML = CATS.map(([cat, label]) => {
     const ts = vis.filter((t) => (t.category || 'custom') === cat);
     if (!ts.length && cat !== 'custom') return '';
-    return `<div class="micro cat">${label}</div><div class="tiles">${ts.map((t) => {
+    const n = Math.min(4, ts.length + (cat === 'custom' ? 1 : 0));
+    return `<div class="grp" style="--n:${n}"><div class="micro cat">${label}</div><div class="tiles">${ts.map((t) => {
       const tot = totalToday(t);
       const today = tot ? (t.type === 'scale' ? `avg ${fmt(tot.v)}` : t.type === 'check' ? `${tot.n}× today` : `${fmt(tot.v)} ${t.unit || ''}`) : '';
       return `<button class="tile" data-t="${esc(t.id)}"><span class="nm">${esc(t.name)}</span><span>${today ? `<span class="today">${esc(today)}</span>` : `<span class="meta">${esc(t.unit || (t.type === 'check' ? 'tap to log' : t.type))}</span>`}</span></button>`;
-    }).join('')}${cat === 'custom' ? '<button class="tile add" data-go="trackers"><span class="nm">+ New tracker</span><span class="meta">anything you like</span></button>' : ''}</div>`;
+    }).join('')}${cat === 'custom' ? '<button class="tile add" data-go="trackers"><span class="nm">+ New tracker</span><span class="meta">anything you like</span></button>' : ''}</div></div>`;
   }).join('');
 }
 
