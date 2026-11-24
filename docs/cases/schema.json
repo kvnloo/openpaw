@@ -1,0 +1,469 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OpenPaw published dog case v1",
+  "type": "object",
+  "required": [
+    "case_id",
+    "source_id",
+    "source_location",
+    "signalment",
+    "presenting_problems",
+    "triggers",
+    "context",
+    "threshold",
+    "precursor_signals",
+    "recovery_time",
+    "frequency_baseline",
+    "medical",
+    "interventions",
+    "follow_up_months",
+    "outcome",
+    "adverse_events"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "case_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "source_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "source_location": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "signalment": {
+      "type": "object",
+      "required": [
+        "breed_group",
+        "age_band",
+        "sex",
+        "neutered",
+        "weight_band"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "breed_group": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "age_band": {
+          "anyOf": [
+            {
+              "enum": [
+                "under_1y",
+                "1_to_under_2y",
+                "2_to_under_7y",
+                "7y_and_over"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sex": {
+          "anyOf": [
+            {
+              "enum": [
+                "female",
+                "male"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "neutered": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "weight_band": {
+          "anyOf": [
+            {
+              "enum": [
+                "under_10kg",
+                "10_to_under_25kg",
+                "25_to_under_40kg",
+                "40kg_and_over"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "presenting_problems": {
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          },
+          "uniqueItems": true
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "triggers": {
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          },
+          "uniqueItems": true
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "context": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "threshold": {
+      "anyOf": [
+        {
+          "type": "object",
+          "required": [
+            "value",
+            "unit",
+            "basis"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": "number",
+              "minimum": 0
+            },
+            "unit": {
+              "enum": [
+                "m",
+                "dB",
+                "s"
+              ]
+            },
+            "basis": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S"
+            }
+          }
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "precursor_signals": {
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          },
+          "uniqueItems": true
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "recovery_time": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "frequency_baseline": {
+      "anyOf": [
+        {
+          "type": "object",
+          "required": [
+            "events",
+            "window_hours"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "events": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "window_hours": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          }
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "medical": {
+      "type": "object",
+      "required": [
+        "findings",
+        "contributor_status",
+        "owner_health_problem"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "findings": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "enum": [
+                  "pain",
+                  "GI",
+                  "endocrine",
+                  "dermatological",
+                  "other"
+                ]
+              },
+              "uniqueItems": true
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "contributor_status": {
+          "anyOf": [
+            {
+              "enum": [
+                "identified",
+                "suspected",
+                "none_reported"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "owner_health_problem": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "interventions": {
+      "type": "object",
+      "required": [
+        "management",
+        "behavior_modification",
+        "medication_classes",
+        "prescription_reported",
+        "owner_education"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "management": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "uniqueItems": true
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "behavior_modification": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "uniqueItems": true
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "medication_classes": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "uniqueItems": true
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "prescription_reported": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "owner_education": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "uniqueItems": true
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "follow_up_months": {
+      "anyOf": [
+        {
+          "type": "number",
+          "minimum": 0
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "outcome": {
+      "anyOf": [
+        {
+          "type": "object",
+          "required": [
+            "measure",
+            "result",
+            "direction"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "measure": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S"
+            },
+            "result": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "\\S"
+                },
+                {
+                  "type": "number"
+                }
+              ]
+            },
+            "direction": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "improved",
+                    "unchanged",
+                    "worsened",
+                    "mixed"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "adverse_events": {
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          },
+          "uniqueItems": true
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  }
+}

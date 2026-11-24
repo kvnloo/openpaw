@@ -1,0 +1,6 @@
+{
+  "name": "openpaw-case-corpus",
+  "private": true,
+  "scripts": { "test": "node --test" },
+  "devDependencies": { "ajv": "8.17.1" }
+}
