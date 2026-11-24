@@ -7,7 +7,7 @@
 
 import * as S from './store.js';
 import { UUIDS, decodeRecord, decodeStatus, recordToEvents, makeClock } from './openpaw-ble.js';
-import { episodesFrom, consultRows } from './episodes.js';
+import { episodesFrom, consultRows, ownerRows, vetRows } from './episodes.js';
 import { SESSION_SIGNS, sessionAdvice, sessionCheckPayload } from './session-check.js';
 
 const $ = (id) => document.getElementById(id);
@@ -134,16 +134,30 @@ function render() {
   renderEpisode();
 }
 
-// Last episode in the Behavior-consultant lens shape (app/episodes.js), from everything on record.
+// Last episode in the Owner / Behavior-consultant / Vet lens shapes (app/episodes.js), from everything on record.
+const LENS = {
+  owner: ['Owner view', (eps) => ownerRows(eps[eps.length - 1], eps[eps.length - 2] || null)],
+  consult: ['Consultant view', (eps) => consultRows(eps[eps.length - 1], eps[eps.length - 2] || null)],
+  vet: ['Vet view', (eps) => vetRows(eps)],
+};
+let lens = 'consult';
+for (const b of document.querySelectorAll('#epLens [data-lens]')) {
+  b.addEventListener('click', () => {
+    lens = b.dataset.lens;
+    for (const o of document.querySelectorAll('#epLens [data-lens]')) o.setAttribute('aria-pressed', String(o === b));
+    renderEpisode();
+  });
+}
 async function renderEpisode() {
   const eps = episodesFrom(await S.allEvents());
   const box = $('epRows');
   if (!eps.length) return;
   const last = eps[eps.length - 1];
   const open = !last.end;
-  $('epLabel').textContent = `Consultant view · ${new Date(last.start).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}${open ? ' · open' : ''}`;
+  const [label, rowsOf] = LENS[lens];
+  $('epLabel').textContent = `${label} · ${new Date(last.start).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}${open ? ' · open' : ''}`;
   box.innerHTML = '';
-  for (const [k, v] of consultRows(last, eps[eps.length - 2] || null)) {
+  for (const [k, v] of rowsOf(eps)) {
     const row = document.createElement('div');
     const dt = document.createElement('dt'); dt.className = 'micro'; dt.textContent = k;
     const dd = document.createElement('dd'); dd.textContent = v;

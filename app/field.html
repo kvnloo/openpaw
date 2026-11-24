@@ -301,8 +301,13 @@
   <details class="panel" id="pEpisode" open>
     <summary><div><div class="micro" id="epLabel">Consultant view</div><h2>Last episode</h2></div><span class="chev"></span></summary>
     <div class="panel-body">
+      <div class="chips" id="epLens" role="group" aria-label="View as" style="margin-bottom:10px">
+        <button class="chip" data-lens="owner" aria-pressed="false">Owner</button>
+        <button class="chip" data-lens="consult" aria-pressed="true">Consultant</button>
+        <button class="chip" data-lens="vet" aria-pressed="false">Vet</button>
+      </div>
       <dl class="eprows" id="epRows"><div><dt class="micro">Episode</dt><dd>None marked yet.</dd></div></dl>
-      <p class="fine">Your own marks, laid out the way a behavior consultant reads an episode. Minutes since the previous episode are shown as-is: there is no validated rule for “trigger stacking”.</p>
+      <p class="fine">Your own marks, laid out the way an owner, a behavior consultant or a vet reads them; the vet view covers the 7 days up to this episode. Minutes since the previous episode are shown as-is: there is no validated rule for “trigger stacking”.</p>
     </div>
   </details>
 

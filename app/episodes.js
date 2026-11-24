@@ -75,3 +75,44 @@ export function consultRows(ep, previous) {
     ['Since previous', previous && ep.sincePreviousMin != null ? `${ep.sincePreviousMin} min after the previous episode` : 'No earlier episode on record'],
   ];
 }
+
+// Gap in words for the owner: minutes under 90, hours under 48 h, then days.
+function gapWords(min) {
+  if (min < 90) return `${min} min`;
+  if (min < 2880) return `${Math.round(min / 60)} h`;
+  return `${Math.round(min / 1440)} days`;
+}
+
+// Rows for the Owner lens (same labels as site/site.js, "Worth knowing" says the measured gap, never "stacked").
+export function ownerRows(ep, previous) {
+  const t = ep.trigger;
+  const what = t.cls ? `A ${t.cls}${t.band ? `, ${BAND_LABEL[t.band] || `${t.band} ft`} away` : ''}` : 'Not recorded';
+  return [
+    ['What set it off', what],
+    ['What you did', ep.interventions.length ? cap(ep.interventions.map((x) => `${x.type} after ${x.afterS}\u00a0s`).join(', ')) : 'Nothing marked'],
+    ['Back to calm', ep.timeToCalmS != null ? `${fmtDur(ep.timeToCalmS)} (your Calm again mark)` : 'Not marked yet'],
+    ['Worth knowing', previous && ep.sincePreviousMin != null ? `Came ${gapWords(ep.sincePreviousMin)} after the previous episode` : 'First episode on record'],
+  ];
+}
+
+// Rows for the Veterinarian lens: the 7 days up to the latest episode, owner marks only
+// (collar rest and heart-rate rows join once real collar data exists).
+export function vetRows(eps) {
+  if (!eps.length) return [];
+  const lastStart = ms(eps[eps.length - 1].start);
+  const win = eps.filter((e) => ms(e.start) > lastStart - 7 * 86400000);
+  const gaps = win.slice(1).map((e) => e.sincePreviousMin).filter((g) => g != null);
+  const calm = win.map((e) => e.timeToCalmS).filter((s) => s != null).sort((x, y) => x - y);
+  const mid = calm.length / 2;
+  const median = calm.length ? (calm.length % 2 ? calm[Math.floor(mid)] : (calm[mid - 1] + calm[mid]) / 2) : null;
+  const tags = new Map();
+  for (const e of win) for (const t of e.precursors) tags.set(t, (tags.get(t) || 0) + 1);
+  const tagList = [...tags].sort((x, y) => y[1] - x[1]).map(([t, k]) => `${t} ×${k}`);
+  return [
+    ['Episodes, 7 days', `${win.length} (owner-marked)`],
+    ['Shortest gap', gaps.length ? `${Math.min(...gaps)} min between two episodes` : 'Only one episode in the window'],
+    ['Time to Calm again', median != null ? `median ${fmtDur(median)} · ${calm.length} of ${win.length} marked` : `Not marked (0 of ${win.length})`],
+    ['Body tags', tagList.length ? tagList.join(', ') : 'None marked'],
+    ['Raw export', 'JSONL from the collar page'],
+  ];
+}
