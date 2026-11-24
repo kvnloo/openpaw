@@ -54,6 +54,7 @@ See:
 - [Pretotype architecture](docs/ARCHITECTURE.md)
 - [Market snapshot](docs/MARKET.md)
 - [Initial event schema](schema/openpaw-event.schema.json)
+- [Evidence](docs/evidence/README.md)
 - [Credits and provenance](CREDITS.md)
 
 ## Principles
