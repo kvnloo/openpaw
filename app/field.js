@@ -8,6 +8,7 @@
 import * as S from './store.js';
 import { UUIDS, decodeRecord, decodeStatus, recordToEvents, makeClock } from './openpaw-ble.js';
 import { episodesFrom, consultRows } from './episodes.js';
+import { SESSION_SIGNS, sessionAdvice, sessionCheckPayload } from './session-check.js';
 
 const $ = (id) => document.getElementById(id);
 const SOURCE = 'openpaw-field';
@@ -22,6 +23,7 @@ export const ACTS = {
   treat: { kind: 'intervention', metric: 'intervention.reward', label: 'Treat' },
   turn: { kind: 'intervention', metric: 'intervention.distance', label: 'U-turn' },
   tags: { kind: 'observation', metric: 'body_language.tags', label: 'Body language' },
+  check: { kind: 'observation', metric: 'session.check', label: 'Session check' },
 };
 export const BANDS = { '<10': [0, 10], '10-20': [10, 20], '20-40': [20, 40], '40+': [40, null] };
 const BAND_LABEL = { '<10': '<10 ft', '10-20': '10–20 ft', '20-40': '20–40 ft', '40+': '40+ ft' };
@@ -171,6 +173,7 @@ function describe(e) {
     case 'intervention.reward': return 'Treat / reward';
     case 'intervention.distance': return 'U-turn / distance';
     case 'body_language.tags': return `Body: ${p.value.join(', ')}${p.photo ? ' · photo kept' : ''}`;
+    case 'session.check': return `Session check · ${p.value.length ? p.value.join(', ') : 'no stop signs marked'}`;
     case 'owner.retract': return 'Undid last entry';
     default: return p.metric;
   }
@@ -336,6 +339,28 @@ $('tagSave').onclick = async () => {
   await save([e]); await persistEpisode();
   $('tagSheet').hidden = true; snapDataUrl = null;
   buzz(25); toast(`Saved ${tags.length} tag${tags.length > 1 ? 's' : ''}${keep ? ' + photo' : ''}`); render();
+};
+
+// ---------------------------------------------------------------- session check (stop rule, app/session-check.js)
+for (const s of SESSION_SIGNS) {
+  const b = document.createElement('button'); b.className = 'chip'; b.textContent = s; b.dataset.sign = s; b.setAttribute('aria-pressed', 'false');
+  b.onclick = () => b.setAttribute('aria-pressed', String(b.getAttribute('aria-pressed') !== 'true'));
+  $('checkChips').append(b);
+}
+$('checkSave').onclick = async () => {
+  const chips = [...$('checkChips').querySelectorAll('[aria-pressed="true"]')];
+  const signs = chips.map((b) => b.dataset.sign);
+  const p = sessionCheckPayload(signs);
+  const advice = sessionAdvice(signs);
+  const e = S.ownerEvent({ dog, kind: 'observation', metric: p.metric, value: p.value, episodeId: ep ? ep.id : null, sourceId: SOURCE, extra: { input: 'tap', ...p.extra } });
+  if (ep) ep.chain.push({ act: 'check', t: Date.now(), eventId: e.event_id });
+  await save([e]); await persistEpisode();
+  chips.forEach((b) => b.setAttribute('aria-pressed', 'false'));
+  $('checkAdvice').textContent = advice.text;
+  if (advice.stop) { buzz([60, 60, 60]); hud('reaction', 'turn', 'Stop · add distance', '', 4000); speak('Stop, or move further away.'); }
+  else buzz(20);
+  toast(advice.stop ? 'Logged · stop or add distance' : 'Logged · no stop signs');
+  render();
 };
 
 // ---------------------------------------------------------------- camera (getUserMedia, rear camera, local only)
