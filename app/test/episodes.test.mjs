@@ -77,6 +77,28 @@ test('lens rows never label stacking by a rule, a stress score or a feeling', ()
   for (const bad of [/stacked/i, /stress/i, /anxious|fear|happy|calm dog/i, /score/i]) assert.doesNotMatch(words, bad);
 });
 
+// research/video-notes V3: food stops working before the reaction. A session check tapped inside an
+// open episode, before Reaction, is a precursor; one tapped after it is not; "no stop signs" adds nothing.
+test('session-check signs tapped before the reaction join the precursors, labelled by source', () => {
+  const C = 'ep:cccc';
+  const evs = [
+    ev('2026-11-21T10:00:00.000Z', 'trigger.seen', 'trigger', C, '20-40', { trigger_class: 'dog' }),
+    ev('2026-11-21T10:00:03.000Z', 'session.check', 'observation', C, ['won\u2019t take food', 'can\u2019t look away']),
+    ev('2026-11-21T10:00:05.000Z', 'body_language.tags', 'observation', C, ['freeze']),
+    ev('2026-11-21T10:00:06.000Z', 'session.check', 'observation', C, []),
+    ev('2026-11-21T10:00:09.000Z', 'behavior.reacted', 'observation', C, true),
+    ev('2026-11-21T10:00:12.000Z', 'session.check', 'observation', C, ['panting']),
+  ];
+  const [c] = episodesFrom(evs);
+  assert.deepEqual(c.precursors, ['freeze']);
+  assert.deepEqual(c.sessionSigns, ['won\u2019t take food', 'can\u2019t look away']);
+  assert.equal(c.evidence.length, 6, 'session checks are cited as episode evidence');
+  assert.deepEqual(consultRows(c, null)[1],
+    ['Precursors', 'freeze (owner tags); won\u2019t take food, can\u2019t look away (session check)']);
+  const onlyCheck = episodesFrom([evs[0], evs[1], evs[4]])[0];
+  assert.deepEqual(consultRows(onlyCheck, null)[1], ['Precursors', 'won\u2019t take food, can\u2019t look away (session check)']);
+});
+
 test('the field page shows the last episode in lens form', () => {
   const html = readFileSync(new URL('../field.html', import.meta.url), 'utf8');
   const js = readFileSync(new URL('../field.js', import.meta.url), 'utf8');
