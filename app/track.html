@@ -58,7 +58,10 @@
 
   /* tracker tiles */
   .cat { margin:18px 0 8px; }
-  .tiles { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; }
+  /* category groups share one 4-column grid (same columns as the needs row), so small groups sit side by side */
+  #tiles { display:grid; grid-template-columns:repeat(4,1fr); column-gap:10px; }
+  .grp { grid-column:span var(--n,4); min-width:0; }
+  .tiles { display:grid; grid-template-columns:repeat(var(--n,4),1fr); gap:10px; }
   .tile { text-align:left; border:1px solid var(--line); border-radius:12px; background:var(--bg2); padding:13px 14px 12px; min-height:88px; display:flex; flex-direction:column; justify-content:space-between; transition:transform .18s var(--ease), border-color .2s, background .2s; position:relative; overflow:hidden; }
   .tile:hover { border-color:var(--line2); background:var(--bg3); }
   .tile:active { transform:scale(.975); }
@@ -138,7 +141,7 @@
   .toast { position:fixed; left:50%; bottom:calc(22px + env(safe-area-inset-bottom)); transform:translate(-50%,20px); opacity:0; background:var(--ink); color:var(--bg); padding:11px 14px; border-radius:10px; font:600 14px/1 var(--sans); display:flex; gap:12px; align-items:center; transition:opacity .25s, transform .3s var(--ease), visibility 0s linear .3s; z-index:30; pointer-events:none; visibility:hidden; }
   .toast.on { opacity:1; transform:translate(-50%,0); pointer-events:auto; visibility:visible; transition:opacity .25s, transform .3s var(--ease), visibility 0s; }
   .toast button { border:0; background:transparent; color:var(--bg); text-decoration:underline; font:600 14px/1 var(--sans); padding:0; }
-  @media (max-width:560px) { h1 { font-size:34px; } .needs { gap:6px; } .need svg { width:54px; height:54px; } .summary b { font-size:20px; } .bars { grid-template-columns:86px 1fr 40px; } .tiles { grid-template-columns:repeat(2,1fr); } }
+  @media (max-width:560px) { h1 { font-size:34px; } .needs { gap:6px; } .need svg { width:54px; height:54px; } .summary b { font-size:20px; } .bars { grid-template-columns:86px 1fr 40px; } #tiles { display:block; } .tiles { grid-template-columns:repeat(2,1fr); } }
   @media (prefers-reduced-motion: reduce) { *, *::after { transition:none !important; animation:none !important; } }
 </style>
 </head>
