@@ -47,6 +47,31 @@ test('evidence links resolve to docs/evidence cards, and the collar-recovery car
   assert.doesNotMatch(settle.choices[settle.answer], /recovered|calm|relaxed/i);
 });
 
+test('held-still card: stillness close to a trigger is not read as relaxed, with timestamped public video examples', () => {
+  const c = CARDS.find((x) => x.id === 'c-held-still');
+  assert.ok(c, 'c-held-still card exists');
+  assert.ok(c.evidence && c.evidence.length >= 2, 'cites docs/evidence cards');
+  const right = c.choices[c.answer];
+  assert.match(right, /distance|way out/i);
+  assert.doesNotMatch(right, /\b(relaxed|calm) now\b|has settled/i);
+  // Examples are links (no media copied) to public footage at a timestamp; at least one
+  // shows the risky pattern and at least one shows the distance-first contrast.
+  assert.ok(Array.isArray(c.examples) && c.examples.length >= 2, 'video examples');
+  for (const e of c.examples) {
+    assert.match(e.url, /^https:\/\/www\.youtube\.com\/watch\?v=[\w-]{11}&t=\d+s$/, e.url);
+    assert.ok(e.label && e.label.length >= 10, e.url);
+  }
+});
+
+test('every card example is a timestamped https link with a label', () => {
+  for (const c of CARDS.filter((x) => x.examples)) {
+    for (const e of c.examples) {
+      assert.match(e.url, /^https:\/\//, `${c.id} ${e.url}`);
+      assert.ok(typeof e.label === 'string' && e.label.length > 0, c.id);
+    }
+  }
+});
+
 test('all registered sources are used and named', () => {
   const used = new Set([...LESSONS.flatMap((l) => l.sources), ...CARDS.flatMap((c) => c.sources)]);
   for (const u of Object.values(SRC)) assert.ok(used.has(u), `unused source ${u}`);
