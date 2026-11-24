@@ -180,6 +180,14 @@
   footer { margin-top:18px; color:var(--dim); font-size:12px; line-height:1.5; }
   footer a { color:var(--mute); }
 
+  /* Wide screens: marking controls stay in view on the left, panels fill the right column. */
+  @media (min-width:1100px) {
+    main { max-width:1120px; padding-left:24px; padding-right:24px; }
+    .layout { display:grid; grid-template-columns:minmax(0, 460px) minmax(0, 1fr); gap:24px; align-items:start; }
+    .cockpit { position:sticky; top:16px; }
+    .panels > details.panel:first-child { margin-top:0; }
+  }
+
   /* One-page episode report: built by app/episode-report.js, shown only when printing (Save as PDF). */
   #epReport { display:none; }
   @media print {
@@ -213,6 +221,8 @@
     <button id="btnWake" class="pill" aria-pressed="false" title="Keep the screen on during the walk"><i></i>Screen on</button>
   </header>
 
+  <div class="layout">
+  <div class="cockpit">
   <section id="status" class="status" data-phase="idle" aria-live="polite">
     <span class="br tl"></span><span class="br tr"></span><span class="br bl"></span><span class="br bR"></span>
     <div class="micro" id="statusLabel">Walk · no open episode</div>
@@ -264,7 +274,9 @@
       <div class="heard" id="heard"></div>
     </div>
   </section>
+  </div>
 
+  <div class="panels">
   <details class="panel" id="pCheck" open>
     <summary><div><div class="micro">Stop rule · tap what you see</div><h2>Session check</h2></div><span class="chev"></span></summary>
     <div class="panel-body">
@@ -339,6 +351,8 @@
     <summary><div><div class="micro" id="logCount">This walk</div><h2>Log</h2></div><span class="chev"></span></summary>
     <div class="panel-body"><ol class="log" id="log"><li class="empty">Nothing marked yet.</li></ol></div>
   </details>
+  </div>
+  </div>
 
   <footer>
     Owner observations and collar measurements only: no diagnosis, no stress score, no guesses about feelings. Everything stays in this browser until you export it from the <a href="./">collar page</a>. GPL-3.0 · <a href="https://github.com/kvnloo/openpaw">source</a>
