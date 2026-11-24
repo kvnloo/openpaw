@@ -107,6 +107,11 @@
   details.panel > summary .chev { width:10px; height:10px; border-right:1.5px solid var(--mute); border-bottom:1.5px solid var(--mute); transform:rotate(45deg); transition:transform .15s; margin-right:4px; }
   details.panel[open] > summary .chev { transform:rotate(-135deg); }
   .panel-body { padding:0 16px 16px; }
+  .eprows { margin:0; display:grid; gap:0; }
+  .eprows > div { display:grid; grid-template-columns:minmax(96px, 30%) 1fr; gap:12px; padding:9px 0; border-top:1px solid var(--line); }
+  .eprows > div:first-child { border-top:0; }
+  .eprows dt { color:var(--dim); padding-top:2px; }
+  .eprows dd { margin:0; font:500 14px/1.35 var(--mono); color:var(--ink); overflow-wrap:anywhere; }
   .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
   .btn { min-height:42px; padding:0 14px; border-radius:9px; border:1px solid var(--line2); background:var(--bg3); color:var(--ink); font:500 14px/1 var(--sans); }
   .btn.gold { background:var(--gold); border-color:var(--gold); color:var(--gold-ink); }
@@ -280,6 +285,14 @@
       <div class="cam" id="cam"><span class="ph" id="camPh">Camera off. Frames are never uploaded.</span><span class="rec"><i></i>CAMERA ON</span></div>
       <label class="switch" style="margin-top:10px"><input type="checkbox" id="optKeepPhoto"> Keep photo locally (small JPEG inside the event)</label>
       <p class="fine">By default only the tags you pick are saved, not the image. Avoid pointing at people; nothing here detects or stores faces. Automatic dog/person detection is a planned hook (no model is bundled yet).</p>
+    </div>
+  </details>
+
+  <details class="panel" id="pEpisode" open>
+    <summary><div><div class="micro" id="epLabel">Consultant view</div><h2>Last episode</h2></div><span class="chev"></span></summary>
+    <div class="panel-body">
+      <dl class="eprows" id="epRows"><div><dt class="micro">Episode</dt><dd>None marked yet.</dd></div></dl>
+      <p class="fine">Your own marks, laid out the way a behavior consultant reads an episode. Minutes since the previous episode are shown as-is: there is no validated rule for “trigger stacking”.</p>
     </div>
   </details>
 
