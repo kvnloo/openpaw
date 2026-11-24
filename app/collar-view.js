@@ -1,8 +1,8 @@
 // OpenPaw collar page: SVG views. Pure render functions over epochs (see collar-analytics.js).
 // SPDX-License-Identifier: GPL-3.0-only
-import { LEVELS, levelOf, dayBudget, circadian, burstEvents, summary, fmtMin } from './collar-analytics.js';
+import { LEVELS, VIGOROUS, levelOf, activeMinutes, dayBudget, circadian, burstEvents, summary, fmtMin } from './collar-analytics.js';
 
-export const LEVEL_COLORS = ['#55665c', '#8fb39b', '#cdb27c', '#e8a35f'];
+export const LEVEL_COLORS = ['#55665c', '#8fb39b', '#e8a35f'];
 const NS = 'http://www.w3.org/2000/svg';
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const clock = (t) => new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -19,7 +19,7 @@ export function renderNow(root, epochs, { tz, now, simulated }) {
   const base = s.base;
   const ratio = s.last && base && base.resting ? s.last.vedba / base.resting : null;
   root.querySelector('[data-k=state]').textContent = word;
-  root.querySelector('[data-k=state]').style.color = lv === null ? '' : ['#a9bfb0', '#9fc2a9', '#d9bf8a', '#eca968'][lv];
+  root.querySelector('[data-k=state]').style.color = lv === null ? '' : ['#a9bfb0', '#9fc2a9', '#eca968'][lv];
   root.querySelector('[data-k=sub]').textContent = s.last
     ? `${ratio ? (ratio < 1.5 ? 'At your resting level' : `${ratio.toFixed(1)}× your resting level`) : `${s.last.vedba} mg movement`} · updated ${clock(s.last.t)}`
     : 'Connect a collar or load the demo week.';
@@ -30,7 +30,7 @@ export function renderNow(root, epochs, { tz, now, simulated }) {
   const arc = (a, b, r = R) => { const [x0, y0] = pt(a, r), [x1, y1] = pt(b, r); return `M${x0.toFixed(1)} ${y0.toFixed(1)} A${r} ${r} 0 ${b - a > 180 ? 1 : 0} 1 ${x1.toFixed(1)} ${y1.toFixed(1)}`; };
   const angle = (v) => A0 + (A1 - A0) * Math.min(1, sq(v, MAX));
   let segs = `<path d="${arc(A0, A1)}" stroke="#1f1e1a" stroke-width="10" fill="none" stroke-linecap="round"/>`, prev = 0;
-  LEVELS.forEach((L, i) => { const hi = Math.min(MAX, L.max), pad = Math.min(1.5, (angle(hi) - angle(prev)) / 4); segs += `<path d="${arc(angle(prev) + (i ? pad : 0), angle(hi) - (i < 3 ? pad : 0))}" stroke="${LEVEL_COLORS[i]}" stroke-opacity="${i === lv ? 1 : 0.3}" stroke-width="${i === lv ? 10 : 6}" fill="none" stroke-linecap="${i === 0 || i === 3 ? 'round' : 'butt'}"/>`; prev = hi; });
+  LEVELS.forEach((L, i) => { const hi = Math.min(MAX, L.max), pad = Math.min(1.5, (angle(hi) - angle(prev)) / 4); segs += `<path d="${arc(angle(prev) + (i ? pad : 0), angle(hi) - (i < VIGOROUS ? pad : 0))}" stroke="${LEVEL_COLORS[i]}" stroke-opacity="${i === lv ? 1 : 0.3}" stroke-width="${i === lv ? 10 : 6}" fill="none" stroke-linecap="${i === 0 || i === VIGOROUS ? 'round' : 'butt'}"/>`; prev = hi; });
   const ticks = [0, 500, 1000, 1500].map((v) => { const [x0, y0] = pt(angle(v), R - 10), [x1, y1] = pt(angle(v), R - 15), [tx, ty] = pt(angle(v), R - 25); return `<line x1="${x0}" y1="${y0}" x2="${x1}" y2="${y1}" stroke="#4a463d"/><text x="${tx}" y="${ty + 3}" text-anchor="middle">${v >= 1000 ? v / 1000 + 'k' : v}</text>`; }).join('');
   const val = s.last ? s.last.vedba : null;
   const [mx, my] = pt(val === null ? A0 : angle(val), R);
@@ -56,7 +56,7 @@ export function renderNow(root, epochs, { tz, now, simulated }) {
   const typical = s.typicalActiveSoFar;
   const delta = typical && typical > 1 ? Math.round(((s.activeToday - typical) / typical) * 100) : null;
   const set = (k, v, sub) => { const el = root.querySelector(`[data-k=${k}]`); el.querySelector('b').textContent = v; if (sub !== undefined) el.querySelector('small').textContent = sub; };
-  set('active', fmtMin(s.activeToday), delta === null ? 'moderate + vigorous today' : `${delta >= 0 ? '+' : '−'}${Math.abs(delta)}% vs a typical day so far`);
+  set('active', fmtMin(s.activeToday), delta === null ? 'active + vigorous today' : `${delta >= 0 ? '+' : '−'}${Math.abs(delta)}% vs a typical day so far`);
   set('bursts', String(s.burstsToday), s.minutesSinceBurst === null ? 'none recorded' : `last ${fmtMin(s.minutesSinceBurst)} ago`);
   set('pose', s.last && s.last.pitch !== null ? `${s.last.pitch > 0 ? '+' : ''}${s.last.pitch}°` : '–', s.last && s.last.pitch !== null ? (s.last.pitch < -8 ? 'head down (sniffing range)' : s.last.pitch > 6 ? 'head up / lying' : 'level') : 'head pitch');
   set('batt', s.battery === null ? '–' : `${s.battery}%`, simulated ? 'simulated collar' : 'collar battery');
@@ -80,7 +80,7 @@ export function renderTimeline(svg, readout, epochs, { range = 3600e3, now, anim
   let h = `<defs><linearGradient id="tlg" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#d7b986" stop-opacity=".34"/><stop offset=".7" stop-color="#d7b986" stop-opacity=".05"/><stop offset="1" stop-color="#d7b986" stop-opacity="0"/></linearGradient>
     <clipPath id="tlc"><rect x="${L}" y="0" width="${W - L - Rr}" height="${H}"/></clipPath></defs>`;
   let prev = 0;
-  LEVELS.forEach((Lv, i) => { const hi = Math.min(MAX, Lv.max); h += `<rect x="${L}" y="${y(hi)}" width="${W - L - Rr}" height="${y(prev) - y(hi)}" fill="${LEVEL_COLORS[i]}" opacity="${0.02 + i * 0.008}"/><text class="band" x="${W - Rr + 10}" y="${(y(prev) + y(hi)) / 2 + 3}" fill="${LEVEL_COLORS[i]}">${Lv.label.toLowerCase()}</text>`; if (i < 3) h += `<line x1="${L}" x2="${W - Rr}" y1="${y(hi)}" y2="${y(hi)}" stroke="#2a2823" stroke-dasharray="2 4"/>`; prev = hi; });
+  LEVELS.forEach((Lv, i) => { const hi = Math.min(MAX, Lv.max); h += `<rect x="${L}" y="${y(hi)}" width="${W - L - Rr}" height="${y(prev) - y(hi)}" fill="${LEVEL_COLORS[i]}" opacity="${0.02 + i * 0.008}"/><text class="band" x="${W - Rr + 10}" y="${(y(prev) + y(hi)) / 2 + 3}" fill="${LEVEL_COLORS[i]}">${Lv.label.toLowerCase()}</text>`; if (i < VIGOROUS) h += `<line x1="${L}" x2="${W - Rr}" y1="${y(hi)}" y2="${y(hi)}" stroke="#2a2823" stroke-dasharray="2 4"/>`; prev = hi; });
   // time ticks
   const narrow = W < 560;
   const step = range <= 3600e3 ? (narrow ? 20 : 10) * 60000 : range <= 6 * 3600e3 ? (narrow ? 2 : 1) * 3600e3 : (narrow ? 6 : 4) * 3600e3;
@@ -172,7 +172,7 @@ export function renderBudget(root, epochs, { tz, now }) {
   const today = days[days.length - 1].day;
   root.innerHTML = days.map((d) => {
     const tot = d.covered || 1;
-    const active = d.minutes[2] + d.minutes[3];
+    const active = activeMinutes(d);
     return `<div class="bd-row ${d.day === today ? 'is-today' : ''}" tabindex="0" aria-label="${dayName(d.day)}: ${LEVELS.map((L, i) => `${L.label} ${fmtMin(d.minutes[i])}`).join(', ')}">
       <span class="bd-day">${d.day === today ? 'Today' : dayName(d.day)}</span>
       <span class="bd-bar">${d.covered ? d.minutes.map((m, i) => `<i style="--w:${((m / tot) * 100).toFixed(2)}%;background:${LEVEL_COLORS[i]}" title="${LEVELS[i].label}: ${fmtMin(m)}"></i>`).join('') : '<em>no data</em>'}</span>
@@ -182,11 +182,11 @@ export function renderBudget(root, epochs, { tz, now }) {
   const full = days.filter((d) => d.covered > 1200 && d.day !== today);
   if (full.length >= 2) {
     const avg = (i) => full.reduce((s, d) => s + d.minutes[i], 0) / full.length;
-    const act = (d) => d.minutes[2] + d.minutes[3];
+    const act = activeMinutes, avgAct = full.reduce((s, d) => s + act(d), 0) / full.length;
     const most = full.reduce((a, b) => (act(b) > act(a) ? b : a)), least = full.reduce((a, b) => (act(b) < act(a) ? b : a));
-    const sd = Math.sqrt(full.reduce((s, d) => s + (act(d) - (avg(2) + avg(3))) ** 2, 0) / full.length);
+    const sd = Math.sqrt(full.reduce((s, d) => s + (act(d) - avgAct) ** 2, 0) / full.length);
     root.insertAdjacentHTML('beforeend', `<div class="bd-sum">
-      <div><span class="micro">Typical full day</span><b>${fmtMin(avg(2) + avg(3))}</b><small>active · ${fmtMin(avg(0))} still</small></div>
+      <div><span class="micro">Typical full day</span><b>${fmtMin(avgAct)}</b><small>active · ${fmtMin(avg(0))} still</small></div>
       <div><span class="micro">Range</span><b>${fmtMin(act(least))}–${fmtMin(act(most)).replace(' h ', ':')}</b><small>${dayName(least.day)} lowest · ${dayName(most.day)} highest</small></div>
       <div><span class="micro">Day-to-day</span><b>±${fmtMin(sd)}</b><small>${sd < 20 ? 'a steady routine' : sd < 45 ? 'some variation' : 'a lot of variation'}</small></div></div>`);
   }
