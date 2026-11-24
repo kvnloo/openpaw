@@ -206,6 +206,43 @@ static inline void openpaw_decode(const uint8_t b[OPENPAW_RECORD_SIZE], openpaw_
   r->battery_pct = b[19];
 }
 
+// ---- Time anchor (20 bytes, version byte 2). The collar has no clock; when the app
+// connects it sends the wall-clock time and the collar logs this record next to
+// the epochs, so epochs from this boot can still be dated after a restart.
+// Wire: [0]=2 [1]=0 [2..6) seq of the next epoch [6..10) uptime_s [10..14) unix_s
+//       [14..18) boot_seq (first seq of this boot) [18..20) 0. Must match app decodeRecord().
+#define OPENPAW_ANCHOR_VERSION 2
+typedef struct {
+  uint32_t seq;       // seq the next epoch record will get (anchors sort just before it)
+  uint32_t uptime_s;  // device uptime when the time was set
+  uint32_t unix_s;    // wall-clock seconds since 1970 UTC, from the phone
+  uint32_t boot_seq;  // first seq of this boot
+} openpaw_anchor_t;
+
+static inline void openpaw__le32put(uint8_t *b, uint32_t v) {
+  b[0] = (uint8_t)v; b[1] = (uint8_t)(v >> 8); b[2] = (uint8_t)(v >> 16); b[3] = (uint8_t)(v >> 24);
+}
+static inline uint32_t openpaw__le32get(const uint8_t *b) {
+  return (uint32_t)b[0] | ((uint32_t)b[1] << 8) | ((uint32_t)b[2] << 16) | ((uint32_t)b[3] << 24);
+}
+static inline void openpaw_encode_anchor(const openpaw_anchor_t *a, uint8_t b[OPENPAW_RECORD_SIZE]) {
+  memset(b, 0, OPENPAW_RECORD_SIZE);
+  b[0] = OPENPAW_ANCHOR_VERSION;
+  openpaw__le32put(b + 2, a->seq);
+  openpaw__le32put(b + 6, a->uptime_s);
+  openpaw__le32put(b + 10, a->unix_s);
+  openpaw__le32put(b + 14, a->boot_seq);
+}
+// 1 and fills *a if b is an anchor, else 0.
+static inline int openpaw_decode_anchor(const uint8_t b[OPENPAW_RECORD_SIZE], openpaw_anchor_t *a) {
+  if (b[0] != OPENPAW_ANCHOR_VERSION) return 0;
+  a->seq = openpaw__le32get(b + 2);
+  a->uptime_s = openpaw__le32get(b + 6);
+  a->unix_s = openpaw__le32get(b + 10);
+  a->boot_seq = openpaw__le32get(b + 14);
+  return 1;
+}
+
 // ---- Record ring buffer (RAM). Flash persistence wraps the same interface. ----
 typedef struct {
   uint8_t *buf;          // capacity * OPENPAW_RECORD_SIZE bytes

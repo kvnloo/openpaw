@@ -15,6 +15,9 @@
 //   0002 live    notify, 20 B record each epoch
 //   0003 log     notify, backlog chunks of N*20 B; a record whose version byte is 0xFF ends a dump
 //   0004 control write: 0x01 <from_seq u32 LE> start dump | 0x02 stop dump | 0x10 find-me (blink/beep)
+//                | 0x20 <unix_s u32 LE> set time: logs a time anchor (openpaw_anchor_t, version byte 2)
+//                  in the flash log so epochs from this boot can be dated after a restart; anchors
+//                  come back in dumps between the epochs (proto >= 2)
 //   0005 status  read/notify 20 B: proto u8, board u8, epoch_s u16, next_seq u32, uptime_s u32, stored u32,
 //                boot_seq u32 (first seq of this boot; seq continues across reboots when the flash log is used)
 // plus the standard Battery Service (0x180F) and Device Information (0x180A).
@@ -27,7 +30,7 @@
 #include "openpaw_flog.h"
 
 #define OPENPAW_FW_VERSION "0.2.0"
-#define OPENPAW_PROTO 1
+#define OPENPAW_PROTO 2  // 2: set-time (0x20) + time anchors in the log
 #define SAMPLE_HZ 50
 #define SAMPLE_MS (1000 / SAMPLE_HZ)
 #define RING_RECORDS 4096  // RAM fallback when no external flash answers: 80 KB = 5.7 h at 5 s epochs
@@ -318,6 +321,8 @@ static uint32_t log_find(uint32_t from_seq) {
 static volatile bool g_dump_req = false, g_dump_stop = false;
 static volatile uint32_t g_dump_from = 0;
 static volatile bool g_find_me = false;
+static volatile bool g_time_req = false;
+static volatile uint32_t g_time_unix = 0;
 static uint32_t g_dump_idx = 0;
 static bool g_dumping = false;
 static uint16_t g_conn = BLE_CONN_HANDLE_INVALID;
@@ -334,6 +339,9 @@ static void ctrl_write_cb(uint16_t conn, BLECharacteristic *chr, uint8_t *data, 
     g_dump_stop = true;
   } else if (data[0] == 0x10) {
     g_find_me = true;
+  } else if (data[0] == 0x20 && len >= 5) {  // flash is written from loop(), not the BLE callback
+    g_time_unix = (uint32_t)data[1] | ((uint32_t)data[2] << 8) | ((uint32_t)data[3] << 16) | ((uint32_t)data[4] << 24);
+    g_time_req = true;
   }
 }
 static void connect_cb(uint16_t conn) {
@@ -480,6 +488,11 @@ void loop() {
   static uint32_t last_ok_ms = millis();
 
   if (g_find_me) { g_find_me = false; find_me(); next_ms = millis(); }
+  if (g_time_req) {  // RAM ring is lost on restart anyway: only the flash log keeps anchors
+    g_time_req = false;
+    openpaw_anchor_t a = {g_core.seq, millis() / 1000, g_time_unix, g_boot_seq};
+    if (g_use_flog) openpaw_flog_put_anchor(&g_flog, &a);  // appended like an epoch, also mid-dump
+  }
   if (g_dump_stop) { g_dump_stop = false; g_dumping = false; }
   if (g_dump_req) { g_dump_req = false; g_dump_idx = log_find(g_dump_from); g_dumping = true; }
   if (g_dumping && g_conn != BLE_CONN_HANDLE_INVALID) g_dumping = dump_step();

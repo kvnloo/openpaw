@@ -181,6 +181,26 @@ int main(void) {
   for (uint32_t i = 0; i < OPENPAW_FLOG_SECTOR; i++) outside |= (g.mem[i] != 0xFF) | (g.mem[5 * OPENPAW_FLOG_SECTOR + i] != 0xFF);
   CHECK(!outside, "writes stayed inside [base, base+size)");
 
+  // 9. time anchors live in the same log, sort just before the epoch they precede,
+  //    and never shift the seq counter (also not after a remount)
+  simflash_t an = sim_new(4 * OPENPAW_FLOG_SECTOR, 0xFF);
+  openpaw_flash_io_t aio = io_for(&an);
+  openpaw_flog_t A; openpaw_flog_mount(&A, aio);
+  for (uint32_t s = 0; s < 10; s++) { openpaw_record_t r = rec(s); openpaw_flog_put(&A, &r); }
+  openpaw_anchor_t t = {A.next_seq, 52, 1795000000u, 0};
+  CHECK(openpaw_flog_put_anchor(&A, &t) == 0, "put anchor");
+  CHECK(A.count == 11 && A.next_seq == 10, "anchor counted, seq unchanged: count %u next %u", A.count, A.next_seq);
+  openpaw_flog_t A2; openpaw_flog_mount(&A2, aio);
+  CHECK(A2.count == 11 && A2.next_seq == 10, "remount with anchor last: count %u next %u", A2.count, A2.next_seq);
+  { openpaw_record_t r = rec(A2.next_seq); openpaw_flog_put(&A2, &r); }
+  uint8_t ab[OPENPAW_RECORD_SIZE]; openpaw_anchor_t t2; memset(&t2, 0, sizeof t2);
+  CHECK(openpaw_flog_get(&A2, 10, ab) == 1 && openpaw_decode_anchor(ab, &t2) && t2.unix_s == 1795000000u && t2.seq == 10,
+        "anchor reads back at its slot");
+  CHECK(seq_at(&A2, 11, &rc) == 10 && rc == 1, "the epoch after the anchor keeps seq 10");
+  CHECK(openpaw_flog_find(&A2, 10) == 10, "sync from seq 10 includes the anchor: %u", openpaw_flog_find(&A2, 10));
+  CHECK(openpaw_flog_find(&A2, 11) == 12, "sync from 11 starts after it: %u", openpaw_flog_find(&A2, 11));
+  free(an.mem);
+
   printf("flog: %u records per 4 KB sector, 2 MB = %u records = %.2f days at 5 s\n", OPENPAW_FLOG_SLOTS,
          openpaw_flog_capacity(two_mb), openpaw_flog_capacity(two_mb) * 5.0 / 86400.0);
   free(f.mem); free(w.mem); free(p.mem); free(g.mem);
