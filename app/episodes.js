@@ -1,0 +1,77 @@
+// OpenPaw episodes: owner-marked Field events (trigger / body tags / reaction / U-turn / treat / Calm again)
+// grouped by episode_id into the Episode shape the landing page's "three lenses" section shows.
+// Measurements and owner marks only. Two rules come from docs/evidence/topics/leash-reactivity.md:
+// there is no validated scoring rule for "trigger stacking", so we report the minutes since the previous
+// episode and never a stacked yes/no; and recovery without a Calm again mark is "not observed", never guessed.
+// SPDX-License-Identifier: GPL-3.0-only
+
+import { liveEvents } from './store.js';
+
+const FIELD = new Set(['trigger.seen', 'behavior.reacted', 'behavior.calm', 'intervention.reward', 'intervention.distance', 'body_language.tags']);
+const BAND_LABEL = { '<10': '<10 ft', '10-20': '10–20 ft', '20-40': '20–40 ft', '40+': '40+ ft' };
+const ms = (ts) => Date.parse(ts);
+const secs = (a, b) => Math.round((ms(b) - ms(a)) / 1000);
+
+export function fmtDur(s) {
+  const m = Math.floor(s / 60), r = Math.round(s % 60);
+  return `${m}:${String(r).padStart(2, '0')}`;
+}
+
+export function episodesFrom(events) {
+  const by = new Map();
+  for (const e of liveEvents(events)) {
+    if (!e.episode_id || !e.payload || !FIELD.has(e.payload.metric)) continue;
+    if (!by.has(e.episode_id)) by.set(e.episode_id, []);
+    by.get(e.episode_id).push(e);
+  }
+  const eps = [];
+  for (const [id, evs] of by) {
+    evs.sort((a, b) => ms(a.timestamp) - ms(b.timestamp));
+    const start = evs[0].timestamp;
+    const first = (m) => evs.find((e) => e.payload.metric === m);
+    const trig = first('trigger.seen');
+    const reacted = first('behavior.reacted');
+    const calm = first('behavior.calm');
+    const precursors = [];
+    for (const e of evs) {
+      if (e.payload.metric !== 'body_language.tags') continue;
+      if (reacted && ms(e.timestamp) > ms(reacted.timestamp)) continue;
+      for (const t of e.payload.value || []) if (!precursors.includes(t)) precursors.push(t);
+    }
+    const interventions = evs.filter((e) => e.payload.metric === 'intervention.distance' || e.payload.metric === 'intervention.reward')
+      .map((e) => ({ type: e.payload.metric === 'intervention.distance' ? 'u-turn' : 'treat', afterS: secs(start, e.timestamp) }));
+    eps.push({
+      id, start, end: calm ? calm.timestamp : null,
+      trigger: { cls: trig ? trig.payload.trigger_class || null : null, band: trig ? trig.payload.value || null : null },
+      precursors,
+      reactionAfterS: reacted ? secs(start, reacted.timestamp) : null,
+      interventions,
+      timeToCalmS: calm ? secs(start, calm.timestamp) : null,
+      recovery: calm ? 'observed' : 'not observed',
+      sincePreviousMin: null,
+      evidence: evs.map((e) => e.event_id),
+    });
+  }
+  eps.sort((a, b) => ms(a.start) - ms(b.start));
+  for (let i = 1; i < eps.length; i++) {
+    const p = eps[i - 1];
+    eps[i].sincePreviousMin = Math.round((ms(eps[i].start) - ms(p.end || p.start)) / 60000);
+  }
+  return eps;
+}
+
+const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+
+// Rows for the Behavior consultant lens (same labels as site/site.js, "Stacked" replaced by measured minutes).
+export function consultRows(ep, previous) {
+  const t = ep.trigger;
+  const what = t.cls ? cap(t.cls) : 'Not recorded';
+  const dist = t.band ? BAND_LABEL[t.band] || `${t.band} ft` : 'distance not recorded';
+  return [
+    ['Trigger', `${what}, ${dist}`],
+    ['Precursors', ep.precursors.length ? `${ep.precursors.join(', ')} (owner tags)` : 'None marked'],
+    ['Intervention', ep.interventions.length ? cap(ep.interventions.map((x) => `${x.type} at ${x.afterS}\u00a0s`).join(', ')) : 'None marked'],
+    ['Recovery', ep.timeToCalmS != null ? `${fmtDur(ep.timeToCalmS)} to Calm again (owner-marked)` : 'Not observed (no Calm again mark)'],
+    ['Since previous', previous && ep.sincePreviousMin != null ? `${ep.sincePreviousMin} min after the previous episode` : 'No earlier episode on record'],
+  ];
+}

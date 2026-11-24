@@ -7,6 +7,7 @@
 
 import * as S from './store.js';
 import { UUIDS, decodeRecord, decodeStatus, recordToEvents, makeClock } from './openpaw-ble.js';
+import { episodesFrom, consultRows } from './episodes.js';
 
 const $ = (id) => document.getElementById(id);
 const SOURCE = 'openpaw-field';
@@ -128,6 +129,24 @@ function render() {
   }
   $('btnUndo').disabled = !walkLog.length;
   renderLog();
+  renderEpisode();
+}
+
+// Last episode in the Behavior-consultant lens shape (app/episodes.js), from everything on record.
+async function renderEpisode() {
+  const eps = episodesFrom(await S.allEvents());
+  const box = $('epRows');
+  if (!eps.length) return;
+  const last = eps[eps.length - 1];
+  const open = !last.end;
+  $('epLabel').textContent = `Consultant view · ${new Date(last.start).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}${open ? ' · open' : ''}`;
+  box.innerHTML = '';
+  for (const [k, v] of consultRows(last, eps[eps.length - 2] || null)) {
+    const row = document.createElement('div');
+    const dt = document.createElement('dt'); dt.className = 'micro'; dt.textContent = k;
+    const dd = document.createElement('dd'); dd.textContent = v;
+    row.append(dt, dd); box.append(row);
+  }
 }
 
 function renderLog() {
