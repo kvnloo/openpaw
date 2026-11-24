@@ -3,13 +3,14 @@
 // "still" is low movement, not sleep; "vigorous" is high movement, not excitement.
 // SPDX-License-Identifier: GPL-3.0-only
 
-export const ANALYTICS_VERSION = 'openpaw-collar-analytics/0.1';
+export const ANALYTICS_VERSION = 'openpaw-collar-analytics/0.2';
 
-// VeDBA bands (mg). Illustrative until calibrated per dog; shown on every chart that uses them.
+// Provisional VeDBA bands (mg), fitted to Vehkaoja et al. (10.17632/vxhx934tbn.4).
+// See research/calibration/RESULTS.md: walking and sniffing overlap strongly.
 export const LEVELS = [
-  { id: 'still', label: 'Still', max: 30 },
-  { id: 'low', label: 'Low', max: 150 },
-  { id: 'moderate', label: 'Moderate', max: 500 },
+  { id: 'still', label: 'Still', max: 250 },
+  { id: 'low', label: 'Low', max: 570 },
+  { id: 'moderate', label: 'Moderate', max: 585 },
   { id: 'vigorous', label: 'Vigorous', max: Infinity },
 ];
 export function levelOf(vedba) {

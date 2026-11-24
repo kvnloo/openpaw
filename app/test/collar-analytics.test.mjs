@@ -6,7 +6,7 @@ import { levelOf, epochsFromEvents, dayBudget, circadian, burstEvents, baseline,
 const NOW = Date.parse('2026-11-23T20:00:00Z');
 
 test('levels are measurement bands', () => {
-  assert.deepEqual([0, 29, 30, 149, 150, 499, 500, 4000].map(levelOf), [0, 0, 1, 1, 2, 2, 3, 3]);
+  assert.deepEqual([0, 249, 250, 569, 570, 584, 585, 4000].map(levelOf), [0, 0, 1, 1, 2, 2, 3, 3]);
   assert.equal(fmtMin(5.4), '5 min'); assert.equal(fmtMin(135), '2 h 15');
 });
 
@@ -30,7 +30,7 @@ test('day budget sums minutes per band and covers each day', () => {
   const total = full.minutes.reduce((s, x) => s + x, 0);
   assert.ok(Math.abs(total - 1440) <= 2, `full day covers 1440 min, got ${total}`);
   assert.ok(full.minutes[0] > 600, 'nights are mostly still');
-  assert.ok(full.minutes[2] + full.minutes[3] > 40, 'walks + play show up as moderate/vigorous');
+  assert.ok(full.minutes[1] + full.minutes[2] + full.minutes[3] > 40, 'walks + play contribute non-still minutes');
 });
 
 test('circadian profile: nights quiet, walk hours busy, today split out', () => {
@@ -45,7 +45,7 @@ test('circadian profile: nights quiet, walk hours busy, today split out', () => 
 
 test('burst events group nearby bursts and measure settle time', () => {
   const ep = [];
-  for (let i = 0; i < 200; i++) ep.push({ t: NOW + i * 5000, vedba: i >= 10 && i < 14 ? 1200 : i >= 14 && i < 30 ? 400 : 15, max: i === 11 ? 3500 : 100, bursts: i === 10 || i === 12 ? 1 : 0, clipped: false, w: 5 });
+  for (let i = 0; i < 200; i++) ep.push({ t: NOW + i * 5000, vedba: i >= 10 && i < 14 ? 1200 : i >= 14 && i < 30 ? 575 : 15, max: i === 11 ? 3500 : 100, bursts: i === 10 || i === 12 ? 1 : 0, clipped: false, w: 5 });
   const b = burstEvents(ep);
   assert.equal(b.length, 1); assert.equal(b[0].count, 2); assert.equal(b[0].peak, 3500);
   assert.equal(b[0].settleS, 90, 'burst ends at epoch 12 (60 s), movement back in still/low from epoch 30 (150 s)');
