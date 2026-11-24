@@ -20,6 +20,8 @@ def round_away(x):
 @njit
 def extract(samples, flush=False, transfer=False):
     """Return quantized fields; a flushed trailing row represents a GAP."""
+    if transfer and flush:
+        raise ValueError("transfer features require complete 250-sample windows")
     out = np.empty(((len(samples) + (EPOCH - 1 if flush else 0)) // EPOCH,
                     len(FIELDS) + (len(TRANSFER_FIELDS) if transfer else 0)), np.int32)
     f = np.float32
