@@ -48,6 +48,8 @@ export const SRC = {
   vetRecPain: 'https://veterinaryrecord.bmj.com/content/176/18/465.1',
   medicalReview: 'https://pmc.ncbi.nlm.nih.gov/articles/PMC6941081',
   colpoys2021: 'https://doi.org/10.3390/ani11030781',
+  pedretti2023: 'https://doi.org/10.1007/s10071-023-01742-9',
+  vieiradecastro2020: 'https://doi.org/10.1371/journal.pone.0225023',
 };
 
 // Human-readable names for the source list.
@@ -85,6 +87,8 @@ export const SOURCE_NAMES = {
   [SRC.vetRecPain]: 'Veterinary Record 2015: Clinical indicators of occult musculoskeletal pain in aggressive dogs',
   [SRC.medicalReview]: 'Camps et al. 2019, Medical conditions and behavioral problems in dogs and cats (review)',
   [SRC.colpoys2021]: 'Colpoys & DeCock 2021, Evaluation of the FitBark activity monitor for measuring physical activity in dogs (Animals)',
+  [SRC.pedretti2023]: 'Pedretti et al. 2023, Appeasement function of displacement behaviours? Dogs approached by threatening and neutral humans (Anim Cogn)',
+  [SRC.vieiradecastro2020]: 'Vieira de Castro et al. 2020, Does training method matter? Aversive vs reward-based schools (PLOS ONE)',
 };
 
 export const LESSONS = [
@@ -355,6 +359,16 @@ export const CARDS = [
     explain: 'The collar measures movement, not how a dog feels. Body measures settle at different speeds: in a lab study of 10 dogs, heart rate took about 6 to 8 minutes on average to return after startling events. Collar metrics also matched observed movement less well on leash. Log when you see him settle.',
     sources: [SRC.beerda1997, SRC.colpoys2021],
     evidence: ['beerda1998-behavioural-saliva-cortisol-and-heart-rate-responses-to', 'colpoys2021-evaluation-of-the-fitbark-activity-monitor-for-measuring'] },
+  { id: 'c-held-still', lesson: 'turn-paw', art: { posture: 'turn', ears: 'back', eye: 'whale', mouth: 'closed', tail: 'low', prop: 'dog' },
+    context: 'Your dog usually barks at dogs. Someone holds him on a short, tight lead right beside another dog. He goes still, mouth closed, head turned away. They say: \u201csee, now he\u2019s calm\u201d.',
+    choices: ['He is relaxed now, so keep him there longer', 'Still, closed mouth and head turned away, with no way out, may mean he is coping, not relaxed; give him distance and a way out', 'He has learned to like the other dog', 'He is being stubborn'], answer: 1,
+    explain: 'Quiet is not the same as relaxed. In a study of 53 dogs approached by a stranger in a mildly threatening way, the dogs that stayed passive (no barking or lunging) turned their heads away more. A still dog that cannot leave may be coping with a threat. In another study, dogs from schools using aversive methods showed more stress-related behaviours. AVSAB advises against flooding and leash pressure. Compare a loose, sniffing dog at a distance, and let him choose the distance.',
+    sources: [SRC.pedretti2023, SRC.vieiradecastro2020, SRC.avsabHumane, SRC.bat],
+    evidence: ['pedretti2023-appeasement-function-of-displacement-behaviours-dogs-behavioural-displays', 'vieiradecastro2020-does-training-method-matter-evidence-for-the-negative', 'avsab2021-position-statement-on-humane-dog-training'],
+    examples: [
+      { url: 'https://www.youtube.com/watch?v=kIso0tNt8TQ&t=464s', label: 'Held close in a group of dogs: still, mouth closed, head turned away (07:44, TV episode; technique not recommended)' },
+      { url: 'https://www.youtube.com/watch?v=Q9BsLd6KQqM&t=575s', label: 'Contrast: a dog on a slack line chooses to look, then turns away and is walked off (09:35, BAT demo by Grisha Stewart)' },
+    ] },
 ];
 
 export const DISCLAIMER = 'OpenPaw teaches common, research-backed readings of dog body language. Every dog is an individual and signals depend on context. This is not a diagnosis or a training plan: ask your behavior consultant or vet.';

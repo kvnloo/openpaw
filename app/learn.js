@@ -267,6 +267,12 @@ function sourcesHtml(urls) {
   return `<ol class="srcs">${urls.map((u) => `<li><a href="${esc(u)}" target="_blank" rel="noopener noreferrer">${esc(SOURCE_NAMES[u] || host(u))}</a> <span class="mono dim">${esc(host(u))}</span></li>`).join('')}</ol>`;
 }
 
+// Public video moments that show a card's signals (links only; nothing is embedded or fetched).
+function examplesHtml(list) {
+  if (!list || !list.length) return '';
+  return `<p class="k">Watch an example</p><ul class="srcs examples">${list.map((e) => `<li><a href="${esc(e.url)}" target="_blank" rel="noopener noreferrer">${esc(e.label)}</a> <span class="mono dim">${esc(host(e.url))}</span></li>`).join('')}</ul>`;
+}
+
 /* ------------------------------------------------------------------ state */
 let DOG = 'my-dog';
 let srs = { cards: {}, streak: { count: 0, last: null }, sessions: 0 };
@@ -429,6 +435,7 @@ function runSession(cards) {
       ex.hidden = false;
       ex.innerHTML = `<p class="verdict ${ok ? 'ok' : 'no'}">${ok ? 'Right.' : 'Not quite.'}</p><p>${esc(c.explain)}</p>
         <p class="k">Sources</p>${sourcesHtml(c.sources)}
+        ${examplesHtml(c.examples)}
         <div class="ctas"><button class="btn btn-gold" id="next">${i + 1 < cards.length ? 'Next' : 'Finish'}</button>
         ${lesson ? `<a class="btn btn-ghost btn-sm" href="#learn/${lesson.id}">Lesson: ${esc(lesson.title)}</a>` : ''}</div>`;
       $('#next').onclick = () => { i += 1; i < cards.length ? show() : finish(); };
