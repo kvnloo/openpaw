@@ -328,7 +328,12 @@ export const CARDS = [
   { id: 'c-stack', lesson: 'threshold', art: { posture: 'stiff', ears: 'forward', eye: 'hard', mouth: 'tense', tail: 'high', prop: 'dog' },
     context: 'Your dog usually copes with dogs at 30 m. Today, after fireworks last night and a busy vet visit, he barks at a dog 40 m away.',
     choices: ['He suddenly became aggressive', 'Trigger stacking: earlier stress may have lowered his threshold', 'The other dog was rude', 'He needs more exposure today'], answer: 1,
-    explain: 'Stress from earlier events can add up, so a dog reacts at a distance that is usually fine. A quiet day can help; tell your consultant.', sources: [SRC.dogsTrustStacking, SRC.akcStacking] },
+    explain: 'Stress from earlier events can add up, so a dog reacts at a distance that is usually fine. Body measures take a while to settle: in a lab study of 10 dogs, heart rate took about 6 to 8 minutes on average to return after startling events, so events a few minutes apart can overlap. A quiet day can help; tell your consultant.', sources: [SRC.dogsTrustStacking, SRC.akcStacking],
+    evidence: ['beerda1998-behavioural-saliva-cortisol-and-heart-rate-responses-to'],
+    examples: [
+      { url: 'https://www.youtube.com/watch?v=Sp3B0KmBVFQ&t=19s', label: 'Several triggers at once during a BAT session: a car creeping up, a dog approaching and a lively young dog nearby; the handler names it as factors adding up (0:19, handler\u2019s own session video)' },
+      { url: 'https://www.youtube.com/watch?v=Sp3B0KmBVFQ&t=76s', label: 'After the reaction the handler adds distance and waits; as the other dog leaves he makes a different choice and puts his nose down at the fence line (1:16 to 1:30)' },
+    ] },
   { id: 'c-food', lesson: 'threshold', art: { posture: 'stiff', ears: 'forward', eye: 'hard', mouth: 'closed', tail: 'high' },
     context: 'Near a trigger, your dog suddenly will not take even his favourite treat and does not respond to his name.',
     choices: ['He is full', 'He is likely over threshold; add distance before trying to teach anything', 'He is being stubborn', 'Offer a bigger treat closer to the trigger'], answer: 1,
