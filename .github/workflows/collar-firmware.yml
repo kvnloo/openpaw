@@ -92,5 +92,5 @@ jobs:
         run: |
           ls -la dist
           gh release create "${GITHUB_REF_NAME}" dist/*.uf2 dist/*-dfu.zip dist/SHA256SUMS-*.txt \
-            -R "${GITHUB_REPOSITORY}" --title "OpenPaw collar firmware ${GITHUB_REF_NAME#collar-v}" \
-            --notes "Drag the .uf2 for your board onto the drive that appears after double-tapping reset. See docs/COLLAR.md."
+            -R "${GITHUB_REPOSITORY}" --title "OpenPaw collar firmware ${GITHUB_REF_NAME#collar-v}" --prerelease \
+            --notes "**Compiled and host-tested, not yet run on real hardware.** Drag the .uf2 for your board onto the drive that appears in update mode: see docs/COLLAR.md. Boards: SenseCAP T1000-E (LoRaWAN/open-source version), XIAO nRF52840 Sense. Measures movement and posture only."

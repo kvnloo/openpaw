@@ -87,6 +87,19 @@ class BuildCollarTests(unittest.TestCase):
         self.assertNotIn('release name of the `.uf2`', text)
 
 
+class ReleaseLinkTests(unittest.TestCase):
+    def test_guide_links_the_release_that_matches_the_firmware_version(self):
+        version = re.search(r'#define OPENPAW_FW_VERSION "([^"]+)"', FIRMWARE.read_text(encoding='utf-8')).group(1)
+        guide = GUIDE.read_text(encoding='utf-8')
+        self.assertIn(f'https://github.com/kvnloo/openpaw/releases/tag/collar-v{version}', guide)
+        self.assertIn(f'collar-v{version}', (ROOT / 'site' / 'index.html').read_text(encoding='utf-8'))
+
+    def test_firmware_header_names_the_same_version(self):
+        text = FIRMWARE.read_text(encoding='utf-8')
+        version = re.search(r'#define OPENPAW_FW_VERSION "([^"]+)"', text).group(1)
+        self.assertIn(f'firmware v{version}', text.splitlines()[0])
+
+
 class VerifyCollarTests(unittest.TestCase):
     def test_serial_csv_header_matches_firmware(self):
         header = re.search(r'Serial\.println\("(seq,[^"]+)"\)', FIRMWARE.read_text(encoding='utf-8')).group(1)
