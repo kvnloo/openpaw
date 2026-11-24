@@ -50,6 +50,8 @@ export const SRC = {
   colpoys2021: 'https://doi.org/10.3390/ani11030781',
   pedretti2023: 'https://doi.org/10.1007/s10071-023-01742-9',
   vieiradecastro2020: 'https://doi.org/10.1371/journal.pone.0225023',
+  lopesfagundes2018: 'https://doi.org/10.3389/fvets.2018.00017',
+  riemer2023: 'https://doi.org/10.3390/ani13233664',
 };
 
 // Human-readable names for the source list.
@@ -89,6 +91,8 @@ export const SOURCE_NAMES = {
   [SRC.colpoys2021]: 'Colpoys & DeCock 2021, Evaluation of the FitBark activity monitor for measuring physical activity in dogs (Animals)',
   [SRC.pedretti2023]: 'Pedretti et al. 2023, Appeasement function of displacement behaviours? Dogs approached by threatening and neutral humans (Anim Cogn)',
   [SRC.vieiradecastro2020]: 'Vieira de Castro et al. 2020, Does training method matter? Aversive vs reward-based schools (PLOS ONE)',
+  [SRC.lopesfagundes2018]: 'Lopes Fagundes et al. 2018, Noise sensitivities in dogs with and without musculoskeletal pain (Front Vet Sci)',
+  [SRC.riemer2023]: 'Riemer 2023, Therapy and prevention of noise fears in dogs: a review for practitioners (Animals)',
 };
 
 export const LESSONS = [
@@ -383,6 +387,16 @@ export const CARDS = [
     examples: [
       { url: 'https://www.youtube.com/watch?v=kIso0tNt8TQ&t=464s', label: 'Held close in a group of dogs: still, mouth closed, head turned away (07:44, TV episode; technique not recommended)' },
       { url: 'https://www.youtube.com/watch?v=Q9BsLd6KQqM&t=575s', label: 'Contrast: a dog on a slack line chooses to look, then turns away and is walked off (09:35, BAT demo by Grisha Stewart)' },
+    ] },
+  { id: 'c-route', lesson: 'pain', art: { posture: 'turn', ears: 'back', eye: 'whale', mouth: 'lick', tail: 'low' },
+    context: 'Two weeks ago a loud bang went off on your usual walk. Since then, a few houses down that route, your dog turns back, licks his lips and pulls toward home.',
+    choices: ['He is being stubborn: keep walking the same route until he gets over it', 'Take him back there every day so he gets used to it', 'Walk a different route for now, write down when it started, and tell your vet', 'Nothing to do: it will pass on its own'], answer: 2,
+    explain: 'Turning back, lip licking and pulling toward home after a scary event can be signs of fear of that place. Keeping a dog away from what scares him while you get help is part of standard noise-fear care, so the fear does not grow; the best-supported training pairs the sound with food or play, step by step (counterconditioning). A sudden change is also worth a vet check. In a small study of 20 noise-sensitive dogs seen by behavior specialists, the fear had spread to the place where the noise happened, or to car trips, in 8 of 10 dogs that also had muscle or joint pain, but in only 2 of 10 dogs without pain. Your vet or behavior consultant can plan the next step.',
+    sources: [SRC.lopesfagundes2018, SRC.riemer2023],
+    evidence: ['lopesfagundes2018-noise-sensitivities-in-dogs-an-exploration-of-signs', 'riemer2023-therapy-and-prevention-of-noise-fears-in-dogs'],
+    examples: [
+      { url: 'https://www.youtube.com/watch?v=Kf48BFJahuI&t=231s', label: 'After a loud explosion on a walk, the owner describes him turning back a few houses down, lip licking and pulling to go home (03:51; later in the video she walks him back to the place on a head collar, which is not recommended)' },
+      { url: 'https://www.youtube.com/watch?v=BceBaeNBeX4&t=34s', label: 'A force-free trainer: before training a dog that stops on walks, rule out pain with a vet check and fear of something on the route, such as traffic noise (0:34 to 0:59, Happy Hounds Dog Training)' },
     ] },
 ];
 

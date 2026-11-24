@@ -91,6 +91,26 @@ test('sniff card: a first sniff after a reaction is the start of recovery, not t
   assert.ok(c.evidence && c.evidence.includes('beerda1998-behavioural-saliva-cortisol-and-heart-rate-responses-to'), 'cites docs/evidence');
 });
 
+test('route card: a dog refusing a route after a loud event gets a different route and a vet check, citing noise evidence', () => {
+  const c = CARDS.find((x) => x.id === 'c-route');
+  assert.ok(c, 'c-route card exists');
+  assert.equal(c.lesson, 'pain');
+  const right = c.choices[c.answer];
+  assert.match(right, /different route|another route/i);
+  assert.match(right, /vet/i);
+  // Wrong answers include making the dog walk the feared route; the right one must not.
+  assert.doesNotMatch(right, /same route|make him|keep walking (him )?there/i);
+  assert.ok(c.choices.some((x, i) => i !== c.answer && /same route|back there/i.test(x)), 'a distractor offers the forced route');
+  for (const slug of ['lopesfagundes2018-noise-sensitivities-in-dogs-an-exploration-of-signs', 'riemer2023-therapy-and-prevention-of-noise-fears-in-dogs']) {
+    assert.ok(c.evidence && c.evidence.includes(slug), `cites ${slug}`);
+  }
+  assert.match(c.explain, /8 of 10/);
+  assert.match(c.explain, /2 of 10/);
+  assert.ok(Array.isArray(c.examples) && c.examples.length >= 2, 'video examples');
+  for (const e of c.examples) assert.match(e.url, /^https:\/\/www\.youtube\.com\/watch\?v=[\w-]{11}&t=\d+s$/, e.url);
+  assert.ok(c.examples.some((e) => /pain|vet/i.test(e.label) && /fear|noise/i.test(e.label)), 'an example where a trainer rules out pain and fear first');
+});
+
 test('every card example is a timestamped https link with a label', () => {
   for (const c of CARDS.filter((x) => x.examples)) {
     for (const e of c.examples) {
