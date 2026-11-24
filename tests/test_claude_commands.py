@@ -99,6 +99,17 @@ class ReleaseLinkTests(unittest.TestCase):
         version = re.search(r'#define OPENPAW_FW_VERSION "([^"]+)"', text).group(1)
         self.assertIn(f'firmware v{version}', text.splitlines()[0])
 
+    def test_firmware_ships_time_anchors_in_a_release_newer_than_0_2(self):
+        # Set-time 0x20 + flash-log time anchors (status proto 2) landed after 0.2.0.
+        text = FIRMWARE.read_text(encoding='utf-8')
+        version = re.search(r'#define OPENPAW_FW_VERSION \"([^\"]+)\"', text).group(1)
+        self.assertGreaterEqual(tuple(int(p) for p in version.split('.')), (0, 3, 0))
+
+    def test_guide_names_the_release_that_dates_earlier_restarts(self):
+        guide = GUIDE.read_text(encoding='utf-8')
+        self.assertNotIn('next firmware release fixes this', guide.lower())
+        self.assertIn('Firmware 0.3', guide)
+
 
 class VerifyCollarTests(unittest.TestCase):
     def test_serial_csv_header_matches_firmware(self):

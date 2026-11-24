@@ -22,7 +22,7 @@ Three steps, about 15 minutes, no soldering, no software to install.
 
 ## 2. Put the OpenPaw firmware on it (drag and drop)
 
-1. Download the `.uf2` file for your board from the [collar-v0.2.0 release](https://github.com/kvnloo/openpaw/releases/tag/collar-v0.2.0) (all collar releases are [listed here](https://github.com/kvnloo/openpaw/releases?q=collar)):
+1. Download the `.uf2` file for your board from the [collar-v0.3.0 release](https://github.com/kvnloo/openpaw/releases/tag/collar-v0.3.0) (all collar releases are [listed here](https://github.com/kvnloo/openpaw/releases?q=collar)):
    - Kit A: `openpaw-collar-t1000-e.uf2`
    - Kit B: `openpaw-collar-xiao-nrf52840-sense.uf2`
 2. Put the board into "update mode":
@@ -43,7 +43,7 @@ Open **https://kvnloo.github.io/openpaw/app/** in Chrome or Edge (Android, Windo
 3. Optional: tap **Add heart-rate strap** for the Polar H10.
 4. Tap **Export OpenPaw JSONL** any time to download everything. Your data stays in your browser until you export it.
 
-The collar keeps recording while your phone is away. Reconnect and tap **Download backlog** to fill the gaps. Firmware 0.2 and later saves epochs to the board's flash chip, about 5 days on the 2 MB chip, and keeps them through a restart or a flat battery (this compiles and passes host tests, including simulated power cuts, but has not yet run on a real board). With firmware 0.2, after a restart the app downloads only what was recorded since that restart, because the collar has no clock to date older epochs. The next firmware release fixes this (already on `main`, host-tested, not yet run on hardware): each time the app connects it tells the collar the time, the collar saves that next to its epochs, and later downloads can date epochs from before a restart too. Epochs from a stretch when no phone connected at all between two restarts still can't be dated; the app skips them and says how many. If no flash chip answers at startup, or on firmware 0.1.x, the collar holds only the last 5.7 hours in memory, and a restart clears it.
+The collar keeps recording while your phone is away. Reconnect and tap **Download backlog** to fill the gaps. Firmware 0.2 and later saves epochs to the board's flash chip, about 5 days on the 2 MB chip, and keeps them through a restart or a flat battery (this compiles and passes host tests, including simulated power cuts, but has not yet run on a real board). With firmware 0.2, after a restart the app downloads only what was recorded since that restart, because the collar has no clock to date older epochs. Firmware 0.3 and later can date those too (host-tested, not yet run on hardware): each time the app connects it tells the collar the time, the collar saves that next to its epochs, and later downloads use it. Epochs from a stretch when no phone connected at all between two restarts still can't be dated; the app skips them and says how many. If no flash chip answers at startup, or on firmware 0.1.x, the collar holds only the last 5.7 hours in memory, and a restart clears it.
 
 ## Fit and safety
 
