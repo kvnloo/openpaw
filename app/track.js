@@ -65,11 +65,13 @@ function renderNeeds() {
 
 function renderTiles() {
   const vis = trackers.filter((t) => t.visible !== false);
-  $('#tiles').innerHTML = CATS.map(([cat, label]) => {
-    const ts = vis.filter((t) => (t.category || 'custom') === cat);
-    if (!ts.length && cat !== 'custom') return '';
-    const n = Math.min(4, ts.length + (cat === 'custom' ? 1 : 0));
-    return `<div class="grp" style="--n:${n}"><div class="micro cat">${label}</div><div class="tiles">${ts.map((t) => {
+  const groups = CATS.map(([cat, label]) => ({ cat, label, ts: vis.filter((t) => (t.category || 'custom') === cat) }))
+    .filter((g) => g.ts.length || g.cat === 'custom');
+  // phone layout: two consecutive one-tile groups share a row (class "pair") instead of each leaving half a row empty
+  groups.forEach((g, i) => { g.n = Math.min(4, g.ts.length + (g.cat === 'custom' ? 1 : 0)); });
+  for (let i = 0; i + 1 < groups.length; i++) if (groups[i].n === 1 && groups[i + 1].n === 1) { groups[i].pair = groups[i + 1].pair = true; i++; }
+  $('#tiles').innerHTML = groups.map(({ cat, label, ts, n, pair }) => {
+    return `<div class="grp${pair ? ' pair' : ''}" style="--n:${n}"><div class="micro cat">${label}</div><div class="tiles">${ts.map((t) => {
       const tot = totalToday(t);
       const today = tot ? (t.type === 'scale' ? `avg ${fmt(tot.v)}` : t.type === 'check' ? `${tot.n}× today` : `${fmt(tot.v)} ${t.unit || ''}`) : '';
       return `<button class="tile" data-t="${esc(t.id)}"><span class="nm">${esc(t.name)}</span><span>${today ? `<span class="today">${esc(today)}</span>` : `<span class="meta">${esc(t.unit || (t.type === 'check' ? 'tap to log' : t.type))}</span>`}</span></button>`;
