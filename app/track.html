@@ -65,6 +65,8 @@
   #tiles { display:grid; grid-template-columns:repeat(4,1fr); column-gap:10px; }
   .grp { grid-column:span var(--n,4); min-width:0; }
   .tiles { display:grid; grid-template-columns:repeat(var(--n,4),1fr); gap:10px; }
+  /* desktop: the last tile of a row's last group spans the row's leftover cells (app/tile-pack.js) */
+  @media (min-width:561px) { .tiles > .tile:last-child { grid-column:span var(--last,1); } }
   .tile { text-align:left; border:1px solid var(--line); border-radius:12px; background:var(--bg2); padding:13px 14px 12px; min-height:88px; display:flex; flex-direction:column; justify-content:space-between; transition:transform .18s var(--ease), border-color .2s, background .2s; position:relative; overflow:hidden; }
   .tile:hover { border-color:var(--line2); background:var(--bg3); }
   .tile:active { transform:scale(.975); }
