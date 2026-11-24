@@ -28,11 +28,24 @@ export function hexToBytes(hex) {
   return out;
 }
 
+export const ANCHOR_VERSION = 2;
+
 // One 20-byte record -> object, or null for the end-of-dump marker (version 0xFF).
+// Version 2 is a time anchor (openpaw_anchor_t): {anchor: true, seq, uptime_s, unix_s, boot_seq}.
 export function decodeRecord(bytes, offset = 0) {
   const v = view(bytes);
   const version = v.getUint8(offset);
   if (version === 0xff) return null;
+  if (version === ANCHOR_VERSION) {
+    return {
+      anchor: true,
+      version,
+      seq: v.getUint32(offset + 2, true),
+      uptime_s: v.getUint32(offset + 6, true),
+      unix_s: v.getUint32(offset + 10, true),
+      boot_seq: v.getUint32(offset + 14, true),
+    };
+  }
   if (version !== 1) throw new Error(`unsupported record version ${version}`);
   const flags = v.getUint8(offset + 1);
   return {
@@ -53,18 +66,19 @@ export function decodeRecord(bytes, offset = 0) {
   };
 }
 
-// A log notification carries N whole records. Returns {records, done}.
+// A log notification carries N whole records. Returns {records, anchors, done}.
 export function decodeChunk(bytes) {
   const v = view(bytes);
   if (v.byteLength % RECORD_SIZE !== 0) throw new Error(`chunk length ${v.byteLength} is not a multiple of ${RECORD_SIZE}`);
   const records = [];
+  const anchors = [];
   let done = false;
   for (let o = 0; o < v.byteLength; o += RECORD_SIZE) {
     const r = decodeRecord(v, o);
     if (r === null) { done = true; break; }
-    records.push(r);
+    (r.anchor ? anchors : records).push(r);
   }
-  return { records, done };
+  return { records, anchors, done };
 }
 
 export function decodeStatus(bytes) {
@@ -81,11 +95,65 @@ export function decodeStatus(bytes) {
   };
 }
 
-// Where a backlog download should start. The flash log keeps records from earlier boots,
-// but their uptime clock cannot be anchored to wall time any more, so never ask for them.
+// Where a backlog download should start. proto >= 2 (time anchors): resume right after
+// the cursor, also into earlier boots, because dateBacklog can date them. Older firmware
+// cannot date earlier boots, so never ask for them.
 export function syncFrom(lastSeq, status) {
   const next = lastSeq == null ? 0 : lastSeq + 1;
+  if ((status.proto || 1) >= PROTO_TIME_ANCHOR) return next > (status.next_seq ?? Infinity) ? 0 : next;
   return Math.max(next, status.boot_seq || 0);
+}
+
+// Give each downloaded epoch a wall-clock time. Records are split into boots where
+// uptime goes backwards (or where an anchor says a boot began); each boot is dated by an
+// anchor {seq, uptime_s, unix_s, boot_seq} with that boot_seq: logged by the collar,
+// kept by the app, or the live connection's own. A boot no anchor covers (the collar ran
+// while no phone connected) cannot be dated and is returned in `undated`.
+// cursor {seq, uptime_s, boot_seq}: the last record synced before, so a download that
+// resumes mid-boot knows which boot its first records belong to.
+export function dateBacklog({ records, anchors = [], cursor = null }) {
+  const recs = [...records].sort((a, b) => a.seq - b.seq);
+  const segs = [];
+  let cur = null;
+  let prev = cursor;
+  for (const r of recs) {
+    const restart = !prev || r.uptime_s < prev.uptime_s || anchors.some((a) => a.boot_seq > prev.seq && a.boot_seq <= r.seq);
+    if (!cur || restart) {
+      // this boot began at a seq in (lo, hi]; or exactly at the cursor's boot if it continues it
+      const exact = !cur && cursor && !restart ? cursor.boot_seq : null;
+      cur = { lo: prev ? prev.seq : -1, hi: r.seq, exact, recs: [] };
+      segs.push(cur);
+    }
+    cur.recs.push(r);
+    prev = r;
+  }
+  const dated = [];
+  const undated = [];
+  for (const s of segs) {
+    const fits = anchors.filter((a) => (s.exact != null ? a.boot_seq === s.exact : a.boot_seq > s.lo && a.boot_seq <= s.hi));
+    if (!fits.length) { undated.push(...s.recs); continue; }
+    const best = Math.max(...fits.map((a) => a.boot_seq));
+    const a = fits.filter((x) => x.boot_seq === best).at(-1);
+    const clock = makeClock(a.unix_s * 1000, a.uptime_s);
+    for (const r of s.recs) dated.push({ rec: r, timestamp: clock(r.uptime_s), boot_seq: a.boot_seq });
+  }
+  return { dated, undated };
+}
+
+// Sync cursor {seq, uptime_s, boot_seq}: the newest epoch synced so far; never moves back.
+export function advanceCursor(cursor, entries) {
+  let c = cursor;
+  for (const e of entries) if (!c || e.seq > c.seq) c = { seq: e.seq, uptime_s: e.uptime_s, boot_seq: e.boot_seq ?? null };
+  return c;
+}
+
+// Anchors the app keeps per collar (so a later download can date a boot whose anchor it
+// already received); de-duplicated, sorted by seq, newest `max` kept.
+export function rememberAnchors(list, anchors, max = 64) {
+  const key = (a) => `${a.boot_seq}:${a.seq}:${a.unix_s}`;
+  const m = new Map((list || []).map((a) => [key(a), a]));
+  for (const a of anchors) m.set(key(a), { seq: a.seq, uptime_s: a.uptime_s, unix_s: a.unix_s, boot_seq: a.boot_seq });
+  return [...m.values()].sort((a, b) => a.seq - b.seq).slice(-max);
 }
 
 // Standard Device Information Service strings (model 0x2A24, firmware 0x2A26).
@@ -104,6 +172,15 @@ export function encodeDumpFrom(fromSeq) {
   const b = new Uint8Array(5);
   b[0] = 0x01;
   new DataView(b.buffer).setUint32(1, fromSeq >>> 0, true);
+  return b;
+}
+// Status proto from which the collar accepts set-time and logs time anchors (firmware after 0.2.0).
+export const PROTO_TIME_ANCHOR = 2;
+// Tell the collar the wall-clock time: 0x20 + unix seconds (u32 LE).
+export function encodeSetTime(unixMs) {
+  const b = new Uint8Array(5);
+  b[0] = 0x20;
+  new DataView(b.buffer).setUint32(1, Math.floor(unixMs / 1000) >>> 0, true);
   return b;
 }
 export const CMD_STOP = Uint8Array.of(0x02);

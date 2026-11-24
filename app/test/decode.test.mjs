@@ -12,7 +12,7 @@ const schema = JSON.parse(readFileSync(new URL('../../schema/openpaw-event.schem
 
 test('decodes every golden packet produced by the C core exactly', () => {
   assert.ok(golden.length >= 6);
-  for (const g of golden) {
+  for (const g of golden.filter((x) => x.name !== 'anchor')) {  // anchor: app/test/anchor.test.mjs
     const r = decodeRecord(hexToBytes(g.hex));
     for (const k of ['version', 'flags', 'seq', 'uptime_s', 'vedba_mean_mg', 'vedba_max_mg', 'active_frac', 'pitch_deg', 'roll_deg', 'bursts', 'hr_bpm', 'battery_pct']) {
       assert.equal(r[k], g[k], `${g.name}.${k}`);
@@ -58,7 +58,7 @@ test('20-byte status carries boot_seq (flash log keeps records and seq across re
   assert.equal(st.stored, 86870);
 });
 
-test('backlog sync never asks for records from an earlier boot (their uptime clock is gone)', () => {
+test('proto 1: backlog sync never asks for records from an earlier boot (no time anchors to date them)', () => {
   const st = { boot_seq: 89880 };
   assert.equal(syncFrom(null, st), 89880, 'new boot, nothing synced yet: start at this boot');
   assert.equal(syncFrom(89900, st), 89901, 'resume after the last synced record');

@@ -155,6 +155,20 @@ int main(int argc, char **argv) {
   CHECK(openpaw_vbat_mv(1615u, 1, 12, 3600, 1510, 510) == 4203, "xiao: %u", openpaw_vbat_mv(1615u, 1, 12, 3600, 1510, 510));
   CHECK(openpaw_vbat_mv(0, 0, 12, 3000, 2000, 1000) == 0, "zero samples -> 0");
 
+  // time anchor: the app tells the collar the wall-clock time; the collar logs
+  // (seq, uptime, unix time, boot_seq) so epochs from that boot can be dated later.
+  openpaw_anchor_t an = {0x00012345u, 3601u, 1795000000u, 0x00012000u};
+  uint8_t ab[OPENPAW_RECORD_SIZE];
+  openpaw_encode_anchor(&an, ab);
+  const uint8_t want_ab[OPENPAW_RECORD_SIZE] = {0x02, 0x00, 0x45, 0x23, 0x01, 0x00, 0x11, 0x0e, 0x00, 0x00,
+                                                0xc0, 0x86, 0xfd, 0x6a, 0x00, 0x20, 0x01, 0x00, 0x00, 0x00};
+  CHECK(memcmp(ab, want_ab, sizeof ab) == 0, "anchor wire bytes");
+  CHECK(ab[0] == OPENPAW_ANCHOR_VERSION && ab[0] != OPENPAW_RECORD_VERSION && ab[0] != 0xFF, "anchor version byte distinct");
+  openpaw_anchor_t an2; memset(&an2, 0, sizeof an2);
+  CHECK(openpaw_decode_anchor(ab, &an2) == 1 && an2.seq == an.seq && an2.uptime_s == an.uptime_s &&
+            an2.unix_s == an.unix_s && an2.boot_seq == an.boot_seq, "anchor round trip");
+  CHECK(openpaw_decode_anchor(buf, &an2) == 0, "an epoch record is not an anchor");
+
   if (argc > 1) {  // golden vectors for app/test: hex packet + expected decoded fields
     FILE *f = fopen(argv[1], "w");
     if (!f) { perror("golden"); return 2; }
@@ -168,8 +182,12 @@ int main(int argc, char **argv) {
       fprintf(f, "\",\"version\":%u,\"flags\":%u,\"seq\":%u,\"uptime_s\":%u,\"vedba_mean_mg\":%u,\"vedba_max_mg\":%u,"
                  "\"active_frac\":%u,\"pitch_deg\":%d,\"roll_deg\":%d,\"bursts\":%u,\"hr_bpm\":%u,\"battery_pct\":%u}%s\n",
               g[i].version, g[i].flags, g[i].seq, g[i].uptime_s, g[i].vedba_mean_mg, g[i].vedba_max_mg, g[i].active_frac,
-              g[i].pitch_deg, g[i].roll_half_deg * 2, g[i].bursts, g[i].hr_bpm, g[i].battery_pct, i < 5 ? "," : "");
+              g[i].pitch_deg, g[i].roll_half_deg * 2, g[i].bursts, g[i].hr_bpm, g[i].battery_pct, ",");
     }
+    fprintf(f, "  {\"name\":\"anchor\",\"hex\":\"");
+    for (int j = 0; j < OPENPAW_RECORD_SIZE; j++) fprintf(f, "%02x", ab[j]);
+    fprintf(f, "\",\"version\":%u,\"seq\":%u,\"uptime_s\":%u,\"unix_s\":%u,\"boot_seq\":%u}\n", OPENPAW_ANCHOR_VERSION,
+            an.seq, an.uptime_s, an.unix_s, an.boot_seq);
     fprintf(f, "]\n");
     fclose(f);
   }

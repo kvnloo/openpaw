@@ -149,13 +149,16 @@ static inline int openpaw_flog_mount(openpaw_flog_t *L, openpaw_flash_io_t io) {
   L->count = steps * OPENPAW_FLOG_SLOTS + L->head_slot;
   uint8_t b[OPENPAW_RECORD_SIZE] = {0};
   for (uint32_t i = L->count; i > 0; i--)
-    if (openpaw_flog_get(L, i - 1, b) == 1) { L->next_seq = openpaw__le32(b + 2) + 1; break; }
+    if (openpaw_flog_get(L, i - 1, b) == 1) {  // an anchor carries the seq of the epoch after it
+      L->next_seq = openpaw__le32(b + 2) + (b[0] == OPENPAW_ANCHOR_VERSION ? 0u : 1u);
+      break;
+    }
   return 0;
 }
 
-// Append one record. Returns 0, or -1 if the flash write failed (that slot is
-// skipped; the next put carries on).
-static inline int openpaw_flog_put(openpaw_flog_t *L, const openpaw_record_t *r) {
+// Append one 20-byte slot (epoch record or time anchor); next_seq is what the
+// seq counter becomes once it is stored.
+static inline int openpaw__put_raw(openpaw_flog_t *L, uint8_t b[OPENPAW_FLOG_SLOT], uint32_t next_seq) {
   if (L->head_slot >= OPENPAW_FLOG_SLOTS) {
     const uint32_t ns = (L->head + 1) % L->nsect;
     if (ns == L->tail && L->count > 0) {  // recycle the oldest sector
@@ -164,16 +167,30 @@ static inline int openpaw_flog_put(openpaw_flog_t *L, const openpaw_record_t *r)
     }
     if (openpaw__start_sector(L, ns, L->gen + 1)) return -1;  // head unchanged: retried next put
   }
-  uint8_t b[OPENPAW_FLOG_SLOT];
-  openpaw_encode(r, b);
   const uint16_t crc = openpaw__crc16(b, OPENPAW_RECORD_SIZE);
   b[20] = (uint8_t)crc; b[21] = (uint8_t)(crc >> 8); b[22] = 0xFF; b[23] = 0xFF;
   const uint32_t addr = openpaw__sect_addr(L, L->head) + OPENPAW_FLOG_HDR + L->head_slot * OPENPAW_FLOG_SLOT;
   L->head_slot++;
   L->count++;
-  if (L->io.prog(L->io.ctx, addr, b, sizeof b)) return -1;
-  L->next_seq = r->seq + 1;
+  if (L->io.prog(L->io.ctx, addr, b, OPENPAW_FLOG_SLOT)) return -1;
+  L->next_seq = next_seq;
   return 0;
+}
+
+// Append one record. Returns 0, or -1 if the flash write failed (that slot is
+// skipped; the next put carries on).
+static inline int openpaw_flog_put(openpaw_flog_t *L, const openpaw_record_t *r) {
+  uint8_t b[OPENPAW_FLOG_SLOT];
+  openpaw_encode(r, b);
+  return openpaw__put_raw(L, b, r->seq + 1);
+}
+
+// Append a time anchor (a->seq should be the seq the next epoch will get, so
+// the log stays in seq order and a sync from that seq includes the anchor).
+static inline int openpaw_flog_put_anchor(openpaw_flog_t *L, const openpaw_anchor_t *a) {
+  uint8_t b[OPENPAW_FLOG_SLOT];
+  openpaw_encode_anchor(a, b);
+  return openpaw__put_raw(L, b, a->seq > L->next_seq ? a->seq : L->next_seq);
 }
 
 // Index of the oldest good record with seq >= from_seq, or count if none

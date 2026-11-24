@@ -87,7 +87,8 @@
 
 <script type="module">
 import { UUIDS, decodeRecord, decodeChunk, decodeStatus, encodeDumpFrom, CMD_FIND_ME, parseHeartRate,
-         recordToEvents, heartRateToEvents, makeClock, toJsonl, decodeDisString, deviceLabel, syncFrom } from './openpaw-ble.js';
+         recordToEvents, heartRateToEvents, makeClock, toJsonl, decodeDisString, deviceLabel, syncFrom,
+         encodeSetTime, PROTO_TIME_ANCHOR, dateBacklog, advanceCursor, rememberAnchors } from './openpaw-ble.js';
 
 const $ = (id) => document.getElementById(id);
 const logEl = $('log');
@@ -155,12 +156,37 @@ if (!navigator.bluetooth) {
   $('btnConnect').disabled = true; $('btnHr').disabled = true;
 }
 
-async function ingest(records, origin = 'sensor') {
-  const evs = records.flatMap((r) => recordToEvents(r, { dogId: dogId(), deviceId: collar?.name || 'demo-collar', clock: collar?.clock, epochS: collar?.epochS || 5, origin, firmwareVersion: collar?.firmware || null }));
+// Firmware with status proto 2 (after 0.2.0) keeps one sync cursor per collar across restarts and dates
+// older boots with time anchors; older firmware keys the cursor by boot.
+const cursorKey = () => `cursor:${collar.name}`;
+const anchorsKey = () => `anchors:${collar.name}`;
+async function moveCursor(entries) {
+  if (entries.length) await setMeta(cursorKey(), advanceCursor(await getMeta(cursorKey()), entries));
+}
+
+// dates: optional Map seq -> {timestamp, boot_seq} from dateBacklog (earlier-boot epochs).
+async function ingest(records, origin = 'sensor', dates = null) {
+  const clockOf = (r) => (dates ? () => dates.get(r.seq).timestamp : collar?.clock);
+  const evs = records.flatMap((r) => recordToEvents(r, { dogId: dogId(), deviceId: collar?.name || 'demo-collar', clock: clockOf(r), epochS: collar?.epochS || 5, origin, firmwareVersion: collar?.firmware || null }));
   await putEvents(evs);
   const maxSeq = Math.max(...records.map((r) => r.seq));
-  if (collar && origin === 'sensor') await setMeta(`lastSeq:${collar.name}:${collar.bootKey}`, maxSeq);
+  if (collar && origin === 'sensor') {
+    if (!collar.anchored) await setMeta(`lastSeq:${collar.name}:${collar.bootKey}`, maxSeq);
+    else if (!pendingSync) await moveCursor(records.map((r) => ({ seq: r.seq, uptime_s: r.uptime_s, boot_seq: dates ? dates.get(r.seq).boot_seq : collar.bootSeq })));
+  }
   refreshStats();
+}
+
+// Proto 2: the whole backlog is buffered, then dated boot by boot when the dump ends.
+async function finishAnchoredSync(p) {
+  const anchors = rememberAnchors(await getMeta(anchorsKey()), p.anchors);
+  await setMeta(anchorsKey(), anchors);
+  const { dated, undated } = dateBacklog({ records: p.records, anchors: [...anchors, collar.liveAnchor], cursor: p.cursor });
+  pendingSync = null;
+  if (dated.length) await ingest(dated.map((d) => d.rec), 'sensor', new Map(dated.map((d) => [d.rec.seq, d])));
+  await moveCursor([...p.live, ...undated.map((r) => ({ seq: r.seq, uptime_s: r.uptime_s, boot_seq: null }))]);
+  if (undated.length) log(`${undated.length} epochs were recorded while no phone had set the collar's clock; they cannot be dated and were skipped`);
+  return dated.length;
 }
 
 $('btnConnect').onclick = async () => {
@@ -185,14 +211,34 @@ $('btnConnect').onclick = async () => {
     // A reboot resets uptime/seq; key the sync cursor by approximate boot time.
     const bootKey = Math.round((Date.now() - st.uptime_s * 1000) / 60000);
     collar = { device, chr, clock, epochS: st.epoch_s, name: device.name || 'OpenPaw', bootKey, bootSeq: st.boot_seq, firmware: info.firmware, label: deviceLabel({ ...info, board: st.board }) };
+    if (st.proto >= PROTO_TIME_ANCHOR) {
+      // Tell the collar the time; it logs an anchor so this boot can still be dated after a restart.
+      const now = Date.now();
+      collar.anchored = true;
+      collar.liveAnchor = { seq: st.next_seq, uptime_s: st.uptime_s, unix_s: now / 1000, boot_seq: st.boot_seq };
+      await chr.control.writeValue(encodeSetTime(now));
+      await setMeta(anchorsKey(), rememberAnchors(await getMeta(anchorsKey()), [{ ...collar.liveAnchor, unix_s: Math.floor(now / 1000) }]));
+    }
     device.addEventListener('gattserverdisconnected', () => { $('state').textContent = 'Disconnected. Tap Connect to reconnect.'; $('btnSync').disabled = true; $('btnFind').disabled = true; log('collar disconnected'); });
-    chr.live.addEventListener('characteristicvaluechanged', async (e) => { const r = decodeRecord(e.target.value); show(r); await ingest([r]); });
+    chr.live.addEventListener('characteristicvaluechanged', async (e) => {
+      const r = decodeRecord(e.target.value);
+      show(r);
+      if (pendingSync && collar.anchored) pendingSync.live.push({ seq: r.seq, uptime_s: r.uptime_s, boot_seq: collar.bootSeq });
+      await ingest([r]);
+    });
     await chr.live.startNotifications();
     chr.log.addEventListener('characteristicvaluechanged', async (e) => {
-      const { records, done } = decodeChunk(e.target.value);
-      if (records.length) await ingest(records);
+      const { records, anchors, done } = decodeChunk(e.target.value);
+      if (collar.anchored && pendingSync) { pendingSync.records.push(...records); pendingSync.anchors.push(...anchors); }
+      else if (records.length) await ingest(records);
       if (pendingSync) { pendingSync.n += records.length; $('state').textContent = `Downloading backlog... ${pendingSync.n} epochs`; }
-      if (done && pendingSync) { log(`backlog done: ${pendingSync.n} epochs`); $('state').textContent = `Connected to ${collar.name}. Backlog synced (${pendingSync.n} epochs).`; pendingSync = null; }
+      if (done && pendingSync) {
+        const n = pendingSync.n;
+        const kept = collar.anchored ? await finishAnchoredSync(pendingSync) : n;
+        pendingSync = null;
+        log(`backlog done: ${n} epochs${kept !== n ? `, ${kept} dated` : ''}`);
+        $('state').textContent = `Connected to ${collar.name}. Backlog synced (${kept} epochs).`;
+      }
     });
     await chr.log.startNotifications();
     $('state').textContent = `Connected to ${collar.name} (${st.stored} epochs stored, epoch ${st.epoch_s} s).`;
@@ -205,8 +251,16 @@ $('btnConnect').onclick = async () => {
 
 $('btnSync').onclick = async () => {
   if (!collar) return;
-  const from = syncFrom(await getMeta(`lastSeq:${collar.name}:${collar.bootKey}`), { boot_seq: collar.bootSeq });
-  pendingSync = { n: 0 };
+  let from;
+  if (collar.anchored) {
+    const cursor = (await getMeta(cursorKey())) || null;
+    // fresh status: next_seq has moved on since connect, and the stale-cursor check needs it
+    from = syncFrom(cursor ? cursor.seq : null, decodeStatus(await collar.chr.status.readValue()));
+    pendingSync = { n: 0, records: [], anchors: [], live: [], cursor: from === 0 ? null : cursor };
+  } else {
+    from = syncFrom(await getMeta(`lastSeq:${collar.name}:${collar.bootKey}`), { boot_seq: collar.bootSeq });
+    pendingSync = { n: 0 };
+  }
   log(`requesting backlog from seq ${from}`);
   await collar.chr.control.writeValue(encodeDumpFrom(from));
 };
