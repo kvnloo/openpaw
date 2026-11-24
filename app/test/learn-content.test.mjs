@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { existsSync } from 'node:fs';
 import { LESSONS, CARDS, SOURCE_NAMES, SRC } from '../learn-content.js';
 
 test('8 to 12 lessons, each with at least two named https sources', () => {
@@ -27,6 +28,23 @@ test('every practice card has one valid answer, sources and an existing lesson',
     assert.ok(c.sources.length >= 1 && c.sources.every((u) => SOURCE_NAMES[u]), c.id);
   }
   assert.equal(new Set(CARDS.map((c) => c.id)).size, CARDS.length);
+});
+
+test('evidence links resolve to docs/evidence cards, and the collar-recovery card is evidence-backed', () => {
+  const dir = new URL('../../docs/evidence/cards/', import.meta.url);
+  const linked = [...LESSONS, ...CARDS].filter((x) => x.evidence);
+  for (const x of linked) {
+    assert.ok(Array.isArray(x.evidence) && x.evidence.length >= 1, x.id);
+    for (const slug of x.evidence) assert.ok(existsSync(new URL(`${slug}.md`, dir)), `${x.id}: missing evidence card ${slug}`);
+  }
+  // The collar measures movement only; the card that interprets a settled movement line must
+  // send the reader back to observable recovery signs and cite the evidence base.
+  const settle = CARDS.find((c) => c.id === 'c-collar-settle');
+  assert.ok(settle, 'c-collar-settle card exists');
+  assert.equal(settle.lesson, 'recovery');
+  assert.ok(settle.evidence.length >= 2);
+  assert.match(settle.choices[settle.answer], /movement/i);
+  assert.doesNotMatch(settle.choices[settle.answer], /recovered|calm|relaxed/i);
 });
 
 test('all registered sources are used and named', () => {

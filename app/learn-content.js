@@ -47,6 +47,7 @@ export const SRC = {
   mills2020: 'https://doi.org/10.3390/ani10020318',
   vetRecPain: 'https://veterinaryrecord.bmj.com/content/176/18/465.1',
   medicalReview: 'https://pmc.ncbi.nlm.nih.gov/articles/PMC6941081',
+  colpoys2021: 'https://doi.org/10.3390/ani11030781',
 };
 
 // Human-readable names for the source list.
@@ -83,6 +84,7 @@ export const SOURCE_NAMES = {
   [SRC.mills2020]: 'Mills et al. 2020, Pain and problem behavior in cats and dogs (Animals)',
   [SRC.vetRecPain]: 'Veterinary Record 2015: Clinical indicators of occult musculoskeletal pain in aggressive dogs',
   [SRC.medicalReview]: 'Camps et al. 2019, Medical conditions and behavioral problems in dogs and cats (review)',
+  [SRC.colpoys2021]: 'Colpoys & DeCock 2021, Evaluation of the FitBark activity monitor for measuring physical activity in dogs (Animals)',
 };
 
 export const LESSONS = [
@@ -347,6 +349,12 @@ export const CARDS = [
     context: 'Your dog play-bows to a friend, mouth open and body bouncy, with hackles slightly up.',
     choices: ['Hackles mean a fight is coming', 'Hackles show arousal; the loose play bow suggests play, keep an eye on it', 'He is in pain', 'He is frightened'], answer: 1,
     explain: 'Piloerection is a sign of arousal, not of a specific mood. The rest of the body (loose bow, open mouth) points to play.', sources: [SRC.mcconnellHackles, SRC.vcaLang] },
+  { id: 'c-collar-settle', lesson: 'recovery', art: { posture: 'loose', ears: 'back', eye: 'soft', mouth: 'closed', tail: 'low' },
+    context: 'Your dog lunged at a dog on a walk. A minute later the collar\u2019s movement line is back in the "Still" band.',
+    choices: ['He has fully recovered', 'His movement has settled; watch for recovery signs yourself (loose body, takes food, sniffs) and note when you see them', 'The collar must be broken', 'Walk back toward the trigger to test him'], answer: 1,
+    explain: 'The collar measures movement, not how a dog feels. Body measures settle at different speeds: in a lab study of 10 dogs, heart rate took about 6 to 8 minutes on average to return after startling events. Collar metrics also matched observed movement less well on leash. Log when you see him settle.',
+    sources: [SRC.beerda1997, SRC.colpoys2021],
+    evidence: ['beerda1998-behavioural-saliva-cortisol-and-heart-rate-responses-to', 'colpoys2021-evaluation-of-the-fitbark-activity-monitor-for-measuring'] },
 ];
 
 export const DISCLAIMER = 'OpenPaw teaches common, research-backed readings of dog body language. Every dog is an individual and signals depend on context. This is not a diagnosis or a training plan: ask your behavior consultant or vet.';
