@@ -7,7 +7,7 @@
 
 import { liveEvents } from './store.js';
 
-const FIELD = new Set(['trigger.seen', 'behavior.reacted', 'behavior.calm', 'intervention.reward', 'intervention.distance', 'body_language.tags']);
+const FIELD = new Set(['trigger.seen', 'behavior.reacted', 'behavior.calm', 'intervention.reward', 'intervention.distance', 'body_language.tags', 'session.check']);
 const BAND_LABEL = { '<10': '<10 ft', '10-20': '10–20 ft', '20-40': '20–40 ft', '40+': '40+ ft' };
 const ms = (ts) => Date.parse(ts);
 const secs = (a, b) => Math.round((ms(b) - ms(a)) / 1000);
@@ -32,11 +32,12 @@ export function episodesFrom(events) {
     const trig = first('trigger.seen');
     const reacted = first('behavior.reacted');
     const calm = first('behavior.calm');
-    const precursors = [];
+    // Body tags and session-check signs marked before Reaction are precursors, kept apart by source.
+    const precursors = [], sessionSigns = [];
     for (const e of evs) {
-      if (e.payload.metric !== 'body_language.tags') continue;
-      if (reacted && ms(e.timestamp) > ms(reacted.timestamp)) continue;
-      for (const t of e.payload.value || []) if (!precursors.includes(t)) precursors.push(t);
+      const into = e.payload.metric === 'body_language.tags' ? precursors : e.payload.metric === 'session.check' ? sessionSigns : null;
+      if (!into || (reacted && ms(e.timestamp) > ms(reacted.timestamp))) continue;
+      for (const t of e.payload.value || []) if (!into.includes(t)) into.push(t);
     }
     const interventions = evs.filter((e) => e.payload.metric === 'intervention.distance' || e.payload.metric === 'intervention.reward')
       .map((e) => ({ type: e.payload.metric === 'intervention.distance' ? 'u-turn' : 'treat', afterS: secs(start, e.timestamp) }));
@@ -44,6 +45,7 @@ export function episodesFrom(events) {
       id, start, end: calm ? calm.timestamp : null,
       trigger: { cls: trig ? trig.payload.trigger_class || null : null, band: trig ? trig.payload.value || null : null },
       precursors,
+      sessionSigns,
       reactionAfterS: reacted ? secs(start, reacted.timestamp) : null,
       interventions,
       timeToCalmS: calm ? secs(start, calm.timestamp) : null,
@@ -62,6 +64,13 @@ export function episodesFrom(events) {
 
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
+function precursorText(ep) {
+  const parts = [];
+  if (ep.precursors.length) parts.push(`${ep.precursors.join(', ')} (owner tags)`);
+  if (ep.sessionSigns && ep.sessionSigns.length) parts.push(`${ep.sessionSigns.join(', ')} (session check)`);
+  return parts.length ? parts.join('; ') : 'None marked';
+}
+
 // Rows for the Behavior consultant lens (same labels as site/site.js, "Stacked" replaced by measured minutes).
 export function consultRows(ep, previous) {
   const t = ep.trigger;
@@ -69,7 +78,7 @@ export function consultRows(ep, previous) {
   const dist = t.band ? BAND_LABEL[t.band] || `${t.band} ft` : 'distance not recorded';
   return [
     ['Trigger', `${what}, ${dist}`],
-    ['Precursors', ep.precursors.length ? `${ep.precursors.join(', ')} (owner tags)` : 'None marked'],
+    ['Precursors', precursorText(ep)],
     ['Intervention', ep.interventions.length ? cap(ep.interventions.map((x) => `${x.type} at ${x.afterS}\u00a0s`).join(', ')) : 'None marked'],
     ['Recovery', ep.timeToCalmS != null ? `${fmtDur(ep.timeToCalmS)} to Calm again (owner-marked)` : 'Not observed (no Calm again mark)'],
     ['Since previous', previous && ep.sincePreviousMin != null ? `${ep.sincePreviousMin} min after the previous episode` : 'No earlier episode on record'],
