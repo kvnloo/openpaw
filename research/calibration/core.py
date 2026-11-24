@@ -4,6 +4,7 @@ import math
 
 import numpy as np
 from numba import njit
+from transfer_features import COEFF, HIST_BINS, TRANSFER_FIELDS, summarize, update
 
 EPOCH = 250
 FIELDS = ("vedba_mean_mg", "vedba_max_mg", "active_frac", "pitch_deg",
@@ -17,10 +18,12 @@ def round_away(x):
 
 
 @njit
-def extract(samples, flush=False):
+def extract(samples, flush=False, transfer=False):
     """Return quantized fields; a flushed trailing row represents a GAP."""
+    if transfer and flush:
+        raise ValueError("transfer features require complete 250-sample windows")
     out = np.empty(((len(samples) + (EPOCH - 1 if flush else 0)) // EPOCH,
-                    len(FIELDS)), np.int32)
+                    len(FIELDS) + (len(TRANSFER_FIELDS) if transfer else 0)), np.int32)
     f = np.float32
     dt = f(1) / f(50)
     alpha = dt / (f(2) + dt)
@@ -30,6 +33,11 @@ def extract(samples, flush=False):
     peak = f(0)
     active = bursts = n = j = 0
     clipped = False
+    # Optional statistics share packet VeDBA and gravity state, not pitch/roll.
+    hist = np.zeros(HIST_BINS if transfer else 0, np.uint8)
+    prev = np.zeros(len(COEFF) if transfer else 0, np.float64)
+    prev2 = np.zeros_like(prev)
+    first_v = gx = gy = gz = 0.0
     for i in range(len(samples)):
         xi, yi, zi = samples[i]
         x, y, z = f(xi), f(yi), f(zi)
@@ -44,6 +52,11 @@ def extract(samples, flush=False):
             sz += a * (z - sz)
         dx, dy, dz = x - sx, y - sy, z - sz
         v = np.sqrt(dx*dx + dy*dy + dz*dz)
+        if transfer:
+            if n == 0:
+                first_v = float(np.float64(v))
+                gx, gy, gz = np.float64(sx), np.float64(sy), np.float64(sz)
+            update(np.float64(v), first_v, hist, prev, prev2)
         total += v
         peak = max(peak, v)
         active += v > f(120)
@@ -63,6 +76,12 @@ def extract(samples, flush=False):
             out[j, 4] = round_away(f(roll / n) / f(2))
             out[j, 5] = min(bursts, 255)
             out[j, 6] = clipped
+            if transfer:
+                summarize(out[j, len(FIELDS):], hist, prev, prev2, n, gx, gy, gz,
+                          np.float64(sx), np.float64(sy), np.float64(sz))
+                hist.fill(0)
+                prev.fill(0)
+                prev2.fill(0)
             j += 1
             total = pitch = roll = 0.0
             peak = f(0)
