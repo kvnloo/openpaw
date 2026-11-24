@@ -1,88 +1,276 @@
 <!doctype html>
+<!-- OpenPaw Collar: live movement, daily rhythm and raw export from an OpenPaw collar, in the browser.
+     SPDX-License-Identifier: GPL-3.0-only -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0c0c0a">
 <title>OpenPaw Collar</title>
-<meta name="description" content="Connect an OpenPaw collar over Bluetooth, see live movement, and export your dog's raw data. Runs entirely in your browser.">
+<meta name="description" content="Connect an OpenPaw collar over Bluetooth: live movement, a 24-hour rhythm, a 7-day activity budget and bursts, stored only in this browser.">
 <style>
-  :root { --bg:#f6f4ef; --ink:#1d1c1a; --mute:#6f6a61; --line:#dcd7cc; --accent:#2f6f5e; --warn:#a4552b; --card:#fffdf8; }
-  @media (prefers-color-scheme: dark) { :root { --bg:#151513; --ink:#ecebe6; --mute:#9a958b; --line:#33312c; --accent:#6fbfa6; --warn:#e0925f; --card:#1d1c19; } }
-  * { box-sizing:border-box; }
-  body { margin:0; font:16px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; background:var(--bg); color:var(--ink); }
-  main { max-width:760px; margin:0 auto; padding:20px 16px 64px; }
-  h1 { font-size:22px; margin:4px 0 2px; letter-spacing:-0.01em; }
-  .sub { color:var(--mute); margin:0 0 18px; font-size:14px; }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin:12px 0; }
-  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
-  button { font:inherit; border:1px solid var(--line); background:var(--card); color:var(--ink); padding:9px 14px; border-radius:9px; cursor:pointer; }
-  button.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
-  button:disabled { opacity:.45; cursor:default; }
-  .grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:10px; }
-  .metric { border:1px solid var(--line); border-radius:10px; padding:10px 12px; }
-  .metric b { display:block; font-size:22px; font-variant-numeric:tabular-nums; }
-  .metric span { color:var(--mute); font-size:12px; }
-  canvas { width:100%; height:140px; display:block; }
-  .log { font:12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; color:var(--mute); max-height:120px; overflow:auto; white-space:pre-wrap; }
-  .warn { color:var(--warn); }
-  label { font-size:14px; color:var(--mute); }
-  input[type=text] { font:inherit; padding:7px 10px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--ink); width:180px; }
-  .fine { font-size:12px; color:var(--mute); }
-.appnav { display:flex; gap:14px; flex-wrap:wrap; font:500 11px/1.2 ui-monospace,Menlo,monospace; letter-spacing:.09em; text-transform:uppercase; margin:0 0 10px; }
-.appnav a { color:inherit; opacity:.65; text-decoration:none; } .appnav a:hover { opacity:1; }
+  @font-face { font-family: "Fraunces"; src: url(../site/fonts/fraunces-latin-opsz-normal.woff2) format("woff2"); font-weight: 100 900; font-display: swap; }
+  @font-face { font-family: "Hanken Grotesk"; src: url(../site/fonts/hanken-grotesk-latin-400-normal.woff2) format("woff2"); font-weight: 400; font-display: swap; }
+  @font-face { font-family: "Hanken Grotesk"; src: url(../site/fonts/hanken-grotesk-latin-500-normal.woff2) format("woff2"); font-weight: 500; font-display: swap; }
+  @font-face { font-family: "Hanken Grotesk"; src: url(../site/fonts/hanken-grotesk-latin-600-normal.woff2) format("woff2"); font-weight: 600; font-display: swap; }
+  @font-face { font-family: "IBM Plex Mono"; src: url(../site/fonts/ibm-plex-mono-latin-500-normal.woff2) format("woff2"); font-weight: 500; font-display: swap; }
+  :root {
+    --bg:#0c0c0a; --bg2:#121210; --bg3:#181815; --ink:#ece8df; --mute:#a39d90; --dim:#6d685e;
+    --line:#2a2823; --line2:#3a372f; --gold:#d7b986; --gold-ink:#1b160c; --warm:#e8a35f; --calm:#8fb39b;
+    --serif:"Fraunces","Iowan Old Style",Georgia,serif; --sans:"Hanken Grotesk",ui-sans-serif,system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+    --ease:cubic-bezier(.2,.7,.2,1);
+  }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  [hidden] { display:none !important; }
+  html { background:var(--bg); }
+  body { margin:0; background:var(--bg); color:var(--ink); font:500 16px/1.45 var(--sans); -webkit-font-smoothing:antialiased; font-variant-numeric:tabular-nums lining-nums; }
+  main { max-width:1120px; margin:0 auto; padding:calc(10px + env(safe-area-inset-top)) 20px calc(60px + env(safe-area-inset-bottom)); }
+  a { color:inherit; }
+  button, input { font:inherit; color:inherit; }
+  button { cursor:pointer; }
+  :focus-visible { outline:2px solid var(--gold); outline-offset:3px; }
+  .micro { font:500 11px/1.25 var(--mono); letter-spacing:.09em; text-transform:uppercase; color:var(--mute); }
+  .fine { font-size:13px; color:var(--mute); margin:6px 0 0; }
+  .top { display:flex; align-items:center; gap:8px; margin-bottom:22px; }
+  .top nav { display:flex; gap:14px; margin-right:auto; flex-wrap:wrap; }
+  .top nav a { text-decoration:none; color:var(--mute); } .top nav a:hover { color:var(--gold); }
+  .top nav b { color:var(--ink); font-weight:500; }
+  .status { display:inline-flex; align-items:center; gap:8px; height:30px; padding:0 12px; border:1px solid var(--line2); border-radius:99px; font:500 11px/1 var(--mono); letter-spacing:.07em; text-transform:uppercase; color:var(--mute); }
+  .status i { width:7px; height:7px; border-radius:50%; background:var(--dim); }
+  body.is-live .status { color:var(--calm); border-color:rgba(143,179,155,.45); }
+  body.is-live .status i { background:var(--calm); box-shadow:0 0 0 0 rgba(143,179,155,.6); animation:live 2s infinite; }
+  body.is-sim .status { color:var(--gold); border-color:rgba(215,185,134,.5); } body.is-sim .status i { background:var(--gold); }
+  @keyframes live { 70% { box-shadow:0 0 0 7px rgba(143,179,155,0); } 100% { box-shadow:0 0 0 0 rgba(143,179,155,0); } }
+  .st-live, .st-sim { display:none; } body.is-live .st-live { display:inline; } body.is-sim .st-sim { display:inline; } body.is-live .st-off, body.is-sim .st-off { display:none; }
+  body.is-sim.is-live .st-live { display:none; }
+
+  .head { display:grid; grid-template-columns:1fr auto; gap:24px; align-items:end; margin-bottom:22px; }
+  h1 { font:600 52px/1 var(--serif); font-variation-settings:"opsz" 120; letter-spacing:-.02em; margin:6px 0 10px; }
+  h2 { font:600 22px/1.15 var(--serif); font-variation-settings:"opsz" 40; margin:4px 0 0; letter-spacing:-.005em; }
+  .lede { color:var(--mute); margin:0; max-width:56ch; }
+  .actions { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
+  .btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; height:42px; border-radius:10px; padding:0 16px; font:600 14.5px/1 var(--sans); border:1px solid var(--line2); background:transparent; color:var(--ink); transition:border-color .2s, background .2s, transform .12s, filter .2s; }
+  .btn:hover:not(:disabled) { border-color:var(--mute); background:var(--bg3); }
+  .btn:active:not(:disabled) { transform:scale(.97); }
+  .btn:disabled { opacity:.4; cursor:default; }
+  .btn-gold { background:var(--gold); color:var(--gold-ink); border-color:var(--gold); }
+  .btn-gold:hover:not(:disabled) { background:var(--gold); filter:brightness(1.07); }
+  .btn[aria-pressed="true"] { border-color:var(--gold); color:var(--gold); }
+  .btn svg { width:15px; height:15px; }
+
+  .card { position:relative; border:1px solid var(--line); border-radius:14px; background:var(--bg2); padding:18px 20px; }
+  .br { position:absolute; width:13px; height:13px; border:0 solid var(--gold); opacity:.75; pointer-events:none; }
+  .br.tl { top:-1px; left:-1px; border-top-width:1.5px; border-left-width:1.5px; border-top-left-radius:14px; }
+  .br.bR { bottom:-1px; right:-1px; border-bottom-width:1.5px; border-right-width:1.5px; border-bottom-right-radius:14px; }
+  @media (max-width:600px) { .card-h { flex-wrap:wrap; } }
+  .card-h { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:12px; }
+  .grid { display:grid; grid-template-columns:repeat(12,1fr); gap:14px; }
+  .c12 { grid-column:span 12; } .c7 { grid-column:span 7; } .c5 { grid-column:span 5; }
+  .sim-banner { display:flex; align-items:center; gap:10px; margin:0 0 14px; padding:10px 14px; border:1px solid rgba(215,185,134,.4); border-radius:10px; font-size:14px; color:var(--mute); }
+  .sim { font:500 10.5px/1 var(--mono); letter-spacing:.1em; color:var(--gold-ink); background:var(--gold); padding:4px 6px; border-radius:4px; }
+  .warnbox { border-color:rgba(232,163,95,.45); color:var(--mute); font-size:14px; margin-bottom:14px; }
+
+  /* now */
+  .now { display:grid; grid-template-columns:210px 1fr; gap:22px; align-items:center; }
+  .gauge { width:210px; height:187px; overflow:visible; }
+  .gauge text { font:500 8.5px/1 var(--mono); fill:var(--dim); }
+  .gauge text.gv { font:600 34px/1 var(--serif); fill:var(--ink); font-variation-settings:"opsz" 72; }
+  .gauge text.gu { font:500 8.5px/1 var(--mono); letter-spacing:.08em; fill:var(--mute); text-transform:uppercase; }
+  .state { font:600 56px/.95 var(--serif); font-variation-settings:"opsz" 144; letter-spacing:-.02em; margin:6px 0 8px; transition:color .5s; }
+  .sub { color:var(--mute); font-size:14.5px; margin:0 0 12px; }
+  .spark { width:100%; height:54px; display:block; overflow:visible; }
+  .spark .pulse { transform-origin:center; transform-box:fill-box; animation:pulse 1.6s infinite; }
+  @keyframes pulse { from { r:3.2; opacity:.9; } to { r:12; opacity:0; } }
+  .spark-l { display:flex; justify-content:space-between; margin-top:4px; }
+  .chips { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:16px; }
+  .chip { border:1px solid var(--line); border-radius:11px; padding:11px 12px; position:relative; overflow:hidden; }
+  .chip b { display:block; font:600 22px/1.05 var(--serif); font-variation-settings:"opsz" 48; margin-top:6px; }
+  .chip small { display:block; color:var(--dim); font-size:12px; margin-top:3px; line-height:1.3; }
+  .battring { position:absolute; right:10px; top:10px; width:22px; height:22px; border-radius:50%; background:conic-gradient(var(--calm) calc(var(--p,0) * 1%), var(--line) 0); -webkit-mask:radial-gradient(circle, transparent 7px, #000 7.5px); mask:radial-gradient(circle, transparent 7px, #000 7.5px); }
+
+  /* timeline */
+  .seg { display:inline-flex; border:1px solid var(--line2); border-radius:9px; padding:2px; gap:2px; }
+  .seg button { white-space:nowrap; border:0; background:transparent; padding:7px 11px; border-radius:7px; font:500 11px/1 var(--mono); letter-spacing:.08em; color:var(--mute); }
+  .seg button[aria-pressed="true"] { background:var(--bg3); color:var(--ink); box-shadow:inset 0 0 0 1px var(--line2); }
+  .tl-wrap { position:relative; }
+  #tl { width:100%; height:auto; display:block; overflow:visible; touch-action:pan-y; cursor:crosshair; }
+  #tl text.tick { font:500 10px/1 var(--mono); fill:var(--dim); }
+  #tl text.band { font:500 9.5px/1 var(--mono); letter-spacing:.06em; }
+  #tl text.empty { font:500 13px/1 var(--sans); fill:var(--dim); }
+  .readout { position:absolute; left:8px; top:-2px; display:flex; gap:12px; align-items:baseline; font:500 12px/1 var(--mono); color:var(--mute); opacity:0; transform:translateY(3px); transition:opacity .2s, transform .2s var(--ease); pointer-events:none; background:rgba(18,18,16,.9); padding:6px 8px; border-radius:7px; }
+  .readout.on { opacity:1; transform:none; }
+  .readout b { color:var(--ink); font-weight:500; } .readout .warm { color:var(--warm); }
+  .legend { display:flex; gap:14px; flex-wrap:wrap; margin-top:10px; }
+  .legend span { display:inline-flex; align-items:center; gap:6px; font:500 11px/1 var(--mono); color:var(--mute); letter-spacing:.04em; }
+  .legend i { width:10px; height:10px; border-radius:3px; }
+
+  /* rhythm */
+  .rh { position:relative; max-width:340px; margin:0 auto; }
+  #rhythm { width:100%; height:auto; display:block; overflow:visible; }
+  #rhythm text.tick { font:500 10px/1 var(--mono); fill:var(--mute); }
+  #rhythm .wd { transition:opacity .2s; }
+  .rh-c { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; pointer-events:none; text-align:center; }
+  .rh-c b { font:600 26px/1 var(--serif); margin:5px 0 4px; } .rh-c b small { font:500 11px var(--mono); color:var(--mute); }
+  .rh-c .micro { font-size:10px; } .rh-c .today { color:var(--ink); margin-top:2px; }
+  #rhythm text.night { font-size:9px; fill:var(--dim); letter-spacing:.08em; text-transform:uppercase; }
+  .rh-key { display:flex; justify-content:center; gap:16px; margin-top:6px; }
+  .rh-key span { display:inline-flex; align-items:center; gap:6px; font:500 11px/1 var(--mono); color:var(--mute); }
+
+  /* budget */
+  .bd-row { display:grid; grid-template-columns:52px 1fr 62px 28px; gap:12px; align-items:center; padding:7px 0; border-radius:6px; }
+  .bd-row:focus-visible { outline-offset:2px; }
+  .bd-day { font:500 11.5px/1 var(--mono); color:var(--mute); letter-spacing:.05em; text-transform:uppercase; }
+  .is-today .bd-day { color:var(--ink); }
+  .bd-bar { display:flex; height:14px; border-radius:5px; overflow:hidden; background:var(--bg3); gap:1.5px; }
+  .bd-bar i { display:block; height:100%; width:0; transition:width .9s var(--ease); }
+  #budget.in .bd-bar i { width:var(--w); }
+  .bd-row:nth-child(2) i { transition-delay:.04s } .bd-row:nth-child(3) i { transition-delay:.08s } .bd-row:nth-child(4) i { transition-delay:.12s } .bd-row:nth-child(5) i { transition-delay:.16s } .bd-row:nth-child(6) i { transition-delay:.2s } .bd-row:nth-child(7) i { transition-delay:.24s }
+  .bd-bar em { font:500 10.5px/14px var(--mono); color:var(--dim); padding-left:8px; font-style:normal; }
+  .bd-val { font:500 13px/1 var(--mono); text-align:right; }
+  .bd-b { font:500 12px/1 var(--mono); color:var(--warm); display:inline-flex; gap:3px; align-items:center; } .bd-b svg { width:7px; height:10px; }
+  .is-today .bd-bar { box-shadow:0 0 0 1px var(--line2); }
+  .bd-sum { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:16px; padding-top:14px; border-top:1px solid var(--line); }
+  .bd-sum b { display:block; font:600 20px/1.1 var(--serif); margin-top:6px; } .bd-sum small { color:var(--dim); font-size:12px; }
+
+  /* bursts */
+  .bursts { list-style:none; margin:0; padding:0; }
+  .bursts li { display:grid; grid-template-columns:78px 1fr 150px; gap:14px; align-items:center; padding:11px 0; border-top:1px solid var(--line); }
+  .bursts li:first-child { border-top:0; }
+  .bursts li b { font:600 15px/1 var(--sans); display:block; } .bursts li small { color:var(--dim); font-size:12px; }
+  .bursts svg { width:100%; height:34px; }
+  .bm { display:flex; flex-direction:column; gap:4px; font:500 12px/1.2 var(--mono); color:var(--mute); text-align:right; }
+  .empty { color:var(--dim); font-size:14px; margin:4px 0; }
+
+  /* device + data */
+  .dev { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .kv { display:grid; grid-template-columns:auto 1fr; gap:8px 14px; font-size:14px; margin:0; }
+  .kv dt { font:500 11px/1.6 var(--mono); letter-spacing:.07em; text-transform:uppercase; color:var(--dim); } .kv dd { margin:0; color:var(--ink); }
+  input[type=text] { width:100%; max-width:220px; background:var(--bg); border:1px solid var(--line2); border-radius:8px; padding:7px 10px; font:500 14px/1.2 var(--sans); color:var(--ink); }
+  .row { display:flex; gap:8px; flex-wrap:wrap; margin-top:14px; }
+  details { margin-top:14px; } summary { cursor:pointer; color:var(--mute); font:500 11px/1.4 var(--mono); letter-spacing:.08em; text-transform:uppercase; }
+  .log { font:12px/1.5 var(--mono); color:var(--dim); max-height:150px; overflow:auto; white-space:pre-wrap; margin-top:8px; }
+  .foot { margin-top:26px; color:var(--dim); font-size:13px; }
+  .note { color:var(--dim); font-size:12.5px; margin:10px 0 0; }
+  .hr-chip { color:var(--warm); }
+
+  @media (max-width:900px) { .c7, .c5 { grid-column:span 12; } .head { grid-template-columns:1fr; } .actions { justify-content:flex-start; } }
+  @media (max-width:600px) {
+    .bd-sum { grid-template-columns:1fr 1fr; } .bd-sum div:last-child { grid-column:1 / -1; }
+    main { padding-left:14px; padding-right:14px; }
+    h1 { font-size:40px; } .state { font-size:44px; }
+    .now { grid-template-columns:1fr; gap:6px; } .gauge { width:180px; height:150px; margin:0 auto; display:block; }
+    .chips { grid-template-columns:1fr 1fr; }
+    .bursts li { grid-template-columns:92px 1fr; } .bursts .bm { grid-column:1 / -1; flex-direction:row; justify-content:space-between; text-align:left; }
+    .dev { grid-template-columns:1fr; } .card { padding:16px; }
+    .actions .btn { flex:1 1 calc(50% - 8px); }
+  }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition:none !important; animation:none !important; } }
 </style>
 </head>
 <body>
 <main>
-  <p class="fine" style="margin:0"><a href="../">← OpenPaw home</a></p>
-  <nav class="appnav" aria-label="OpenPaw"><a href="../">Home</a><b aria-current="page">Collar</b><a href="./track.html">Track</a><a href="./field.html">Field</a><a href="./learn.html">Learn</a></nav>
-  <h1>OpenPaw Collar</h1>
-  <p class="sub">Movement and posture from your dog's collar, stored only in this browser. Measurements, not diagnoses.</p>
+  <header class="top">
+    <nav class="micro" aria-label="OpenPaw"><a href="../">Home</a><b aria-current="page">Collar</b><a href="./track.html">Track</a><a href="./field.html">Field</a><a href="./learn.html">Learn</a></nav>
+    <span class="status" aria-live="polite"><i></i><span class="st-off">Not connected</span><span class="st-live">Live</span><span class="st-sim">Simulated</span></span>
+  </header>
 
-  <div id="support" class="card warn" hidden></div>
+  <section class="head">
+    <div>
+      <p class="micro">Collar · stored only in this browser</p>
+      <h1>Movement, as it happens.</h1>
+      <p class="lede">Live movement and posture from the collar, your dog's 24-hour rhythm, and a week of activity. Measurements, not diagnoses.</p>
+    </div>
+    <div class="actions">
+      <button id="btnConnect" class="btn btn-gold"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 4.5l7 7L8 15V1l3.5 3.5-7 7"/></svg>Connect collar</button>
+      <button id="btnDemo" class="btn" aria-pressed="false">Demo week</button>
+      <button id="btnHr" class="btn">Heart-rate strap</button>
+      <button id="btnFind" class="btn" disabled>Beep / blink</button>
+    </div>
+  </section>
 
-  <div class="card">
-    <div class="row">
-      <button id="btnConnect" class="primary">Connect collar</button>
-      <button id="btnHr">Add heart-rate strap</button>
-      <button id="btnDemo">Try demo data</button>
-      <button id="btnFind" disabled>Beep / blink collar</button>
-    </div>
-    <div class="row" style="margin-top:10px">
-      <label for="dogId">Dog ID</label>
-      <input id="dogId" type="text" value="my-dog" autocomplete="off">
-      <span class="fine">Pseudonymous; goes into every exported event.</span>
-    </div>
-    <p id="state" class="fine" style="margin:10px 0 0">Not connected.</p>
-    <p id="deviceRow" class="fine" style="margin:4px 0 0" hidden>Collar: <b id="device" style="color:var(--ink);font-weight:600"></b> <span>(quote this in bug reports)</span></p>
+  <div id="support" class="card warnbox" hidden></div>
+  <p id="simBanner" class="sim-banner" hidden><span class="sim">SIMULATED</span>An invented week for a reactive dog: walks, play, nights and a few bursts. Shown only; nothing is stored.</p>
+
+  <div class="grid">
+    <section class="card c7" id="now" aria-label="Right now"><span class="br tl"></span><span class="br bR"></span>
+      <div class="now">
+        <svg class="gauge" viewBox="0 0 200 178" data-k="gauge" aria-hidden="true"></svg>
+        <div>
+          <p class="micro">Right now</p>
+          <div class="state" data-k="state">Waiting</div>
+          <p class="sub" data-k="sub">Connect a collar or load the demo week.</p>
+          <svg class="spark" viewBox="0 0 320 54" preserveAspectRatio="none" data-k="spark" aria-hidden="true"></svg>
+          <div class="spark-l micro"><span>−10 min</span><span>now</span></div>
+        </div>
+      </div>
+      <div class="chips">
+        <div class="chip" data-k="active"><span class="micro">Active today</span><b>–</b><small></small></div>
+        <div class="chip" data-k="bursts"><span class="micro">Bursts today</span><b>–</b><small></small></div>
+        <div class="chip" data-k="pose"><span class="micro">Head pitch</span><b>–</b><small></small></div>
+        <div class="chip" data-k="batt"><span class="micro">Battery</span><b>–</b><small></small><span class="battring" data-k="battring"></span></div>
+      </div>
+      <p class="note" id="mHr" hidden>Heart rate (strap) <b class="hr-chip">–</b> bpm</p>
+    </section>
+
+    <section class="card c5" aria-labelledby="rh-h"><span class="br tl"></span><span class="br bR"></span>
+      <div class="card-h"><div><p class="micro">24-hour rhythm</p><h2 id="rh-h">When your dog moves</h2></div></div>
+      <div class="rh">
+        <svg id="rhythm" viewBox="0 0 320 320" role="img" aria-label="Average movement for each half hour of the day, with today's values as dots"></svg>
+        <div class="rh-c" id="rhythmC"><span class="micro">Typical day</span><b>7 days</b><span class="micro">hover a slice</span></div>
+      </div>
+      <div class="rh-key"><span><i style="width:10px;height:10px;border-radius:3px;background:#cdb27c;opacity:.6"></i>typical</span><span><i style="width:7px;height:7px;border-radius:50%;background:#ece8df"></i>today</span><span><i style="width:10px;height:2px;background:#d7b986"></i>now</span><span><i style="width:12px;height:2px;background:#6d685e"></i>night 22–06</span></div>
+    </section>
+
+    <section class="card c12" aria-labelledby="tl-h"><span class="br tl"></span><span class="br bR"></span>
+      <div class="card-h">
+        <div><p class="micro">Timeline · movement (VeDBA)</p><h2 id="tl-h">Every five seconds, on one line</h2></div>
+        <div class="seg" id="range" role="group" aria-label="Time range"><button data-r="3600000" aria-pressed="false">1 H</button><button data-r="21600000" aria-pressed="true">6 H</button><button data-r="86400000" aria-pressed="false">24 H</button></div>
+      </div>
+      <div class="tl-wrap"><div class="readout" id="tlRead"></div><svg id="tl" viewBox="0 0 760 230" role="img" aria-label="Movement over time with movement bands and bursts"></svg></div>
+      <div class="legend">
+        <span><i style="background:#d7b986"></i>movement</span>
+        <span><svg viewBox="0 0 8 12" width="8" height="12" aria-hidden="true"><path d="M4 0l4 6-4 6-4-6z" fill="#e8a35f"/></svg>burst &gt; 1.5 g</span>
+        <span><i style="background:#c0392b;border-radius:50%;width:6px;height:6px"></i>sensor clipped</span>
+        <span>bands: still &lt; 30 · low &lt; 150 · moderate &lt; 500 mg (uncalibrated)</span>
+      </div>
+    </section>
+
+    <section class="card c7" aria-labelledby="bd-h"><span class="br tl"></span><span class="br bR"></span>
+      <div class="card-h"><div><p class="micro">Activity budget · 7 days</p><h2 id="bd-h">Where the day goes</h2></div><span class="micro" style="text-align:right">active<br>min</span></div>
+      <div id="budget"></div>
+      <div class="legend"><span><i style="background:#55665c"></i>still</span><span><i style="background:#8fb39b"></i>low</span><span><i style="background:#cdb27c"></i>moderate</span><span><i style="background:#e8a35f"></i>vigorous</span></div>
+    </section>
+
+    <section class="card c5" aria-labelledby="bu-h"><span class="br tl"></span><span class="br bR"></span>
+      <div class="card-h"><div><p class="micro">Bursts</p><h2 id="bu-h">Jolts, and the settle</h2></div><a class="micro" href="./field.html" style="text-decoration:none;color:var(--gold)">Field →</a></div>
+      <ul class="bursts" id="bursts"></ul>
+    </section>
+
+    <section class="card c12" aria-labelledby="dv-h"><span class="br tl"></span><span class="br bR"></span>
+      <div class="dev">
+        <div>
+          <p class="micro">Collar</p><h2 id="dv-h">Device &amp; data</h2>
+          <dl class="kv" style="margin-top:12px">
+            <dt>Status</dt><dd id="state">Not connected.</dd>
+            <div id="deviceRow" hidden style="display:contents"><dt>Model</dt><dd><b id="device" style="font-weight:500"></b></dd></div>
+            <dt>Dog id</dt><dd><input id="dogId" type="text" value="my-dog" autocomplete="off" aria-label="Dog id"></dd>
+            <dt>Stored</dt><dd id="stats">0 events stored</dd>
+          </dl>
+        </div>
+        <div>
+          <div class="row" style="margin-top:0">
+            <button id="btnSync" class="btn" disabled>Download backlog</button>
+            <button id="btnExport" class="btn" disabled>Export OpenPaw JSONL</button>
+            <button id="btnClear" class="btn">Clear stored data</button>
+          </div>
+          <p class="note">Everything stays in this browser until you export it. The export is the open OpenPaw v0.1 format: every derived number points back to its raw record.</p>
+          <details><summary>Connection log</summary><div id="log" class="log"></div></details>
+        </div>
+      </div>
+    </section>
   </div>
-
-  <div class="card">
-    <div class="grid">
-      <div class="metric"><span>Movement (VeDBA, mg)</span><b id="mVedba">-</b></div>
-      <div class="metric"><span>Active share of epoch</span><b id="mActive">-</b></div>
-      <div class="metric"><span>Bursts (&gt;1.5 g)</span><b id="mBursts">-</b></div>
-      <div class="metric"><span>Head pitch / roll</span><b id="mPose">-</b></div>
-      <div class="metric"><span>Heart rate (strap)</span><b id="mHr">-</b></div>
-      <div class="metric"><span>Collar battery</span><b id="mBatt">-</b></div>
-    </div>
-    <p id="simBanner" class="warn fine" hidden>Showing SIMULATED demo data, not a real dog.</p>
-    <canvas id="chart" aria-label="Movement over the last hour"></canvas>
-    <p class="fine">Line: mean movement per 5 s epoch. Ticks: bursts (lunges, shakes, jumps). Red dot: sensor range exceeded.</p>
-  </div>
-
-  <div class="card">
-    <div class="row">
-      <button id="btnSync" disabled>Download backlog from collar</button>
-      <button id="btnExport" disabled>Export OpenPaw JSONL</button>
-      <button id="btnClear">Clear stored data</button>
-    </div>
-    <p id="stats" class="fine" style="margin:10px 0 0">0 events stored.</p>
-  </div>
-
-  <div class="card"><div id="log" class="log"></div></div>
-
-  <p class="fine">Open source (GPL-3.0): <a href="https://github.com/kvnloo/openpaw">github.com/kvnloo/openpaw</a>. Needs Chrome or Edge on Android, Windows, macOS, Linux or ChromeOS (Web Bluetooth). On iPhone use the Bluefy browser.</p>
+  <p id="empty" class="fine" hidden></p>
+  <p class="foot">Open source (GPL-3.0) · <a href="https://github.com/kvnloo/openpaw">github.com/kvnloo/openpaw</a> · Web Bluetooth needs Chrome or Edge (Android, Windows, macOS, Linux, ChromeOS); on iPhone use Bluefy.</p>
 </main>
 
 <script type="module">
@@ -93,6 +281,8 @@ import { UUIDS, decodeRecord, decodeChunk, decodeStatus, encodeDumpFrom, CMD_FIN
 const $ = (id) => document.getElementById(id);
 const logEl = $('log');
 const log = (m) => { logEl.textContent = `${new Date().toLocaleTimeString()}  ${m}\n` + logEl.textContent.slice(0, 4000); };
+import { epochsFromEvents, demoWeek } from './collar-analytics.js';
+import { renderNow, renderTimeline, renderRhythm, renderBudget, renderBursts } from './collar-view.js';
 
 // ---------- storage (shared IndexedDB, local only: app/store.js) ----------
 import * as S from './store.js';
@@ -104,46 +294,49 @@ const dogId = () => $('dogId').value.trim() || 'my-dog';
 
 async function refreshStats() {
   const n = await countEvents();
-  $('stats').textContent = `${n} events stored in this browser.`;
+  $('stats').textContent = `${n.toLocaleString()} events stored in this browser`;
   $('btnExport').disabled = n === 0;
 }
 refreshStats();
-window.addEventListener('resize', () => draw());
 
-// ---------- chart ----------
-const series = [];  // {t, vedba, bursts, clipped}
-function draw() {
-  const c = $('chart'), g = c.getContext('2d');
-  const dpr = window.devicePixelRatio || 1;
-  c.width = Math.round(c.clientWidth * dpr); c.height = Math.round(140 * dpr);
-  g.setTransform(1, 0, 0, 1, 0, 0);
-  const css = getComputedStyle(document.documentElement);
-  g.clearRect(0, 0, c.width, c.height);
-  g.scale(dpr, dpr);
-  const W = c.clientWidth, H = 140;
-  const pts = series.slice(-720);  // last hour at 5 s
-  if (!pts.length) return;
-  const max = Math.max(300, ...pts.map((p) => p.vedba)) * 1.1;
-  const x = (i) => (i / 719) * W, y = (v) => H - 16 - (v / max) * (H - 30);
-  g.strokeStyle = css.getPropertyValue('--line'); g.lineWidth = 1;
-  g.beginPath(); g.moveTo(0, y(0)); g.lineTo(W, y(0)); g.stroke();
-  g.strokeStyle = css.getPropertyValue('--accent'); g.lineWidth = 2; g.lineJoin = 'round'; g.beginPath();
-  pts.forEach((p, i) => (i ? g.lineTo(x(i), y(p.vedba)) : g.moveTo(x(i), y(p.vedba))));
-  g.stroke();
-  pts.forEach((p, i) => {
-    if (p.bursts) { g.fillStyle = css.getPropertyValue('--warn'); g.fillRect(x(i) - 1.5, H - 12, 3, 10); }
-    if (p.clipped) { g.fillStyle = '#c0392b'; g.beginPath(); g.arc(x(i), 8, 4, 0, 7); g.fill(); }
+// ---------- views ----------
+const TZ = new Date().getTimezoneOffset();
+let epochs = [];          // real collar epochs from the store (+ live)
+let demo = null;          // simulated week, in memory only (never stored)
+let range = 6 * 3600e3;
+const view = () => (demo || epochs);
+const nowT = () => (demo ? demo[demo.length - 1].t : Date.now());
+let raf = 0, animateNext = true;
+function render(animate = false) {
+  animateNext = animateNext || animate;
+  cancelAnimationFrame(raf);
+  raf = requestAnimationFrame(() => {
+    const ep = view(), now = nowT(), simulated = !!demo;
+    document.body.classList.toggle('is-sim', simulated);
+    renderNow($('now'), ep, { tz: TZ, now, simulated });
+    renderTimeline($('tl'), $('tlRead'), ep, { range, now, animate: animateNext }); animateNext = false;
+    renderRhythm($('rhythm'), $('rhythmC'), ep, { tz: TZ, now });
+    renderBudget($('budget'), ep, { tz: TZ, now });
+    renderBursts($('bursts'), ep);
+    $('empty').hidden = ep.length > 0;
   });
 }
+async function loadStored() {
+  epochs = epochsFromEvents(await allEvents()).filter((e) => e.origin !== 'simulated');
+  render();
+}
+loadStored();
+window.addEventListener('resize', () => render());
+document.querySelectorAll('#range button').forEach((b) => b.onclick = () => {
+  range = +b.dataset.r; document.querySelectorAll('#range button').forEach((x) => x.setAttribute('aria-pressed', String(x === b))); render(true);
+});
 
+// live record -> epoch, without waiting for a store round-trip
 function show(rec) {
-  $('mVedba').textContent = rec.vedba_mean_mg;
-  $('mActive').textContent = `${Math.round((rec.active_frac / 255) * 100)}%`;
-  $('mBursts').textContent = rec.bursts;
-  $('mPose').textContent = `${rec.pitch_deg}° / ${rec.roll_deg}°`;
-  if (rec.battery_pct !== 255) $('mBatt').textContent = `${rec.battery_pct}%`;
-  series.push({ vedba: rec.vedba_mean_mg, bursts: rec.bursts, clipped: rec.clipped });
-  draw();
+  if (demo) { demo = null; $('btnDemo').setAttribute('aria-pressed', 'false'); }
+  epochs.push({ t: collar && collar.clock ? Date.parse(collar.clock(rec.uptime_s)) : Date.now(), vedba: rec.vedba_mean_mg, max: rec.vedba_max_mg, active: rec.active_frac / 255,
+    bursts: rec.bursts, pitch: rec.pitch_deg, roll: rec.roll_deg, hr: rec.hr_bpm || null, batt: rec.battery_pct === 255 ? null : rec.battery_pct, clipped: rec.clipped, origin: 'sensor', w: collar?.epochS || 5 });
+  render();
 }
 
 // ---------- collar ----------
@@ -219,7 +412,7 @@ $('btnConnect').onclick = async () => {
       await chr.control.writeValue(encodeSetTime(now));
       await setMeta(anchorsKey(), rememberAnchors(await getMeta(anchorsKey()), [{ ...collar.liveAnchor, unix_s: Math.floor(now / 1000) }]));
     }
-    device.addEventListener('gattserverdisconnected', () => { $('state').textContent = 'Disconnected. Tap Connect to reconnect.'; $('btnSync').disabled = true; $('btnFind').disabled = true; log('collar disconnected'); });
+    device.addEventListener('gattserverdisconnected', () => { document.body.classList.remove('is-live'); $('state').textContent = 'Disconnected. Tap Connect to reconnect.'; $('btnSync').disabled = true; $('btnFind').disabled = true; log('collar disconnected'); });
     chr.live.addEventListener('characteristicvaluechanged', async (e) => {
       const r = decodeRecord(e.target.value);
       show(r);
@@ -234,6 +427,7 @@ $('btnConnect').onclick = async () => {
       if (pendingSync) { pendingSync.n += records.length; $('state').textContent = `Downloading backlog... ${pendingSync.n} epochs`; }
       if (done && pendingSync) {
         const n = pendingSync.n;
+        setTimeout(loadStored, 300);
         const kept = collar.anchored ? await finishAnchoredSync(pendingSync) : n;
         pendingSync = null;
         log(`backlog done: ${n} epochs${kept !== n ? `, ${kept} dated` : ''}`);
@@ -242,6 +436,7 @@ $('btnConnect').onclick = async () => {
     });
     await chr.log.startNotifications();
     $('state').textContent = `Connected to ${collar.name} (${st.stored} epochs stored, epoch ${st.epoch_s} s).`;
+    document.body.classList.add('is-live');
     $('device').textContent = collar.label; $('deviceRow').hidden = false;
     $('btnSync').disabled = false; $('btnFind').disabled = false;
     log(`connected ${collar.name} board=${st.board} model=${info.model} fw=${info.firmware} next_seq=${st.next_seq} uptime=${st.uptime_s}s`);
@@ -276,7 +471,7 @@ $('btnHr').onclick = async () => {
     let seq = 0;
     c.addEventListener('characteristicvaluechanged', async (e) => {
       const hr = parseHeartRate(e.target.value);
-      $('mHr').textContent = hr.contact === false ? 'no contact' : `${hr.bpm} bpm`;
+      $('mHr').querySelector('b').textContent = hr.contact === false ? 'no contact' : `${hr.bpm}`; $('mHr').hidden = false;
       if (hr.contact !== false) await putEvents(heartRateToEvents(hr, { dogId: dogId(), deviceId: device.name || 'hr-strap', timestamp: new Date().toISOString(), seq: `${Date.now()}-${seq++}` }));
     });
     await c.startNotifications();
@@ -284,21 +479,13 @@ $('btnHr').onclick = async () => {
   } catch (e) { log(`strap failed: ${e.message}`); }
 };
 
-// ---------- demo ----------
-$('btnDemo').onclick = async () => {
-  const now = Date.now();
-  collar = collar || { name: 'demo-collar', clock: makeClock(now, 3600), epochS: 5, bootKey: 0, demo: true };
-  const recs = [];
-  for (let i = 0; i < 720; i++) {
-    const t = i / 720, walk = t > 0.35 && t < 0.7, lunge = i === 430 || i === 431;
-    const vedba = walk ? 380 + 120 * Math.sin(i / 7) + Math.random() * 60 : 12 + Math.random() * 10;
-    recs.push({ version: 1, flags: lunge ? 4 : 0, seq: i, uptime_s: 3600 - (720 - i) * 5, vedba_mean_mg: Math.round(vedba), vedba_max_mg: Math.round(lunge ? 3400 : vedba * 1.8),
-      active_frac: walk ? 230 : 3, pitch_deg: walk ? -12 : 4, roll_deg: walk ? 2 : 0, bursts: lunge ? 1 : 0, hr_bpm: 0, battery_pct: 78, clipped: lunge && i === 430, gap: false });
-  }
-  $('simBanner').hidden = false;
-  recs.forEach(show);
-  await ingest(recs, 'simulated');
-  log('loaded 1 h of simulated data (labelled origin=simulated)');
+// ---------- demo: a simulated week, shown but never stored ----------
+$('btnDemo').onclick = () => {
+  demo = demo ? null : demoWeek({ now: Date.now(), tz: TZ });
+  $('btnDemo').setAttribute('aria-pressed', String(!!demo));
+  $('simBanner').hidden = !demo;
+  log(demo ? 'showing a simulated week (not stored)' : 'back to your collar data');
+  render(true);
 };
 
 // ---------- export ----------
@@ -314,7 +501,7 @@ $('btnExport').onclick = async () => {
 $('btnClear').onclick = async () => {
   if (!confirm('Delete all OpenPaw data stored in this browser? Export first if you want a copy.')) return;
   await S.clearEvents();
-  series.length = 0; draw(); refreshStats(); log('cleared');
+  epochs = []; render(); refreshStats(); log('cleared');
 };
 </script>
 </body>
