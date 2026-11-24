@@ -1,4 +1,4 @@
-// OpenPaw reference collar firmware v0.1
+// OpenPaw reference collar firmware v0.2.0
 //
 // Boards (Arduino core "Seeed nRF52 Boards", Seeeduino:nrf52):
 //   - Seeed XIAO nRF52840 Sense  (FQBN Seeeduino:nrf52:xiaonRF52840Sense)  IMU LSM6DS3TR-C

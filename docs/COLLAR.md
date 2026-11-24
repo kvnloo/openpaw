@@ -22,7 +22,7 @@ Three steps, about 15 minutes, no soldering, no software to install.
 
 ## 2. Put the OpenPaw firmware on it (drag and drop)
 
-1. Download the `.uf2` file for your board from the [latest collar release](https://github.com/kvnloo/openpaw/releases?q=collar):
+1. Download the `.uf2` file for your board from the [collar-v0.2.0 release](https://github.com/kvnloo/openpaw/releases/tag/collar-v0.2.0) (all collar releases are [listed here](https://github.com/kvnloo/openpaw/releases?q=collar)):
    - Kit A: `openpaw-collar-t1000-e.uf2`
    - Kit B: `openpaw-collar-xiao-nrf52840-sense.uf2`
 2. Put the board into "update mode":
