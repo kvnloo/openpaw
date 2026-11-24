@@ -48,14 +48,14 @@ def label_epochs(annotations, mapping, shake=False):
     return np.where(candidates.sum(axis=1) == 1, candidates.argmax(axis=1), -1)
 
 
-def features_for_run(g_values):
+def features_for_run(g_values, transfer=False):
     # FIR anti-aliasing at the 50 Hz grid; edge pad with the local line.
     g50 = resample_poly(g_values, 1, 2, axis=0, padtype="line")
     # Approximate the board's ±8 g measurement range in signed integer mg.
-    return extract(np.clip(np.rint(g50 * 1000), -8000, 8000).astype(np.int16))
+    return extract(np.clip(np.rint(g50 * 1000), -8000, 8000).astype(np.int16), transfer=transfer)
 
 
-def windows(block, axes, clock, labels, source, subject):
+def windows(block, axes, clock, labels, source, subject, transfer=False):
     xyz = block[axes].to_numpy(dtype=float)
     valid = np.isfinite(xyz).all(axis=1)
     continuous = np.isclose(np.diff(clock), .01, atol=1e-5, rtol=0)
@@ -63,14 +63,14 @@ def windows(block, axes, clock, labels, source, subject):
     for ids in np.split(np.arange(len(block)), edges):
         if len(ids) < WINDOW_RAW or not valid[ids[0]]:
             continue
-        f = features_for_run(xyz[ids])[:len(ids)//WINDOW_RAW]
+        f = features_for_run(xyz[ids], transfer)[:len(ids)//WINDOW_RAW]
         # Ignore startup transient (but warm up using the actual data).
         for feat, (band, cls) in zip(f[1:], zip(*(v[1:] for v in labels(ids))), strict=True):
             if band >= 0 or cls >= 0:
                 yield source, subject, band, cls, *map(int, feat)
 
 
-def primary(path):
+def primary(path, transfer=False):
     with ZipFile(path) as z, z.open("DogMoveData.csv") as handle:
         data = pd.read_csv(handle, usecols=["DogID", "TestNum", "t_sec", *AXES, *ANNOT],
                            dtype={k: "category" for k in ANNOT})
@@ -81,10 +81,10 @@ def primary(path):
         yield from windows(block, AXES, block.t_sec.to_numpy(),
                            lambda ids: (label_epochs(annotations[ids], BAND_MAP),
                                         label_epochs(annotations[ids], CLF_MAP, shake=True)),
-                           "vehkaoja", dog)
+                           "vehkaoja", dog, transfer)
 
 
-def secondary(path):
+def secondary(path, transfer=False):
     axes = ["Neck.Acc.X", "Neck.Acc.Y", "Neck.Acc.Z"]
     data = pd.read_csv(path, usecols=["Subject", "Timestamp", "Position", *axes])
     mapping = {"standing": 0, "sitting": 0, "lying down": 0, "walking": 1}
@@ -104,7 +104,7 @@ def secondary(path):
             raw[shakes >= 50] = 4
             return np.full(n, -1), raw
 
-        yield from windows(block, axes, clock, labels, "marcato", dog)
+        yield from windows(block, axes, clock, labels, "marcato", dog, transfer)
 
 
 def fit_bands(x, y):
