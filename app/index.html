@@ -126,6 +126,8 @@
   .bd-bar i { display:block; height:100%; width:0; transition:width .9s var(--ease); }
   #budget.in .bd-bar i { width:var(--w); }
   .bd-row:nth-child(2) i { transition-delay:.04s } .bd-row:nth-child(3) i { transition-delay:.08s } .bd-row:nth-child(4) i { transition-delay:.12s } .bd-row:nth-child(5) i { transition-delay:.16s } .bd-row:nth-child(6) i { transition-delay:.2s } .bd-row:nth-child(7) i { transition-delay:.24s }
+  .bd-bar.none, .is-today .bd-bar.none { height:0; border-radius:0; background:none; box-shadow:none; border-top:1px dashed var(--line2); }
+  .bd-empty { margin:12px 0 0; font:500 11px/1.5 var(--mono); color:var(--mute); letter-spacing:.02em; }
   .bd-bar em { font:500 10.5px/14px var(--mono); color:var(--dim); padding-left:8px; font-style:normal; }
   .bd-val { font:500 13px/1 var(--mono); text-align:right; }
   .bd-b { font:500 12px/1 var(--mono); color:var(--warm); display:inline-flex; gap:3px; align-items:center; } .bd-b svg { width:7px; height:10px; }
