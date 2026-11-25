@@ -128,6 +128,20 @@ test('c-sound card: stops eating during sound practice = step too big; go quiete
   for (const e of c.examples) assert.match(e.url, /^https:\/\/www\.youtube\.com\/watch\?v=[\w-]{11}&t=\d+s$/, e.url);
 });
 
+test('c-hackles-play card: play bows restart play after a pause; cites byosiere2016 and shows a mutual pause', () => {
+  const c = CARDS.find((x) => x.id === 'c-hackles-play');
+  assert.ok(c, 'c-hackles-play card exists');
+  assert.ok(c.evidence && c.evidence.includes('byosiere2016-investigating-the-function-of-play-bows-in-adult-pet-dogs'), 'cites byosiere2016');
+  assert.match(c.explain, /pause/i);
+  assert.match(c.explain, /restart|start .*again/i);
+  // Hackles stay framed as arousal, never as a mood read off one signal.
+  assert.match(c.explain, /arousal/i);
+  assert.ok(Array.isArray(c.examples) && c.examples.length >= 2, 'video examples');
+  for (const e of c.examples) assert.match(e.url, /^https:\/\/www\.youtube\.com\/watch\?v=[\w-]{11}&t=\d+s$/, e.url);
+  assert.ok(c.examples.some((e) => /both .*(stop|still|pause)/i.test(e.label)), 'an example shows both dogs pausing together');
+  assert.ok(c.examples.some((e) => /sound|growl|noise/i.test(e.label)), 'an example warns that play noise can sound like a fight');
+});
+
 test('every card example is a timestamped https link with a label', () => {
   for (const c of CARDS.filter((x) => x.examples)) {
     for (const e of c.examples) {

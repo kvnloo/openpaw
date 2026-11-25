@@ -52,6 +52,7 @@ export const SRC = {
   vieiradecastro2020: 'https://doi.org/10.1371/journal.pone.0225023',
   lopesfagundes2018: 'https://doi.org/10.3389/fvets.2018.00017',
   riemer2023: 'https://doi.org/10.3390/ani13233664',
+  byosiere2016: 'https://doi.org/10.1016/j.beproc.2016.02.007',
 };
 
 // Human-readable names for the source list.
@@ -93,6 +94,7 @@ export const SOURCE_NAMES = {
   [SRC.vieiradecastro2020]: 'Vieira de Castro et al. 2020, Does training method matter? Aversive vs reward-based schools (PLOS ONE)',
   [SRC.lopesfagundes2018]: 'Lopes Fagundes et al. 2018, Noise sensitivities in dogs with and without musculoskeletal pain (Front Vet Sci)',
   [SRC.riemer2023]: 'Riemer 2023, Therapy and prevention of noise fears in dogs: a review for practitioners (Animals)',
+  [SRC.byosiere2016]: 'Byosiere, Espinosa & Smuts 2016, Investigating the function of play bows in adult pet dogs (Behav Processes)',
 };
 
 export const LESSONS = [
@@ -381,7 +383,13 @@ export const CARDS = [
   { id: 'c-hackles-play', lesson: 'freeze-hackles', art: { posture: 'bow', ears: 'neutral', eye: 'soft', mouth: 'loose', tail: 'high', wag: 'loose', hackles: true },
     context: 'Your dog play-bows to a friend, mouth open and body bouncy, with hackles slightly up.',
     choices: ['Hackles mean a fight is coming', 'Hackles show arousal; the loose play bow suggests play, keep an eye on it', 'He is in pain', 'He is frightened'], answer: 1,
-    explain: 'Piloerection is a sign of arousal, not of a specific mood. The rest of the body (loose bow, open mouth) points to play.', sources: [SRC.mcconnellHackles, SRC.vcaLang] },
+    explain: 'Piloerection is a sign of arousal, not of a specific mood. The rest of the body (loose bow, open mouth) points to play. In a study of adult pet dogs playing in pairs, play bows most often came right after a short pause, and the game usually started again straight after: both dogs moving together, or the bowing dog running off to be chased. Short pauses where both dogs stop, then start again, are part of normal play. Play can sound rough, so watch bodies, not noise; if one dog keeps trying to get away, step in.',
+    sources: [SRC.mcconnellHackles, SRC.vcaLang, SRC.byosiere2016],
+    evidence: ['byosiere2016-investigating-the-function-of-play-bows-in-adult-pet-dogs'],
+    examples: [
+      { url: 'https://www.youtube.com/watch?v=ZrG3SIYDILc&t=202s', label: 'Mid-wrestle, both dogs stop and stand still for about a second and a half, then start again with the roles swapped; the trainer calls these shared pauses a good sign (3:22 to 3:26, Dunbar Academy)' },
+      { url: 'https://www.youtube.com/watch?v=ZrG3SIYDILc&t=82s', label: 'The same play with the sound off: the noise made it sound like a fight; the trainer points to bouncy, bendy movement and taking turns chasing instead (1:22 to 3:30)' },
+    ] },
   { id: 'c-collar-settle', lesson: 'recovery', art: { posture: 'loose', ears: 'back', eye: 'soft', mouth: 'closed', tail: 'low' },
     context: 'Your dog lunged at a dog on a walk. A minute later the collar\u2019s movement line is back in the "Still" band.',
     choices: ['He has fully recovered', 'His movement has settled; watch for recovery signs yourself (loose body, takes food, sniffs) and note when you see them', 'The collar must be broken', 'Walk back toward the trigger to test him'], answer: 1,
