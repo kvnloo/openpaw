@@ -47,35 +47,44 @@ closed with the `GAP` flag.
 ## Estimated average current, not connected
 
 The largest item is the CPU being awake for I²C reads. The Seeed core's `Wire` driver
-(`Wire_nRF52.cpp`, core 1.1.13) runs the bus at 100 kHz and spins in a loop until each
-transfer ends, so the CPU stays awake for the whole time a byte is on the wire, about
-90 µs per byte (9 bits). Whether the Seeed core turns on the DC/DC converter is not
-verified, so both regulator cases are shown.
+(`Wire_nRF52.cpp`, core 1.1.13) spins in a loop until each transfer ends, so the CPU stays
+awake for the whole time a byte is on the wire. Its `begin()` sets the bus to 100 kHz
+(about 90 µs per 9-bit byte). Since firmware 0.4 the sketch calls `setClock(OPENPAW_I2C_HZ)`
+right after every `begin()` and runs both sensors' bus at **400 kHz** fast mode, about
+22.5 µs per byte. Both sensors support fast mode (LSM6DS3TR-C datasheet I²C timing table;
+QMA6100P datasheet Rev F table 9). The QMA6100P datasheet says fast mode needs external
+pull-ups. Whether each board's pull-ups are strong enough is not checked on hardware; if reads
+fail on a real board, setting `OPENPAW_I2C_HZ` to `100000u` in `openpaw_core.h` restores
+100 kHz. Whether the Seeed core turns on the DC/DC converter is not verified either, so both
+regulator cases are shown.
 
-- **Polled (T1000-E, and the XIAO before FIFO batching):** each sample is its own wake-up
-  and read of about 9 bytes on the wire, roughly 0.8 ms. Assume **~1 ms awake per sample** [E]:
-  50 ms per second at 50 Hz.
-- **FIFO batching (XIAO, firmware 0.4 and later):** one wake-up per second reads the 4 status
-  bytes and then the queued samples in 60-byte bursts. At 52 Hz that is about 312 data bytes
-  plus ~25 bytes of addressing, ~340 bytes ≈ **~30 ms awake per second** [E]; at 12.5 Hz
-  about 90 bytes ≈ 8 ms. Wake-ups drop from 50 to 1 per second, but the bytes still have to
-  cross the bus, so the CPU time drops by only about 40%. I²C at 400 kHz (next item) would
-  cut the 30 ms to about 8 ms.
+- **FIFO batching (XIAO):** one wake-up per second reads the 4 status bytes and then the
+  queued samples in 60-byte bursts. At 52 Hz that is about 312 data bytes plus ~25 bytes of
+  addressing, ~340 bytes ≈ **~8 ms awake per second** at 400 kHz [E] (~30 ms at 100 kHz);
+  at 12.5 Hz about 90 bytes ≈ 2 ms (8 ms at 100 kHz). This ignores the driver's per-transfer
+  set-up time, which a measurement would include.
+- **Polled (T1000-E):** each sample is its own wake-up and read of about 9 bytes on the wire,
+  ~0.2 ms at 400 kHz (0.8 ms at 100 kHz). Counting the wake-up itself, assume **~0.4 ms awake
+  per sample** [E] (~1 ms at 100 kHz): 20 ms per second at 50 Hz, 4 ms at 10 Hz.
 
 | Item | Active, DC/DC | Active, LDO | Still, DC/DC | Still, LDO |
 |---|---|---|---|---|
 | nRF52840 asleep | 3 µA | 3 µA | 3 µA | 3 µA |
-| CPU awake for the FIFO read (30 ms or 8 ms per second × CPU current) [E] | 100 µA | 190 µA | 26 µA | 50 µA |
+| CPU awake for the FIFO read at 400 kHz (8 ms or 2 ms per second × CPU current) [E] | 26 µA | 50 µA | 7 µA | 13 µA |
 | Accelerometer (XIAO) | 25 µA | 25 µA | 9 µA | 9 µA |
 | Advertising, parked at 2 s: 3 channels × ~0.6 ms × ~6.4 mA ≈ 12 µC per event, plus radio start-up, every 2 s [E] | ~8 µA | ~8 µA | ~8 µA | ~8 µA |
-| **Total (XIAO, parts only)** | **~135 µA** | **~225 µA** | **~45 µA** | **~70 µA** |
+| **Total (XIAO, parts only)** | **~65 µA** | **~85 µA** | **~25 µA** | **~35 µA** |
 
-Polled at 50 / 10 Hz, the CPU line was 165 / 315 / 33 / 63 µA and the totals ~200 / ~350 /
-~55 / ~85 µA. On the T1000-E the QMA6100P is still polled, so those polled figures apply there.
+History of the XIAO totals (Active DC/DC / Active LDO / Still DC/DC / Still LDO): polled at
+100 kHz ~200 / ~350 / ~55 / ~85 µA; FIFO at 100 kHz ~135 / ~225 / ~45 / ~70 µA; FIFO at
+400 kHz (above) ~65 / ~85 / ~25 / ~35 µA.
+
+On the T1000-E (polled, 400 kHz) the CPU line is ~66 / ~126 / ~13 / ~25 µA, and with the
+QMA6100P's 38 µA the totals are ~115 / ~175 / ~60 / ~75 µA [E].
 
 Advertising every 1 s (the first 10 min after a phone leaves) costs about twice the parked
-figure, ~15 µA [E]. Parking saves ~7 µA, which matters most in Still mode (~13% of its
-total). The trade-off: a phone that opens the app waits up to one advertising interval to
+figure, ~15 µA [E]. Parking saves ~7 µA, which matters most in Still mode (~28% of the
+XIAO's Still total). The trade-off: a phone that opens the app waits up to one advertising interval to
 see the collar, so about 2 s instead of 1 s (not measured). The 10 min limit and the 2 s
 interval are `OPENPAW_ADV_PARK_MS` and `OPENPAW_ADV_PARKED` in `openpaw_core.h`
 (`openpaw_adv_step`, host-tested). A connection restores the 100 ms / 1 s pair, so the
@@ -86,8 +95,9 @@ figures. The board's LoRa radio, GNSS and other sensors are never switched on by
 firmware, but their off-state leakage is not in the table.
 
 A dog that lies still most of the day spends most of its time in Still mode, where
-this estimate drops by about 3×. For example, 16 h still and
-8 h active per day averages about 75 µA on the XIAO (DC/DC) [E], down from about 100 µA when polled. That is a parts-only lower bound.
+this estimate drops by about 2.5×. For example, 16 h still and
+8 h active per day averages about 40 µA on the XIAO (DC/DC) [E], down from about 75 µA with
+the FIFO at 100 kHz and about 100 µA when polled. That is a parts-only lower bound.
 The vendor has published no battery life for an always-on accelerometer with BLE
 (research/hardware.md); measure it before any page quotes battery days.
 
@@ -114,9 +124,8 @@ The intervals stay inside the BLE Core rule that the supervision timeout (4 s) i
   activity/inactivity, and QMA6100P `ANY_MOT_INT`. The CPU could then sleep until the dog moves,
   instead of polling at 10 Hz. That needs the interrupt pin wiring checked on real boards.
 - **FIFO batching on the T1000-E.** Done for the XIAO's LSM6DS3TR-C (above). The QMA6100P also has
-  a FIFO; it is still polled.
-- **I²C at 400 kHz.** Both sensors support fast mode. It would shorten each read about 4×, which now
-  matters more than the number of wake-ups.
+  a FIFO; it is still polled. At 400 kHz polling costs ~66 µA of CPU time (DC/DC), so batching
+  would save roughly 40 µA in Active mode.
 
 ## Sources
 
@@ -128,7 +137,8 @@ The intervals stay inside the BLE Core rule that the supervision timeout (4 s) i
 - STMicroelectronics, LSM6DS3TR-C datasheet section 5.5 "FIFO" and register map (FIFO_CTRL3 08h,
   FIFO_CTRL5 0Ah, FIFO_STATUS1-4 3Ah-3Dh, FIFO_DATA_OUT 3Eh), cross-checked against ST's driver
   `lsm6ds3tr-c_reg.h` / `lsm6ds3tr-c_reg.c` (https://github.com/STMicroelectronics/lsm6ds3tr-c, BSD-3-Clause).
-- Seeed nRF52 Arduino core 1.1.13, `libraries/Wire/Wire_nRF52.cpp` (100 kHz default, busy-wait transfers,
-  64-byte buffer).
-- QST, *QMA6100P datasheet Rev F*, electrical characteristics
+- Seeed nRF52 Arduino core 1.1.13, `libraries/Wire/Wire_nRF52.cpp` (`begin()` sets 100 kHz; `setClock()`
+  maps anything above 250 kHz to 400 kHz; busy-wait transfers, 64-byte buffer).
+- QST, *QMA6100P datasheet Rev F*, electrical characteristics, I²C section and table 9 "I2C Timings"
+  (fSCL max 400 kHz; fast mode needs external pull-ups)
   (https://qstcorp.com/upload/pdf/202602/13-52-20%20QMA6100P%20Datasheet%20Rev%20F.pdf).
