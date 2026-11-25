@@ -122,5 +122,88 @@ class TimelineTests(unittest.TestCase):
             self.assertTrue(out.read_text(encoding='utf-8').startswith('<!doctype html>'))
 
 
+def _collar_walk(origin='simulated'):
+    """Synthetic collar export (same helper as test_collar_derive): band 52.5/70 mg, peak 900, back in band +40 s."""
+    spec = importlib.util.spec_from_file_location('collar_derive_fixture', ROOT / 'tests' / 'test_collar_derive.py')
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    evs = mod.walk()
+    for e in evs:
+        e['provenance']['origin'] = origin
+    return evs
+
+
+class CollarTimelineTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.records = renderer.read_fixture()
+        cls.source = renderer.FIXTURE.read_text(encoding='utf-8')
+        cls.collar = _collar_walk()
+        cls.html = renderer.render(cls.records, cls.source, collar=cls.collar)
+        cls.scan = HTMLScan()
+        cls.scan.feed(cls.html)
+
+    def section(self):
+        start = self.html.index('<section id="collar"')
+        return self.html[start:self.html.index('</section>', start)]
+
+    def test_without_an_export_there_is_no_collar_section(self):
+        self.assertNotIn('id="collar"', renderer.render(self.records, self.source))
+
+    def test_each_episode_shows_band_peak_and_back_in_band_from_collar_derive(self):
+        s = self.section()
+        self.assertEqual(s.count('class="collar-episode"'), 1)
+        self.assertIn('52.5 mg', s)
+        self.assertIn('70 mg', s)
+        self.assertIn('900 mg', s)
+        self.assertIn('+10 s', s)
+        self.assertIn('40 s after the trigger', s)
+        self.assertIn('openpaw-episode-movement/2', s)
+        self.assertIn('simulated', s)
+
+    def test_every_collar_figure_links_to_a_rendered_source_event(self):
+        details = [i for i in self.scan.ids if i.startswith('ev-')]
+        for eid in ('owner:trigger', 'dev:362:movement.vedba_mean', 'dev:368:movement.vedba_mean',
+                    'dev:0:movement.vedba_mean', 'dev:359:movement.vedba_mean'):
+            self.assertIn('#ev-' + eid, self.scan.hrefs)
+            self.assertIn('ev-' + eid, details)
+        for h in self.scan.hrefs:
+            if h.startswith('#'):
+                self.assertIn(h[1:], self.scan.ids, h)
+        self.assertEqual(len(self.scan.ids), len(set(self.scan.ids)))
+
+    def test_collar_section_never_names_a_feeling_or_recovery(self):
+        s = self.section().lower()
+        for word in ('stress', 'calm', 'anxious', 'fear', 'recovered', 'recovery', 'arousal'):
+            self.assertNotIn(word, s)
+
+    def test_a_null_unit_is_not_printed_as_none(self):
+        # app/store.js ownerEvent writes "unit": null on Field marks (seen in rounds/build-derive-c)
+        evs = _collar_walk()
+        for e in evs:
+            if e['event_type'] == 'trigger':
+                e['payload']['unit'] = None
+        s = renderer.collar_section(evs)[1]
+        self.assertIn('10-20', s)
+        self.assertNotIn('None', s)
+
+    def test_a_non_simulated_export_is_refused_on_this_synthetic_page(self):
+        with self.assertRaisesRegex(ValueError, 'Refusing to render'):
+            renderer.render(self.records, self.source, collar=_collar_walk(origin='sensor'))
+
+    def test_cli_flag_reads_an_export_file(self):
+        import json
+        import subprocess
+        with tempfile.TemporaryDirectory() as tmp:
+            p = Path(tmp) / 'export.jsonl'
+            p.write_text('\n'.join(json.dumps(e) for e in self.collar) + '\n', encoding='utf-8')
+            out = Path(tmp) / 'timeline.html'
+            r = subprocess.run([sys.executable, '-I', str(PATH), '--output', str(out), '--collar', str(p)],
+                               capture_output=True, text=True)
+            self.assertEqual(r.returncode, 0, r.stderr)
+            self.assertIn('1 collar episode', r.stdout)
+            self.assertIn('id="collar"', out.read_text(encoding='utf-8'))
+
+
 if __name__=='__main__':
     unittest.main()

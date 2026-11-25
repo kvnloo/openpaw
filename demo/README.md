@@ -12,6 +12,15 @@ python demo/render_timeline.py
 python -m unittest discover -s tests -p 'test_timeline.py' -v
 ```
 
+To add collar episodes from a **simulated** app export (the page refuses anything else):
+
+```sh
+node tools/derive-receipt.mjs /tmp/export.jsonl
+python demo/render_timeline.py --collar /tmp/export.jsonl
+```
+
+A "Collar episodes" section then shows, per Field episode, what `tools/collar_derive.py` measured: the dog's own 30 min movement band before the trigger, the peak, and when movement was back in band (or "not observed"). Every figure links to the collar event it came from. Movement only; a hypothesis for experts to check.
+
 For all fixture/schema tests: `python -m pip install jsonschema && python -m unittest discover -s tests -v`.
 
 ## Audit an exported review locally
