@@ -10,7 +10,7 @@ export const DB_VERSION = 2;
 let dbp = null;
 export function openDb() {
   if (dbp) return dbp;
-  dbp = new Promise((res, rej) => {
+  const p = new Promise((res, rej) => {
     const r = indexedDB.open(DB_NAME, DB_VERSION);
     r.onupgradeneeded = () => {
       const db = r.result;
@@ -18,9 +18,18 @@ export function openDb() {
       if (!db.objectStoreNames.contains('meta')) db.createObjectStore('meta');
       if (!db.objectStoreNames.contains('trackers')) db.createObjectStore('trackers', { keyPath: 'id' });
     };
-    r.onsuccess = () => res(r.result);
-    r.onerror = () => { dbp = null; rej(r.error); }; // don't cache a failure: the next call retries
+    r.onsuccess = () => {
+      const db = r.result;
+      const drop = () => { if (dbp === p) dbp = null; };
+      // Another tab opening a newer version (a new deploy) waits ('blocked') while this connection
+      // stays open: close it and forget it, so that tab upgrades and our next call opens again.
+      db.onversionchange = () => { db.close(); drop(); };
+      db.onclose = drop; // closed by the browser (storage cleared, disk error): don't reuse it
+      res(db);
+    };
+    r.onerror = () => { if (dbp === p) dbp = null; rej(r.error); }; // don't cache a failure: the next call retries
   });
+  dbp = p;
   return dbp;
 }
 const req = (r) => new Promise((res, rej) => { r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
