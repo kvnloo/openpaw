@@ -231,7 +231,10 @@ test('c-quiet-aroused card: no barking after punishment is not calm; add distanc
   assert.doesNotMatch(c.explain, /proven|guarantee|stress score/i);
   assert.ok(Array.isArray(c.examples) && c.examples.length >= 2, 'video examples');
   for (const e of c.examples) assert.match(e.url, /^https:\/\/www\.youtube\.com\/watch\?v=jdWysYtU7HY&t=\d+s$/, e.url);
-  assert.ok(c.examples.some((e) => /tail/i.test(e.label)), 'an example shows the high, curled tail while passing dogs');
+  // This dog's tail is high and curled with no dogs around (1:30), so the examples must not read it as a sign.
+  assert.ok(c.examples.every((e) => !/tail/i.test(e.label)), 'no example reads this dog\'s natural tail carriage as a signal');
+  assert.match(c.context, /higher|stiffer|than (on )?(his )?(usual|normal)/i, 'scenario compares the tail with his own normal carriage');
+  assert.ok(c.examples.some((e) => /lead|leash/i.test(e.label) && /taut|pulled up/i.test(e.label)), 'an example shows the sit held by upward lead tension');
   assert.ok(c.examples.some((e) => /not recommended|aversive/i.test(e.label)), 'an example flags the technique');
 });
 
