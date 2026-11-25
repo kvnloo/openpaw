@@ -3,6 +3,7 @@
 import * as S from './store.js';
 import { TEMPLATES, findPatterns, demoHistory, metricFor, slug, ENGINE_VERSION } from './patterns.js';
 import { packGroups } from './tile-pack.js';
+import { todayRows } from './today-list.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -16,6 +17,7 @@ let trackers = [];      // TEMPLATES merged with stored settings + custom tracke
 let events = [];        // live (non-retracted) events
 let profile = null;
 let demo = false;
+let showAllToday = false; // Today card: newest 3 until "Show all N"
 
 const localDay = (d = new Date()) => new Date(d.getTime() - TZ * 60000).toISOString().slice(0, 10);
 const clock = (ts) => new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -106,10 +108,14 @@ function describe(e) {
 function renderTimeline() {
   const xs = todays().filter((e) => e.provenance && e.provenance.origin !== 'sensor');
   $('#todayCount').textContent = xs.length ? `${xs.length} logged` : '';
-  $('#timeline').innerHTML = xs.length ? xs.slice(0, 40).map((e) => {
+  const { shown, more } = todayRows(xs.length, showAllToday);
+  $('#timeline').innerHTML = xs.length ? xs.slice(0, shown).map((e) => {
     const [a, b] = describe(e);
     return `<li><time>${clock(e.timestamp)}</time><span class="what"><b>${esc(a)}</b>${b ? `<small>${esc(b)}</small>` : ''}</span><button class="x" data-del="${esc(e.event_id)}" aria-label="Delete ${esc(a)}">Delete</button></li>`;
-  }).join('') : '<li class="empty">Nothing yet today. Tap a tile to log it.</li>';
+  }).join('') : '<li class="empty">Nothing yet today. Tap a tile below to log it.</li>';
+  const btn = $('#todayMore');
+  btn.hidden = !more;
+  btn.textContent = more ? `Show all ${xs.length}` : '';
 }
 
 /* ------------------------------------------------------------- sheet */
@@ -280,6 +286,8 @@ $('#shSave').onclick = async () => {
   closeSheet();
   await logValue(t, t.type === 'scale' ? Math.max(1, Math.min(5, Math.round(v))) : v, when, $('#shNote').value.trim());
 };
+// the button hides itself, so keyboard focus moves to the first newly shown entry
+$('#todayMore').onclick = () => { showAllToday = true; renderTimeline(); const x = $('#timeline li:nth-child(4) .x'); if (x) x.focus(); };
 $('#toastUndo').onclick = async () => { if (toastId) { await retract(toastId); toast('Undone'); } };
 $('#demoSw').onclick = () => { demo = !demo; $('#demoSw').setAttribute('aria-checked', String(demo)); renderPatterns(); };
 $('#heat').addEventListener('pointerover', (e) => { const i = e.target.closest('i'); if (i) $('#heatTip').textContent = `${i.dataset.d.slice(5)} · ${i.dataset.v}`; });
