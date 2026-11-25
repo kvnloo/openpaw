@@ -85,6 +85,7 @@ static bool imu_begin() {
   digitalWrite(PIN_LSM6DS3TR_C_POWER, HIGH);
   delay(20);
   IMU_WIRE.begin();
+  IMU_WIRE.setClock(OPENPAW_I2C_HZ);  // after begin(): begin() resets the bus to 100 kHz
   uint8_t who = 0;
   if (!i2c_read(LSM_ADDR, 0x0F, &who, 1) || who != 0x6A) return false;
   i2c_write(LSM_ADDR, 0x12, 0x44);  // CTRL3_C: BDU=1, IF_INC=1
@@ -130,6 +131,7 @@ static bool imu_begin() {
   digitalWrite(PIN_ACC_POWER_EN, HIGH);
   delay(20);
   IMU_WIRE.begin();
+  IMU_WIRE.setClock(OPENPAW_I2C_HZ);  // after begin(): begin() resets the bus to 100 kHz
   i2c_write(QMA_ADDR, 0x36, 0xB6); delay(5);
   i2c_write(QMA_ADDR, 0x36, 0x00); delay(10);
   uint8_t id = 0;

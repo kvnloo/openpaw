@@ -296,6 +296,13 @@ static inline uint16_t openpaw_adv_step(openpaw_adv_t *a, int connected, uint32_
 #define OPENPAW_LSM_FIFO_CTRL3 0x01
 #define OPENPAW_FIFO_READ_MS 1000u  // how often the CPU drains the FIFO
 
+// IMU bus clock. Both sensors support I2C fast mode (LSM6DS3TR-C datasheet I2C timing table;
+// QMA6100P datasheet Rev F table 9: fSCL max 400 kHz). The Seeed core's Wire driver busy-waits
+// for every byte, so the bus clock sets how long the CPU stays awake per read (docs/POWER.md).
+// TwoWire::begin() resets the clock to 100 kHz, so call setClock after every begin().
+// Not yet run on hardware: if reads fail on a real board (weak pull-ups), set 100000u here.
+#define OPENPAW_I2C_HZ 400000u
+
 static inline uint8_t openpaw_lsm_fifo_ctrl5(float hz) {
   const uint8_t odr = hz <= 12.5f ? 1 : 3;  // the two rates the collar uses: 12.5 Hz still, 52 Hz full
   return (uint8_t)((odr << 3) | 0x06);
