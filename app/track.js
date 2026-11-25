@@ -81,7 +81,7 @@ function renderTiles() {
       const today = tot ? (t.type === 'scale' ? `avg ${fmt(tot.v)}` : t.type === 'check' ? `${tot.n}× today` : `${fmt(tot.v)} ${t.unit || ''}`) : '';
       const key = t.category === 'behavior'; // reactivity is the first use case: Episode is the grid's focal tile
       return `<button class="tile${key ? ' key' : ''}" data-t="${esc(t.id)}">${key ? '<span class="br tl"></span><span class="br bR"></span>' : ''}<span class="tap" aria-hidden="true">+</span><span class="nm">${esc(t.name)}</span><span>${today ? `<span class="today">${esc(today)}</span>` : `<span class="meta">${esc(t.unit || (t.type === 'check' ? 'tap to log' : t.type))}</span>`}</span></button>`;
-    }).join('')}${cat === 'custom' ? '<button class="tile add" data-go="trackers"><span class="nm">+ New tracker</span><span class="meta">anything you like</span></button>' : ''}</div></div>`;
+    }).join('')}${cat === 'custom' ? '<button class="tile add" data-go="trackers"><span class="tap" aria-hidden="true">+</span><span class="nm">New tracker</span><span><span class="meta">anything you like</span></span></button>' : ''}</div></div>`;
   }).join('');
 }
 
