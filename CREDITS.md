@@ -25,6 +25,10 @@ OpenPaw is intended to preserve the origin of ideas, evidence, design decisions,
 
 - Field "Session check" stop rule (`app/session-check.js`): threshold signs (can't look away, stops taking favourite food) and "make distance" from East Bay SPCA's [Look At That handout](https://eastbayspca.org/wp-content/uploads/2024/05/Look-At-That_A-Reactivity-Exercise.pdf) (CC BY-NC 4.0; LAT by Leslie McDevitt); shivering, pacing, panting -> stop or add distance from Grisha Stewart's [BAT demo](https://www.youtube.com/watch?v=Q9BsLd6KQqM&t=350s) (5:50); reward-based, distance-first framing from AVSAB 2021; the panting caveat from Clark et al. 2020 (panting common in therapy-dog visits, cortisol unchanged). Wording is ours; no endorsement implied.
 
+## Fonts
+
+- Self-hosted fonts (SIL Open Font License 1.1, latin subsets): [Fraunces](https://github.com/undercasetype/Fraunces) by The Fraunces Project Authors, [Hanken Grotesk](https://github.com/marcologous/hanken-grotesk) by Alfredo Marco Pradil, [IBM Plex Mono](https://github.com/IBM/plex) by IBM. `site/fonts/fraunces-latin-opsz-normal.woff2` is a modified version: its weight axis is limited to 400-600 (the weights the site uses) with [fontTools](https://github.com/fonttools/fonttools) `varLib.instancer`; it stays under the OFL.
+
 ## Contribution provenance
 
 When an external expert or contributor materially influences a design:
