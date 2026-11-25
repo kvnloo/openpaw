@@ -165,6 +165,29 @@ test('c-play-sound card: noise misleads both ways; cites farago2017 with its num
   assert.ok(c.examples.some((e) => /Q9BsLd6KQqM/.test(e.url) && /wag/i.test(e.label)), 'wagging-but-reacting example');
 });
 
+test('c-visitor-touch card: a visitor lets a nervous dog approach and does not reach; cites pedretti2023 with its numbers', () => {
+  const c = CARDS.find((x) => x.id === 'c-visitor-touch');
+  assert.ok(c, 'c-visitor-touch card exists');
+  assert.equal(c.lesson, 'consent');
+  const right = c.choices[c.answer];
+  assert.match(right, /no reach|not reach|without reaching|keep(s)? (her|their) hands? (to|in)/i);
+  assert.match(right, /toss|throw/i);
+  assert.doesNotMatch(right, /pet him now|hold (him|out)|stare/i);
+  assert.ok(c.choices.some((x, i) => i !== c.answer && /reach|pet/i.test(x)), 'a distractor reaches to pet');
+  assert.ok(c.evidence && c.evidence.includes('pedretti2023-appeasement-function-of-displacement-behaviours-dogs-behavioural-displays'), 'cites pedretti2023');
+  assert.ok(c.evidence.includes('avsab2021-position-statement-on-humane-dog-training'), 'cites AVSAB');
+  // The study's own numbers: threatening (slow, staring, bent-over) vs ordinary approach.
+  assert.match(c.explain, /26 of 53/);
+  assert.match(c.explain, /11 of 53/);
+  assert.match(c.explain, /star(e|ing)/i);
+  // The study measured responses, not a training method: no "proven" claim for the technique.
+  assert.doesNotMatch(c.explain, /proven|guarantee/i);
+  assert.ok(Array.isArray(c.examples) && c.examples.length >= 2, 'video examples');
+  for (const e of c.examples) assert.match(e.url, /^https:\/\/www\.youtube\.com\/watch\?v=_0WoUtmkoBI&t=\d+s$/, e.url);
+  assert.ok(c.examples.some((e) => /hand/i.test(e.label) && /(ask|trigger)/i.test(e.label)), 'an example treats the reaching hand as its own trigger');
+  assert.ok(c.examples.some((e) => /sideways|crouch/i.test(e.label)), 'an example shows the small, still, side-on stance');
+});
+
 test('every card example is a timestamped https link with a label', () => {
   for (const c of CARDS.filter((x) => x.examples)) {
     for (const e of c.examples) {
