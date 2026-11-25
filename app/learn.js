@@ -4,6 +4,7 @@
 
 import { getMeta, setMeta, putEvents, allEvents, liveEvents, ownerEvent, dogId, download } from './store.js';
 import { LESSONS, CARDS, SOURCE_NAMES, DISCLAIMER } from './learn-content.js';
+import { choiceOrder } from './choice-order.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -412,7 +413,7 @@ function runSession(cards) {
   let i = 0, correct = 0; const misses = [];
   const show = () => {
     const c = cards[i];
-    const order = c.choices.map((_, k) => k).sort(() => Math.random() - 0.5); // shuffled so position is no clue
+    const order = choiceOrder(c.choices.length); // fair shuffle, so position is no clue
     const { svg } = drawDog(c.art, { title: c.context });
     v.innerHTML = `
       <nav class="crumb mono small"><a href="#practice" id="quit">\u2190 End session</a><span class="dim">${i + 1} / ${cards.length}</span></nav>
