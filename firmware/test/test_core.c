@@ -241,6 +241,27 @@ int main(int argc, char **argv) {
   CHECK(openpaw_link_step(&lk, 1, 0, 0xFFFFFF00u) == OPENPAW_LINK_FAST, "connect just before millis() wraps");
   CHECK(openpaw_link_step(&lk, 1, 0, 0xFFFFFF00u + OPENPAW_LINK_IDLE_MS) == OPENPAW_LINK_SLOW, "idle time survives the wrap");
 
+  // 14. advertising (power): 100 ms for 30 s, then every 1 s as before; once no phone
+  // has connected for OPENPAW_ADV_PARK_MS the collar advertises every 2 s ("parked").
+  // A connection restores the normal 100 ms/1 s pair so the next disconnect starts fast.
+  CHECK(OPENPAW_ADV_FAST == 160 && OPENPAW_ADV_SLOW == 1600 && OPENPAW_ADV_PARKED == 3200,
+        "adv units 0.625 ms: 160 = 100 ms, 1600 = 1 s, 3200 = 2 s");
+  CHECK(OPENPAW_ADV_PARK_MS == 600000u, "parked after 10 min with no phone");
+  openpaw_adv_t av; openpaw_adv_init(&av, 500);
+  CHECK(openpaw_adv_step(&av, 0, 1000) == 0, "after boot: keep the normal intervals");
+  CHECK(openpaw_adv_step(&av, 0, 500 + OPENPAW_ADV_PARK_MS - 1) == 0, "just under 10 min: not parked yet");
+  CHECK(openpaw_adv_step(&av, 0, 500 + OPENPAW_ADV_PARK_MS) == OPENPAW_ADV_PARKED, "10 min with no phone: park at 2 s");
+  CHECK(openpaw_adv_step(&av, 0, 3600000u) == 0, "parked stays parked without repeated requests");
+  CHECK(openpaw_adv_step(&av, 1, 3601000u) == OPENPAW_ADV_SLOW, "phone connects: restore 100 ms/1 s for the next disconnect");
+  CHECK(openpaw_adv_step(&av, 1, 3602000u) == 0, "connected: nothing more to change");
+  CHECK(openpaw_adv_step(&av, 0, 3603000u) == 0, "just disconnected: normal advertising");
+  CHECK(openpaw_adv_step(&av, 0, 3602000u + OPENPAW_ADV_PARK_MS - 1) == 0, "the clock counts from the last connected moment");
+  CHECK(openpaw_adv_step(&av, 0, 3602000u + OPENPAW_ADV_PARK_MS) == OPENPAW_ADV_PARKED, "10 min after the disconnect: parked again");
+  openpaw_adv_init(&av, 0);
+  CHECK(openpaw_adv_step(&av, 1, 1000) == 0, "connect before ever parking: nothing to restore");
+  openpaw_adv_init(&av, 0xFFFFFF00u);
+  CHECK(openpaw_adv_step(&av, 0, 0xFFFFFF00u + OPENPAW_ADV_PARK_MS) == OPENPAW_ADV_PARKED, "park time survives the millis() wrap");
+
   if (argc > 1) {  // golden vectors for app/test: hex packet + expected decoded fields
     FILE *f = fopen(argv[1], "w");
     if (!f) { perror("golden"); return 2; }

@@ -369,6 +369,18 @@ static void link_update(uint32_t now) {
   if (want == OPENPAW_LINK_FAST) c->requestConnectionParameter(OPENPAW_LINK_FAST, 0, OPENPAW_LINK_TIMEOUT_10MS);
   else c->requestConnectionParameter(OPENPAW_LINK_SLOW, OPENPAW_LINK_SLOW_LATENCY, OPENPAW_LINK_TIMEOUT_10MS);
 }
+static openpaw_adv_t g_adv;  // normal (100 ms then 1 s) or parked (2 s) advertising (openpaw_core.h)
+
+static void adv_update(uint32_t now) {
+  uint16_t want = openpaw_adv_step(&g_adv, g_conn != BLE_CONN_HANDLE_INVALID, now);
+  if (want == OPENPAW_ADV_PARKED) {  // nobody connected for 10 min: restart at 2 s, no fast burst
+    if (Bluefruit.Advertising.isRunning()) Bluefruit.Advertising.stop();
+    Bluefruit.Advertising.setInterval(OPENPAW_ADV_PARKED, OPENPAW_ADV_PARKED);
+    Bluefruit.Advertising.start(0);
+  } else if (want == OPENPAW_ADV_SLOW) {  // connected: advertising is off; restartOnDisconnect uses these
+    Bluefruit.Advertising.setInterval(OPENPAW_ADV_FAST, OPENPAW_ADV_SLOW);
+  }
+}
 static void disconnect_cb(uint16_t conn, uint8_t reason) {
   (void)conn; (void)reason;
   g_conn = BLE_CONN_HANDLE_INVALID;
@@ -430,7 +442,7 @@ static void ble_begin() {
   Bluefruit.Advertising.addService(svc);
   Bluefruit.ScanResponse.addName();
   Bluefruit.Advertising.restartOnDisconnect(true);
-  Bluefruit.Advertising.setInterval(160, 1600);  // 100 ms fast for 30 s, then 1 s
+  Bluefruit.Advertising.setInterval(OPENPAW_ADV_FAST, OPENPAW_ADV_SLOW);  // 100 ms for 30 s, then 1 s; loop() parks at 2 s
   Bluefruit.Advertising.setFastTimeout(30);
   Bluefruit.Advertising.start(0);
 }
@@ -487,6 +499,7 @@ void setup() {
   openpaw_ring_init(&g_ring, g_ring_store, RING_RECORDS);
   openpaw_power_init(&g_pwr);
   openpaw_link_init(&g_link);
+  openpaw_adv_init(&g_adv, millis());
 
   bool ok = imu_begin();
   flash_probe();
@@ -520,6 +533,7 @@ void loop() {
 
   uint32_t now = millis();
   link_update(now);
+  adv_update(now);
   if ((int32_t)(now - next_ms) < 0) {
     if (!g_dumping) delay(next_ms - now);  // FreeRTOS delay = CPU sleeps between samples
     return;
