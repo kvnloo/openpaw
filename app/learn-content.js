@@ -354,6 +354,7 @@ export const CARDS = [
     ] },
   { id: 'c-sound', lesson: 'threshold', art: { posture: 'turn', ears: 'back', eye: 'whale', mouth: 'closed', tail: 'low' },
     context: 'You are practising with a recording of a sound that scares your dog: played very quietly while she finds treats in a snuffle mat. You turn it up a few steps. Her tail tucks, she stops eating and walks away from the mat.',
+    ask: 'What should you do next?',
     choices: ['Turn it up more so she gets used to it faster', 'Keep the same volume and offer better treats', 'That step was too big: stop for today, and next time start quieter and change one thing at a time', 'She is full; carry on'], answer: 2,
     explain: 'Stopping eating is a common sign a dog is over threshold, so the step was likely too big. A review of noise-fear care says practice should start at a level that causes no fear and get harder only gradually, and that refusing food is a sign of high stress. Some dogs show an earlier sign first, such as a tucked tail. In the largest owner survey, about 55% of owners said practice with recordings helped, versus over 70% for pairing real noises with food or play: owner reports, not trials. If she will not eat even at the lowest level, tell your vet; your vet or behavior consultant can plan the steps.',
     sources: [SRC.riemer2023],
@@ -364,6 +365,7 @@ export const CARDS = [
     ] },
   { id: 'c-door-knock', lesson: 'threshold', art: { posture: 'turn', ears: 'forward', eye: 'soft', mouth: 'closed', tail: 'mid' },
     context: 'Your dog usually barks and rushes the door when someone knocks. You sit on the floor near the door feeding her small treats while a helper outside knocks, softly at first. She has been lying at your feet, eating. After a harder knock she gets up and stands, head up, but does not bark.',
+    ask: 'What should you do next?',
     choices: ['She did not bark, so knock harder next time', 'Make her lie down again and repeat the same knock until she stays down', 'That step was close to too much: next knock softer or fewer knocks, and keep sessions short', 'Stop the treats so she pays attention to the door'], answer: 2,
     explain: 'Some trainers use a dog getting up out of a sit or down, or stopping chewing, as a sign she is close to reacting, so the next step should be easier. That is a trainer\u2019s rule of thumb; we know of no study that measured it. A review of noise-fear care says practice should start at a level that causes no fear and get harder only gradually, and that refusing food is a sign of high stress. In a small study of 8 dogs with separation problems (one group, no comparison group), graded steps paired with food lowered how often and how badly the problem showed. Door knocks were not studied there. AVSAB recommends reward-based methods. Your behavior consultant can plan the steps.',
     sources: [SRC.riemer2023, SRC.butler2011, SRC.avsabHumane],
@@ -388,6 +390,7 @@ export const CARDS = [
     ] },
   { id: 'c-one-step', lesson: 'threshold', art: { posture: 'sniff', ears: 'neutral', eye: 'soft', mouth: 'closed', tail: 'mid', prop: 'person' },
     context: 'Your dog barks at people wearing hats. A friend he knows well and likes offers to help you practise in the park.',
+    ask: 'How do you set up the practice?',
     choices: ['Have a stranger in a big hat walk straight up to him, so he learns hats are harmless', 'Correct him every time he barks at a hat', 'Your friend starts with the hat on the ground, then holds it, then wears it, with treats at each step: one change at a time, and if he stops eating, go back a step', 'Do nothing: he will get used to hats on his own'], answer: 2,
     explain: 'Making one thing harder at a time (who, what, how close, how worn) lets you see which step was too much. A review of noise-fear care says practice should start at a level that causes no fear and get harder only gradually, and that refusing food is a sign of high stress. In a small study of 8 dogs with separation problems (one group, no comparison group), graded steps paired with food lowered how often and how badly the problem showed. Hats were not studied there: in the example, the hat-then-coat order is a trainer\u2019s method, and the video does not show how that dog reacted to hats before training. The video\u2019s own warning: with a very shy or reactive dog, get a behavior consultant, and keep your dog out of reach of the person holding the object. AVSAB recommends reward-based methods.',
     sources: [SRC.riemer2023, SRC.butler2011, SRC.avsabHumane],
@@ -403,6 +406,7 @@ export const CARDS = [
     explain: 'Moving away, shaking off and lip licking after a pause often mean the dog does not want more touch right now.', sources: [SRC.consentShelter, SRC.kuhne2014] },
   { id: 'c-visitor-touch', lesson: 'consent', art: { posture: 'turn', ears: 'neutral', eye: 'soft', mouth: 'closed', tail: 'mid', prop: 'hand' },
     context: 'A visitor your dog is nervous of sits on the floor across the room, tossing him treats. He eats them, standing side-on about 2 m from her. She says \u201che\u2019s fine now\u201d and reaches out to pet him.',
+    ask: 'What do you do?',
     choices: ['Let her pet him now: he is taking food, so he is fine', 'Hold him still so she can pet him', 'Ask her to keep her hands to herself, look away and keep tossing treats; he can choose to come closer, and touch can wait', 'Have her walk up to him slowly, looking him in the eye, so he gets used to her'], answer: 2,
     explain: 'Taking food at a distance he chose does not mean he is ready for a hand. Some trainers treat a reaching hand as a separate step and first ask whether touch is a trigger for this dog. In a study of 53 dogs on lead approached by two unfamiliar people, 26 of 53 barked or lunged when a person walked up slowly, bent over, staring into their eyes, against 11 of 53 when a person walked up in an ordinary way. That study measured reactions, not a training method. Letting a nervous dog set the distance, with food and no pressure, is commonly used by force-free trainers (counterconditioning), and AVSAB recommends reward-based methods. If he comes over and leans in, a short pet, pause, pet check tells you whether he wants more.',
     sources: [SRC.pedretti2023, SRC.avsabHumane, SRC.consentShelter],
@@ -417,7 +421,8 @@ export const CARDS = [
     choices: ['He has become dominant', 'This could be pain; book a vet check and write down what you see', 'He needs stricter rules', 'Ignore it, he is just old'], answer: 1,
     explain: 'New touch sensitivity and avoiding jumping can come from pain. A vet check comes first; this app cannot diagnose.', sources: [SRC.mills2020, SRC.medicalReview] },
   { id: 'c-sniff', lesson: 'recovery', art: { posture: 'sniff', ears: 'neutral', eye: 'soft', mouth: 'closed', tail: 'mid' },
-    context: 'After a reaction on a walk, what is most likely to help your dog settle?',
+    context: 'On a walk your dog has just barked and lunged at a dog across the road. The other dog has gone round the corner.',
+    ask: 'What is most likely to help him settle now?',
     choices: ['Walk faster to burn energy', 'A slow, quiet stretch where he can sniff freely', 'Practise obedience drills right away', 'Go back toward the trigger'], answer: 1,
     explain: 'Quiet, low-demand time and sniffing are widely recommended for recovery. Direct research on the walk format is limited. A first sniff can come back within seconds of the trigger leaving: that is the start of recovery, not the end. Body measures take longer: in a lab study of 10 dogs, heart rate took about 6 to 8 minutes on average to return after startling events. Keep things quiet for a while, even once he sniffs.',
     sources: [SRC.duranton2019, SRC.corenDecompress],
@@ -469,6 +474,7 @@ export const CARDS = [
     ] },
   { id: 'c-route', lesson: 'pain', art: { posture: 'turn', ears: 'back', eye: 'whale', mouth: 'lick', tail: 'low' },
     context: 'Two weeks ago a loud bang went off on your usual walk. Since then, a few houses down that route, your dog turns back, licks his lips and pulls toward home.',
+    ask: 'What would you do next?',
     choices: ['He is being stubborn: keep walking the same route until he gets over it', 'Take him back there every day so he gets used to it', 'Walk a different route for now, write down when it started, and tell your vet', 'Nothing to do: it will pass on its own'], answer: 2,
     explain: 'Turning back, lip licking and pulling toward home after a scary event can be signs of fear of that place. Keeping a dog away from what scares him while you get help is part of standard noise-fear care, so the fear does not grow; the best-supported training pairs the sound with food or play, step by step (counterconditioning). A sudden change is also worth a vet check. In a small study of 20 noise-sensitive dogs seen by behavior specialists, the fear had spread to the place where the noise happened, or to car trips, in 8 of 10 dogs that also had muscle or joint pain, but in only 2 of 10 dogs without pain. Your vet or behavior consultant can plan the next step.',
     sources: [SRC.lopesfagundes2018, SRC.riemer2023],
@@ -478,5 +484,10 @@ export const CARDS = [
       { url: 'https://www.youtube.com/watch?v=BceBaeNBeX4&t=34s', label: 'A force-free trainer: before training a dog that stops on walks, rule out pain with a vet check and fear of something on the route, such as traffic noise (0:34 to 0:59, Happy Hounds Dog Training)' },
     ] },
 ];
+
+// The quiz question. Reading cards use the default; cards whose right answer is a next step
+// for the owner carry their own `ask`, so the question matches the choices.
+export const DEFAULT_ASK = 'What is this dog most likely telling you?';
+export const askFor = (card) => card.ask || DEFAULT_ASK;
 
 export const DISCLAIMER = 'OpenPaw teaches common, research-backed readings of dog body language. Every dog is an individual and signals depend on context. This is not a diagnosis or a training plan: ask your behavior consultant or vet.';

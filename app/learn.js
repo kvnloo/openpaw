@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 import { getMeta, setMeta, putEvents, allEvents, liveEvents, ownerEvent, dogId, download } from './store.js';
-import { LESSONS, CARDS, SOURCE_NAMES, DISCLAIMER } from './learn-content.js';
+import { LESSONS, CARDS, SOURCE_NAMES, DISCLAIMER, askFor } from './learn-content.js';
 import { choiceOrder } from './choice-order.js';
 
 const $ = (s, el = document) => el.querySelector(s);
@@ -421,7 +421,7 @@ function runSession(cards) {
       <article class="quiz" data-card="${c.id}">
         <figure class="fig q"><span class="br tl"></span><span class="br br-"></span>${svg}</figure>
         <div class="qbody"><p class="context">${esc(c.context)}</p>
-        <p class="k">What is this dog most likely telling you?</p>
+        <p class="k">${esc(askFor(c))}</p>
         <div class="choices">${order.map((k) => `<button class="choice" data-k="${k}">${esc(c.choices[k])}</button>`).join('')}</div>
         <div class="explain" hidden></div></div>
       </article>`;

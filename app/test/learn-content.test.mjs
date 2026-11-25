@@ -283,6 +283,30 @@ test('every card example is a timestamped https link with a label', () => {
   }
 });
 
+test('each card asks a question that fits its answer: action cards ask what to do, not what the dog is telling you', async () => {
+  const { askFor, DEFAULT_ASK } = await import('../learn-content.js');
+  assert.match(DEFAULT_ASK, /telling you\?$/);
+  // These cards' right answers are a next step for the owner, not a reading of a signal.
+  const action = ['c-sound', 'c-door-knock', 'c-one-step', 'c-visitor-touch', 'c-sniff', 'c-route'];
+  for (const id of action) {
+    const c = CARDS.find((x) => x.id === id);
+    assert.ok(c, id);
+    const q = askFor(c);
+    assert.doesNotMatch(q, /telling you/i, `${id}: "${q}" does not fit an action answer`);
+    assert.match(q, /\?$/, `${id}: ask is a question`);
+    assert.match(q, /\b(do|next|help)\b/i, `${id}: asks for an action`);
+  }
+  // Reading cards keep the default question.
+  for (const id of ['c-loose', 'c-whale', 'c-yawn']) assert.equal(askFor(CARDS.find((x) => x.id === id)), DEFAULT_ASK, id);
+  // No card asks two questions: the scenario is a statement, the ask is the only question.
+  for (const c of CARDS) assert.doesNotMatch(c.context.trim(), /\?$/, `${c.id}: context ends in a question; move it to ask`);
+  // The quiz renders the per-card ask, not a hard-coded line.
+  const { readFileSync } = await import('node:fs');
+  const src = readFileSync(new URL('../learn.js', import.meta.url), 'utf8');
+  assert.match(src, /askFor\(c\)/);
+  assert.doesNotMatch(src, /<p class="k">What is this dog most likely telling you\?<\/p>/);
+});
+
 test('all registered sources are used and named', () => {
   const used = new Set([...LESSONS.flatMap((l) => l.sources), ...CARDS.flatMap((c) => c.sources)]);
   for (const u of Object.values(SRC)) assert.ok(used.has(u), `unused source ${u}`);
