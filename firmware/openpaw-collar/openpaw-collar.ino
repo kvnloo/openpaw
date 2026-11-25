@@ -1,4 +1,4 @@
-// OpenPaw reference collar firmware v0.3.0
+// OpenPaw reference collar firmware v0.4.0
 //
 // Boards (Arduino core "Seeed nRF52 Boards", Seeeduino:nrf52):
 //   - Seeed XIAO nRF52840 Sense  (FQBN Seeeduino:nrf52:xiaonRF52840Sense)  IMU LSM6DS3TR-C
@@ -30,7 +30,7 @@
 #include "openpaw_core.h"
 #include "openpaw_flog.h"
 
-#define OPENPAW_FW_VERSION "0.3.0"
+#define OPENPAW_FW_VERSION "0.4.0"
 #define OPENPAW_PROTO 2  // 2: set-time (0x20) + time anchors in the log
 #define SAMPLE_HZ 50
 #define RING_RECORDS 4096  // RAM fallback when no external flash answers: 80 KB = 5.7 h at 5 s epochs

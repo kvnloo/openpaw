@@ -110,6 +110,18 @@ class ReleaseLinkTests(unittest.TestCase):
         self.assertNotIn('next firmware release fixes this', guide.lower())
         self.assertIn('Firmware 0.3', guide)
 
+    def test_firmware_ships_the_power_modes_in_a_release_newer_than_0_3(self):
+        # Still mode, link/advertising steps, IMU FIFOs and 400 kHz I2C (docs/POWER.md
+        # "firmware 0.4 and later") landed after 0.3.0.
+        text = FIRMWARE.read_text(encoding='utf-8')
+        version = re.search(r'#define OPENPAW_FW_VERSION \"([^\"]+)\"', text).group(1)
+        self.assertGreaterEqual(tuple(int(p) for p in version.split('.')), (0, 4, 0))
+
+    def test_guide_names_the_release_that_saves_power_when_still(self):
+        guide = GUIDE.read_text(encoding='utf-8')
+        self.assertNotIn('the next firmware (0.4)', guide.lower())
+        self.assertIn('Firmware 0.4 and later samples 10 times a second', guide)
+
 
 class VerifyCollarTests(unittest.TestCase):
     def test_serial_csv_header_matches_firmware(self):
