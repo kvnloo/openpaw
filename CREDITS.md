@@ -12,6 +12,7 @@ OpenPaw is intended to preserve the origin of ideas, evidence, design decisions,
 
 ## Reference collar
 
+- LSM6DS3TR-C FIFO batching (XIAO): register values from the ST LSM6DS3TR-C datasheet, cross-checked against STMicroelectronics' [lsm6ds3tr-c driver](https://github.com/STMicroelectronics/lsm6ds3tr-c) (`lsm6ds3tr-c_reg.h/.c`, BSD-3-Clause). Facts only; no code copied.
 - QMA6100P accelerometer init sequence (T1000-E): Seeed Studio, `Tracker_T1000_E_LoRaWAN_Examples` (MIT), shipped with the Seeed nRF52 Arduino core.
 - Bluetooth stack and bootloader: Adafruit nRF52 Arduino core / Bluefruit and the Adafruit UF2 bootloader, via Seeed's fork (LGPL-2.1 / MIT).
 - T1000-E battery divider (x2 on P0.02, 3.0 V reference) and flash wiring (QSPI IO3 on P1.00, Flash Enable on P1.13): cross-checked from Seeed's [T1000-E LoRaWAN dev-board firmware](https://github.com/Seeed-Studio/Seeed-Tracker-T1000-E-for-LoRaWAN-dev-board) (`sensor.c`), the Seeed wiki pin table, the Seeed nRF52 core `variant.cpp`, [Meshtastic](https://github.com/meshtastic/firmware) `tracker-t1000-e/variant.h` (GPL-3.0) and [SoftRF](https://github.com/lyusupov/SoftRF) `Seeed_T1000E.h` (GPL-3.0), which also flagged the possible GD25Q64 part. Facts only; no code copied.

@@ -4,7 +4,8 @@
 //   - Seeed XIAO nRF52840 Sense  (FQBN Seeeduino:nrf52:xiaonRF52840Sense)  IMU LSM6DS3TR-C
 //   - Seeed SenseCAP T1000-E     (FQBN Seeeduino:nrf52:tracker_t1000_e_lorawan) IMU QMA6100P
 //
-// What it does: samples the accelerometer at 50 Hz, summarizes every 5 s into a
+// What it does: samples the accelerometer at ~50 Hz (XIAO: 52 Hz batched in the IMU's
+// FIFO and read once a second; T1000-E: polled at 50 Hz), summarizes every 5 s into a
 // 20-byte record (openpaw_core.h), stores records in a power-loss-safe circular
 // log on the external flash (openpaw_flog.h; RAM ring if no flash answers),
 // streams each record live over BLE, and lets the OpenPaw web app download the backlog.
@@ -65,7 +66,20 @@ static bool i2c_read(uint8_t addr, uint8_t reg, uint8_t *buf, uint8_t n) {
 
 #if BOARD_XIAO_SENSE
 // LSM6DS3TR-C: 52 Hz, +/-8 g, gyro off. 0.244 mg/LSB at +/-8 g (datasheet table 3).
+// Samples are batched in the IMU's FIFO and read about once a second (openpaw_core.h),
+// so the epoch is counted in the IMU's own 52 Hz / 12.5 Hz samples.
 #define LSM_ADDR 0x6A
+#define IMU_HAS_FIFO 1
+#define IMU_FULL_HZ 52.0f
+#define IMU_LOW_HZ 12.5f
+#define FIFO_CHUNK 10  // samples per I2C burst: 60 B fits the Wire buffer
+static bool g_fifo_drop_first = false;
+static void imu_fifo_restart(bool low) {  // bypass empties the FIFO, then continuous at the new rate
+  i2c_write(LSM_ADDR, 0x0A, 0x00);
+  i2c_write(LSM_ADDR, 0x08, OPENPAW_LSM_FIFO_CTRL3);
+  i2c_write(LSM_ADDR, 0x0A, openpaw_lsm_fifo_ctrl5(low ? IMU_LOW_HZ : IMU_FULL_HZ));
+  g_fifo_drop_first = true;  // datasheet 5.5: discard the first sample after entering a FIFO mode
+}
 static bool imu_begin() {
   pinMode(PIN_LSM6DS3TR_C_POWER, OUTPUT);
   digitalWrite(PIN_LSM6DS3TR_C_POWER, HIGH);
@@ -77,16 +91,32 @@ static bool imu_begin() {
   i2c_write(LSM_ADDR, 0x11, 0x00);  // CTRL2_G: gyro power-down
   i2c_write(LSM_ADDR, 0x10, 0x3C);  // CTRL1_XL: ODR 52 Hz, FS +/-8 g
   i2c_write(LSM_ADDR, 0x15, 0x10);  // CTRL6_C: XL_HM_MODE=1 (low-power accel at 52 Hz)
+  imu_fifo_restart(false);
   return true;
 }
 // Still mode: ODR 12.5 Hz low-power (9 uA vs 25 uA at 52 Hz, ST AN5130 table 7), FS +/-8 g kept.
-static void imu_set_low_rate(bool low) { i2c_write(LSM_ADDR, 0x10, low ? 0x1C : 0x3C); }
-static bool imu_read_mg(int16_t *x, int16_t *y, int16_t *z) {
-  uint8_t b[6];
-  if (!i2c_read(LSM_ADDR, 0x28, b, 6)) return false;
-  *x = (int16_t)((int16_t)(b[0] | (b[1] << 8)) * 0.244f);
-  *y = (int16_t)((int16_t)(b[2] | (b[3] << 8)) * 0.244f);
-  *z = (int16_t)((int16_t)(b[4] | (b[5] << 8)) * 0.244f);
+static void imu_set_low_rate(bool low) {
+  i2c_write(LSM_ADDR, 0x10, low ? 0x1C : 0x3C);
+  imu_fifo_restart(low);
+}
+// Read up to max queued samples (mg, xyz interleaved). false on an I2C error.
+static bool imu_fifo_read(int16_t *xyz, uint16_t max, uint16_t *n, bool *overrun) {
+  uint8_t st[4], b[6 * FIFO_CHUNK];
+  *n = 0; *overrun = false;
+  if (!i2c_read(LSM_ADDR, 0x3A, st, 4)) return false;  // FIFO_STATUS1..4
+  openpaw_fifo_plan_t p = openpaw_lsm_fifo_plan(st);
+  *overrun = p.overrun;
+  if (p.skip_words && !i2c_read(LSM_ADDR, 0x3E, b, (uint8_t)(2 * p.skip_words))) return false;
+  uint16_t want = p.samples < max ? p.samples : max;
+  while (*n < want) {
+    uint8_t k = (uint8_t)((want - *n) < FIFO_CHUNK ? (want - *n) : FIFO_CHUNK);
+    if (!i2c_read(LSM_ADDR, 0x3E, b, (uint8_t)(6 * k))) return false;
+    for (uint8_t i = 0; i < k; i++) {
+      if (g_fifo_drop_first) { g_fifo_drop_first = false; want--; continue; }
+      int16_t *o = xyz + 3 * (*n)++;
+      openpaw_lsm_xyz_mg(b + 6 * i, o, o + 1, o + 2);
+    }
+  }
   return true;
 }
 #endif
@@ -125,6 +155,9 @@ static bool imu_read_mg(int16_t *x, int16_t *y, int16_t *z) {
 // QMA6100P current depends on its master clock, not the ODR (38 uA at MCLK 51.2 kHz,
 // QST datasheet Rev F): still mode only polls it less often.
 static void imu_set_low_rate(bool) {}
+#define IMU_HAS_FIFO 0  // polled at 50 Hz; QMA6100P FIFO batching is a separate step
+#define IMU_FULL_HZ 50.0f
+#define IMU_LOW_HZ OPENPAW_HZ_LOW
 #endif
 
 // ---------------------------------------------------------------- battery
@@ -494,7 +527,7 @@ void setup() {
   led(false);
   Serial.begin(115200);
   openpaw_cfg_t cfg = openpaw_default_cfg();
-  cfg.sample_hz = SAMPLE_HZ;
+  cfg.sample_hz = IMU_FULL_HZ;  // epochs count the IMU's own samples (XIAO 52 Hz FIFO, T1000-E 50 Hz polled)
   openpaw_init(&g_core, cfg);
   openpaw_ring_init(&g_ring, g_ring_store, RING_RECORDS);
   openpaw_power_init(&g_pwr);
@@ -517,6 +550,9 @@ void setup() {
   Serial.println("seq,uptime_s,flags,vedba_mean_mg,vedba_max_mg,active_frac,pitch_deg,roll_deg,bursts,hr_bpm,battery_pct");
 }
 
+static bool epoch_done(openpaw_record_t *rec, uint32_t up);
+static void epoch_out(openpaw_record_t *rec, uint32_t up);
+
 void loop() {
   static uint32_t next_ms = millis();
   static uint32_t last_ok_ms = millis();
@@ -538,13 +574,43 @@ void loop() {
     if (!g_dumping) delay(next_ms - now);  // FreeRTOS delay = CPU sleeps between samples
     return;
   }
+  uint32_t up = now / 1000;
+  openpaw_record_t rec;
+
+#if IMU_HAS_FIFO
+  // drain the IMU FIFO about once a second (~50x fewer CPU wake-ups than polling)
+  static int16_t xyz[3 * 128];
+  uint16_t n = 0;
+  bool overrun = false;
+  next_ms = now + OPENPAW_FIFO_READ_MS;
+  if (!imu_fifo_read(xyz, 128, &n, &overrun)) {
+    g_imu_errors++;
+    n = 0;
+  } else if (n) {
+    last_ok_ms = now;
+    if (n == 128) next_ms = now;  // more queued (e.g. after find-me): read again at once
+  }
+  if (now - last_ok_ms > 2000 + OPENPAW_FIFO_READ_MS) {  // no samples: close the epoch as a GAP, re-init
+    if (openpaw_flush(&g_core, up, 0, g_batt, &rec)) epoch_done(&rec, up);
+    imu_begin();
+    last_ok_ms = now;
+    return;
+  }
+  // lost samples: close as GAP; if that changes the rate the FIFO restarted, so drop this batch
+  if (overrun && openpaw_flush(&g_core, up, 0, g_batt, &rec) && epoch_done(&rec, up)) n = 0;
+  uint32_t off = 0, used = 0;
+  while (off < n) {
+    int closed = openpaw_push_batch(&g_core, xyz + 3 * off, n - off, now, 0, g_batt, 0, &rec, &used);
+    off += used;
+    // a rate change restarts the FIFO: the rest of this batch is at the old rate, so drop it
+    if (closed && epoch_done(&rec, up)) break;
+  }
+#else
   next_ms += g_sample_ms;
   if ((int32_t)(now - next_ms) > 1000) next_ms = now + g_sample_ms;  // fell behind (e.g. find-me): resync
 
   int16_t x, y, z;
-  openpaw_record_t rec;
   bool have = false;
-  uint32_t up = now / 1000;
   if (imu_read_mg(&x, &y, &z)) {
     last_ok_ms = now;
     have = openpaw_push(&g_core, x, y, z, up, 0, g_batt, 0, &rec);
@@ -556,17 +622,28 @@ void loop() {
       last_ok_ms = now;
     }
   }
-  if (!have) return;
+  if (have) epoch_done(&rec, up);
+#endif
+}
 
+// Store, stream and report one closed epoch; returns true if the sampling rate changed.
+static bool epoch_done(openpaw_record_t *rec, uint32_t up) {
+  bool changed = false;
   // the epoch just closed, so a rate change starts cleanly with the next one
-  float want_hz = openpaw_power_step(&g_pwr, &rec, g_conn != BLE_CONN_HANDLE_INVALID);
+  float want_hz = openpaw_power_step(&g_pwr, rec, g_conn != BLE_CONN_HANDLE_INVALID);
   if (want_hz != g_rate_hz) {
     g_rate_hz = want_hz;
-    openpaw_set_rate(&g_core, want_hz);
+    openpaw_set_rate(&g_core, want_hz < SAMPLE_HZ ? IMU_LOW_HZ : IMU_FULL_HZ);
     imu_set_low_rate(want_hz < SAMPLE_HZ);
     g_sample_ms = (uint32_t)(1000.0f / want_hz + 0.5f);
+    changed = true;
   }
+  epoch_out(rec, up);
+  return changed;
+}
 
+static void epoch_out(openpaw_record_t *rec_p, uint32_t up) {
+  openpaw_record_t &rec = *rec_p;
   log_put(&rec);
   uint8_t pkt[OPENPAW_RECORD_SIZE];
   openpaw_encode(&rec, pkt);
