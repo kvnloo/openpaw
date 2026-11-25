@@ -81,7 +81,85 @@ def episode_card(key, records):
     </a>'''
 
 
+def _collar_derive():
+    import importlib.util
+    import sys
+    spec = importlib.util.spec_from_file_location("collar_derive", ROOT / "tools" / "collar_derive.py")
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules.setdefault(spec.name, mod)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def _hms(ts):
+    return escape(ts[11:19])
+
+
+def collar_event_card(e):
+    """One collar or Field source event, anchored so a derived figure can link to it."""
+    p = e.get("payload") or {}
+    value = p.get("value")
+    shown = f'{value} {p.get("unit") or ""}'.strip() if value is not None else ""
+    prov = e.get("provenance") or {}
+    ident = escape(e["event_id"])
+    return f'''<details class="collar-event" id="ev-{ident}">
+      <summary><time datetime="{escape(e['timestamp'])}">{_hms(e['timestamp'])}</time>
+        <span class="event-name"><b>{escape(str(p.get("metric", e.get("event_type", ""))))}</b></span>
+        <b class="measure">{escape(shown)}</b><span class="expand">+</span></summary>
+      <div class="event-info"><p class="meta">Source: <code>{escape(str(prov.get("origin")))} · {escape(str(prov.get("source_id")))}</code></p>
+        <p class="meta">Event: <code>{ident}</code></p><p class="meta">Recorded: <code>{escape(e['timestamp'])}</code></p></div>
+    </details>'''
+
+
+def collar_section(events):
+    """Per-episode movement rows from tools/collar_derive.py, each figure linked to its source event."""
+    if any((e.get("provenance") or {}).get("origin") != "simulated" for e in events):
+        raise ValueError("Refusing to render a collar export that is not entirely simulated on this synthetic page")
+    derived = _collar_derive().derive(events)
+    by_id = {e.get("event_id"): e for e in events}
+
+    def link(eid, text):
+        return f'<a href="#ev-{escape(eid)}">{escape(text)}</a>'
+
+    cards, shown = [], []
+    for d in derived:
+        p = d["payload"]
+        b, pk, bb = p["baseline"], p["peak"], p["back_in_band"]
+        trig = by_id[d["provenance"]["evidence_event_ids"][0]]
+        if b["status"] == "known":
+            band = (f'{escape(str(b["median_mg"]))} mg median, upper {escape(str(b["upper_mg"]))} mg · '
+                    f'{b["epochs"]} epochs from {link(b["first_event_id"], by_id[b["first_event_id"]]["timestamp"][11:19])} '
+                    f'to {link(b["last_event_id"], by_id[b["last_event_id"]]["timestamp"][11:19])}')
+        else:
+            band = f'unknown: only {b["epochs"]} usable epochs in the 30 min before'
+        ex = b["excluded"]
+        band += f' · left out {ex["quality"]} flagged clipped/gap, {ex["earlier_episode"]} from an earlier episode'
+        if bb["status"] == "observed":
+            back = f'{link(bb["event_id"], str(bb["after_trigger_s"]) + " s after the trigger")} ({bb["after_peak_s"]} s after the peak; first {bb["settle_s"]} s run at or under the upper band)'
+        elif bb["status"] == "unknown":
+            back = "unknown without a band"
+        else:
+            back = f'not observed in {bb["followed_up_s"]} s of follow-up'
+        cards.append(f'''<article class="collar-episode">
+      <span class="eyebrow">{escape(trig['timestamp'][:10])} · {link(trig['event_id'], trig['timestamp'][11:19] + ' UTC trigger mark')} · {escape(d['provenance']['origin'])}</span>
+      <strong>Episode {escape(str(d['episode_id']))}</strong>
+      <dl><dt>Band before</dt><dd>{band}</dd>
+        <dt>Peak</dt><dd>{link(pk['event_id'], str(pk['value_mg']) + ' mg')} at +{pk['after_trigger_s']} s</dd>
+        <dt>Back in band</dt><dd>{back}</dd></dl>
+    </article>''')
+        for eid in [trig["event_id"], b["first_event_id"], b["last_event_id"], pk["event_id"], bb["event_id"]]:
+            if eid and eid not in shown:
+                shown.append(eid)
+    sources = "".join(collar_event_card(by_id[i]) for i in sorted(shown, key=lambda i: by_id[i]["timestamp"]))
+    body = "".join(cards) or '<p class="empty-day">No episode with a "trigger seen" mark and collar epochs after it.</p>'
+    version = escape(getattr(_collar_derive(), "ALGORITHM_VERSION", ""))
+    return len(derived), f'''<section id="collar" aria-labelledby="collar-title"><div class="sectionhead"><h2 id="collar-title">Collar episodes</h2><span class="hint">From an app export · simulated · tools/collar_derive.py {version} · movement (VeDBA) only</span></div>
+<p class="side-note">Each band is this dog's own 30 minutes before the trigger. A hypothesis for experts to check, not a finding. Every figure opens the collar event it came from.</p>
+<div class="collar-grid">{body}</div><div class="collar-sources"><h3 class="kicker">Source events behind these figures</h3>{sources}</div></section>'''
+
+
 CSS = r"""
+.collar-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(340px,100%),1fr));gap:12px;margin:0 0 18px}.collar-episode{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:8px;min-width:0}.collar-episode strong{font-size:17px;letter-spacing:-.02em}.collar-episode dl{margin:4px 0 0;display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:13px}.collar-episode dt{color:var(--muted)}.collar-episode dd{margin:0;min-width:0;overflow-wrap:anywhere}.collar-episode a,.collar-episode .eyebrow a{color:var(--accent);text-decoration:underline;text-underline-offset:2px}.collar-sources h3{margin:18px 0 4px}.collar-event{border-bottom:1px solid #223036}.collar-event summary{display:flex;align-items:center;gap:13px;padding:11px 10px 11px 0;cursor:pointer;list-style:none}.collar-event summary::-webkit-details-marker{display:none}.collar-event time{font-variant-numeric:tabular-nums;color:var(--muted);font-size:12px;min-width:58px}.collar-event .event-info{padding-left:71px}#collar{margin-top:46px;scroll-margin-top:22px}.collar-event{scroll-margin-top:18px}@media(max-width:620px){.collar-episode dl{grid-template-columns:1fr}.collar-event .event-info{padding-left:0}}
 :root{color-scheme:dark;--bg:#0a1115;--panel:#111c21;--panel2:#16252a;--line:#2b393d;--fg:#e6eee8;--muted:#9eb0a9;--accent:#b4e3a8;--warm:#facb83;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:15px}
 *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--fg);line-height:1.45}
 button,select,textarea{font:inherit}a{color:inherit;text-decoration:none}button{cursor:pointer}
@@ -127,6 +205,15 @@ document.querySelectorAll('.episode-card').forEach(link => link.addEventListener
   history.replaceState(null, '', '#' + evidence.id);
   evidence.scrollIntoView({block: 'start'});
   evidence.querySelector('summary').focus({preventScroll: true});
+}));
+document.querySelectorAll('#collar a[href^="#ev-"]').forEach(link => link.addEventListener('click', event => {
+  const source = document.getElementById(decodeURIComponent(link.getAttribute('href').slice(1)));
+  if (!source) return;
+  event.preventDefault();
+  source.open = true;
+  history.replaceState(null, '', '#' + source.id);
+  source.scrollIntoView({block: 'start'});
+  source.querySelector('summary').focus({preventScroll: true});
 }));
 function downloadText(filename, text, type) {
   const url = URL.createObjectURL(new Blob([text], {type}));
@@ -185,7 +272,9 @@ document.getElementById('export-note').addEventListener('click', () => {
 """
 
 
-def render(records, source):
+def render(records, source, collar=None):
+    collar_html = collar_section(collar)[1] if collar is not None else ""
+    collar_nav = '<a href="#collar">Collar</a>' if collar is not None else ""
     days = defaultdict(list)
     for e in records:
         days[e["timestamp"][:10]].append(e)
@@ -215,10 +304,11 @@ def render(records, source):
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'none'; img-src data:; form-action 'none'; base-uri 'none'">
 <meta name="description" content="OpenPaw synthetic week for veterinary and behavior expert discovery; no medical claims."><title>OpenPaw · Fictional Week</title><style>{CSS}</style></head>
 <body><div class="topnotice">SYNTHETIC RECORDS ONLY · NO DIAGNOSIS · NO CLINICAL VALIDATION</div>
-<div class="shell"><header class="sitehead"><div class="brand"><span class="brandmark">P</span> OpenPaw <span class="hint">/ Field notes</span></div><nav class="nav" aria-label="Page navigation"><a href="#week">Week</a><a href="#episodes">Episodes</a><a href="#review">Review</a></nav></header>
+<div class="shell"><header class="sitehead"><div class="brand"><span class="brandmark">P</span> OpenPaw <span class="hint">/ Field notes</span></div><nav class="nav" aria-label="Page navigation"><a href="#week">Week</a>{collar_nav}<a href="#episodes">Episodes</a><a href="#review">Review</a></nav></header>
 <section class="hero"><div><div class="kicker">Expert discovery · fictional dog 001 · Oct 5–11, 2026 (UTC)</div><h1>One week, in context.</h1><p>Follow observations from trigger to later samples. Every figure links back to a fictional source event. No arousal inference, veterinary conclusion, or recovery threshold is computed.</p></div>
 <div class="stats"><div class="stat"><b>{len(records)}</b><span>Source events</span></div><div class="stat"><b>{len(EPISODE_NAMES)}</b><span>Trigger episodes</span></div><div class="stat"><b>{len(days)}</b><span>Calendar days</span></div></div></section>
 <section id="week" aria-labelledby="week-title"><div class="sectionhead"><h2 id="week-title">Week at a glance</h2><span class="hint">First HR = first available sample, not necessarily resting · UTC</span></div><div class="week">{''.join(week)}</div></section>
+{collar_html}
 <div class="workspace"><aside class="side"><section class="sidebar-panel" id="episodes"><h2>Episode paths</h2><p class="side-note">Elapsed time is not recovery time. Trace samples instead of interpreting a score.</p>{episode_html}</section>
 <section class="sidebar-panel"><h2>Questions, not conclusions</h2><p class="side-note">Fictional examples—not actual expert feedback.</p>{q_html}</section></aside>
 <main class="timeline-panel" id="timeline" aria-labelledby="timeline-title"><div class="sectionhead"><div><h2 id="timeline-title">Event stream</h2><span id="visible-count" class="hint">{len(records)} of {len(records)} events shown</span></div><div class="filters" role="group" aria-label="Filter events by review role"><button type="button" data-view="all" aria-pressed="true">All</button><button type="button" data-view="vet" aria-pressed="false">Veterinary</button><button type="button" data-view="behavior" aria-pressed="false">Behavior</button></div></div>
@@ -235,12 +325,26 @@ def render(records, source):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, default=ROOT / "demo" / "timeline.html")
+    parser.add_argument("--collar", type=Path, help="simulated app JSONL export: adds per-episode collar movement rows")
     args = parser.parse_args()
     records = read_fixture()
     source = FIXTURE.read_text(encoding="utf-8")
+    collar, extra = None, ""
+    if args.collar:
+        import json
+        collar = []
+        for line in args.collar.read_text(encoding="utf-8").splitlines():
+            try:
+                ev = json.loads(line) if line.strip() else None
+            except json.JSONDecodeError:
+                continue
+            if isinstance(ev, dict):
+                collar.append(ev)
+        n = collar_section(collar)[0]
+        extra = f"; {n} collar episode{'s' if n != 1 else ''} from {len(collar)} simulated export events"
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(render(records, source), encoding="utf-8")
-    print(f"Wrote {args.output} ({len(records)} fictional events; no network dependencies)")
+    args.output.write_text(render(records, source, collar=collar), encoding="utf-8")
+    print(f"Wrote {args.output} ({len(records)} fictional events{extra}; no network dependencies)")
 
 
 if __name__ == "__main__":
