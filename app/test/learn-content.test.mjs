@@ -245,6 +245,35 @@ test('c-quiet-aroused card: no barking after punishment is not calm; add distanc
   assert.ok(c.examples.some((e) => /not recommended|aversive/i.test(e.label)), 'an example flags the technique');
 });
 
+test('c-one-step card: a scary thing is added one change at a time by a person the dog knows; graded-steps evidence with its limits', () => {
+  const c = CARDS.find((x) => x.id === 'c-one-step');
+  assert.ok(c, 'c-one-step card exists');
+  assert.equal(c.lesson, 'threshold');
+  const right = c.choices[c.answer];
+  assert.match(right, /one (change|step) at a time/i);
+  assert.match(right, /ground|floor/i, 'the object starts off the person');
+  assert.match(right, /stops? eating|won.t eat|doesn.t eat/i, 'food stopping means go back a step');
+  assert.doesNotMatch(right, /stranger|walk (straight )?up|correct|punish/i);
+  assert.ok(c.choices.some((x, i) => i !== c.answer && /stranger/i.test(x) && /walk (straight )?up/i.test(x)), 'a distractor floods him with a stranger walking up');
+  assert.ok(c.choices.some((x, i) => i !== c.answer && /correct|punish/i.test(x)), 'a distractor corrects the bark');
+  for (const slug of ['riemer2023-therapy-and-prevention-of-noise-fears-in-dogs', 'butler2011-the-efficacy-of-systematic-desensitization-for-treating-the', 'avsab2021-position-statement-on-humane-dog-training']) {
+    assert.ok(c.evidence && c.evidence.includes(slug), `cites ${slug}`);
+  }
+  // Limits stated: butler2011 is 8 dogs, separation problems, no comparison group; hats were not studied.
+  assert.match(c.explain, /8 dogs/);
+  assert.match(c.explain, /separation/i);
+  assert.match(c.explain, /hats? (were|was) not studied|no study (of|on) hats/i);
+  assert.match(c.explain, /out of reach|cannot reach|can.t reach/i, 'the video\'s own bite-safety warning');
+  assert.doesNotMatch(c.explain, /proven|guarantee|for good|cure/i);
+  assert.ok(Array.isArray(c.examples) && c.examples.length >= 3, 'video examples');
+  for (const e of c.examples) assert.match(e.url, /^https:\/\/www\.youtube\.com\/watch\?v=LXCELHDT2fs&t=\d+s$/, e.url);
+  assert.ok(c.examples.some((e) => /hat/i.test(e.label) && /ground|grass/i.test(e.label)), 'an example: the hat starts on the ground');
+  assert.ok(c.examples.some((e) => /coat/i.test(e.label)), 'an example: the next step adds a coat');
+  assert.ok(c.examples.some((e) => /door/i.test(e.label)), 'an example: the same steps at a doorway');
+  // The video does not show a fearful dog: no example may say it does.
+  for (const e of c.examples) assert.doesNotMatch(e.label, /scared|afraid|fearful|stress|calm/i, 'visible facts only');
+});
+
 test('every card example is a timestamped https link with a label', () => {
   for (const c of CARDS.filter((x) => x.examples)) {
     for (const e of c.examples) {
