@@ -335,6 +335,41 @@ static inline void openpaw_lsm_xyz_mg(const uint8_t b[6], int16_t *x, int16_t *y
   *z = (int16_t)((int16_t)(b[4] | (b[5] << 8)) * 0.244f);
 }
 
+// ---- QMA6100P FIFO batching (power, SenseCAP T1000-E). QST QMA6100P datasheet Rev F:
+//   7.8 FIFO_INT: 64 frames of X/Y/Z; STREAM mode keeps the newest 64 and sets FIFO_OR
+//     when it drops old ones; a frame not read completely is discarded; reading past the
+//     fill level returns zeroes; writing 3Eh or 31h clears the FIFO.
+//   9.7 INT_STATUS_2 0Bh bit 7 FIFO_OR; 9.9 FIFO_STATUS 0Eh = frames queued.
+//   9.11 ODR 10h ODR[4:0] (5 = 50 Hz, 7 = 12.5 Hz at MCLK 51.2 kHz), NLPF bits 0 = filter off.
+//   9.48 FIFO_CFG0 3Eh: FIFO_MODE[7:6] = 10 STREAM, FIFO_EN_Z/Y/X bits 2:0.
+//   9.49 FIFO_DATA 3Fh: XLSB XMSB YLSB YMSB ZLSB ZMSB; bit 0 of an LSB is 1 for a real frame.
+// 64 frames last 1.28 s at 50 Hz, so the CPU drains it more often than the XIAO's.
+#define OPENPAW_QMA_FIFO_CFG0 0x87
+#define OPENPAW_QMA_FIFO_DEPTH 64u
+#define OPENPAW_QMA_FIFO_READ_MS 800u
+
+static inline uint8_t openpaw_qma_odr(float hz) {
+  return hz <= 12.5f ? 0x07 : 0x05;  // the two rates the collar uses: 12.5 Hz still, 50 Hz full
+}
+
+// st = INT_STATUS_2..FIFO_STATUS read in one burst from 0Bh (0Bh, 0Ch, 0Dh, 0Eh).
+static inline openpaw_fifo_plan_t openpaw_qma_fifo_plan(const uint8_t st[4]) {
+  openpaw_fifo_plan_t p;
+  p.samples = st[3] > OPENPAW_QMA_FIFO_DEPTH ? (uint16_t)OPENPAW_QMA_FIFO_DEPTH : st[3];
+  p.skip_words = 0;  // the QMA6100P discards a partly read frame itself
+  p.overrun = (st[0] & 0x80) ? 1 : 0;
+  return p;
+}
+
+// One FIFO frame -> milli-g at +/-8 g (14-bit left-aligned, 0.977 mg/LSB, same arithmetic
+// as the polled read). Returns 0 when bit 0 of the X LSB says it is not a real frame.
+static inline int openpaw_qma_frame_mg(const uint8_t b[6], int16_t *x, int16_t *y, int16_t *z) {
+  *x = (int16_t)(((int16_t)(b[0] | (b[1] << 8)) >> 2) * 0.977f);
+  *y = (int16_t)(((int16_t)(b[2] | (b[3] << 8)) >> 2) * 0.977f);
+  *z = (int16_t)(((int16_t)(b[4] | (b[5] << 8)) >> 2) * 0.977f);
+  return b[0] & 0x01;
+}
+
 // Feed n samples (xyz interleaved, mg) read at now_ms; the last one is the newest and
 // the others are 1/sample_hz apart, so each sample is dated on its own. Returns 1 when
 // an epoch closed (*out filled, its uptime = its closing sample's time); *used = samples
