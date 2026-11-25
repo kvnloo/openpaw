@@ -49,6 +49,48 @@ test('a successful open is shared: two calls, one connection', async () => {
   assert.deepEqual(idb.calls[0], { name: S.DB_NAME, version: S.DB_VERSION });
 });
 
+// Another tab opening a newer DB_VERSION (a new deploy) fires 'versionchange' on this connection. If
+// it stays open, that tab's upgrade is 'blocked' until this one is closed. The connection must close
+// itself and leave the cache, so the next openDb() opens again instead of reusing a dead connection.
+function closableIdb() {
+  const calls = [];
+  return {
+    calls,
+    open(name, version) {
+      const db = { n: calls.length + 1, closed: false, onversionchange: null, onclose: null, close() { this.closed = true; } };
+      calls.push(db);
+      const r = { result: undefined, error: null, onsuccess: null, onerror: null, onupgradeneeded: null };
+      setTimeout(() => { r.result = db; r.onsuccess && r.onsuccess(); }, 0);
+      return r;
+    },
+  };
+}
+
+test('versionchange from another tab: the connection closes and the next openDb() opens again', async () => {
+  const idb = closableIdb();
+  globalThis.indexedDB = idb;
+  const S = await fresh();
+  const db = await S.openDb();
+  assert.equal(typeof db.onversionchange, 'function');
+  db.onversionchange({ oldVersion: S.DB_VERSION, newVersion: S.DB_VERSION + 1 });
+  assert.equal(db.closed, true);
+  const db2 = await S.openDb();
+  assert.notEqual(db2, db);
+  assert.equal(idb.calls.length, 2);
+});
+
+test('a connection the browser closes (onclose) is not reused', async () => {
+  const idb = closableIdb();
+  globalThis.indexedDB = idb;
+  const S = await fresh();
+  const db = await S.openDb();
+  assert.equal(typeof db.onclose, 'function');
+  db.onclose();
+  const db2 = await S.openDb();
+  assert.notEqual(db2, db);
+  assert.equal(idb.calls.length, 2);
+});
+
 test('liveEvents hides retracted entries and the tombstones themselves', async () => {
   const S = await fresh();
   const a = S.ownerEvent({ dog: 'd', metric: 'behavior.calm', value: 1 });
