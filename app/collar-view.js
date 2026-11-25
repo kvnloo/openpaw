@@ -205,7 +205,15 @@ export function renderBudget(root, epochs, { tz, now }) {
 /* ------------------------------------------------------------------ bursts */
 export function renderBursts(root, epochs, { limit = 6 } = {}) {
   const bs = burstEvents(epochs).slice(-limit).reverse();
-  if (!bs.length) { root.innerHTML = '<p class="empty">No bursts recorded. A burst is a jolt over 1.5 g (lunge, jump, shake or a bump), not a reaction by itself.</p>'; return; }
+  if (!bs.length) {
+    // empty: the anatomy of a burst row (dashed, aria-hidden) + what each column will hold
+    root.innerHTML = `<li class="bu-key" aria-hidden="true"><div><b>--:--</b><small>time</small></div>
+      <svg viewBox="0 0 140 34"><line x1="0" x2="140" y1="30" y2="30" stroke="var(--line2)" stroke-dasharray="3 3"/><line x1="23" x2="23" y1="2" y2="34" stroke="#e8a35f" stroke-opacity=".45" stroke-dasharray="2 2"/></svg>
+      <div class="bm"><span>– g peak</span><span>– to settle</span></div></li>
+      <li class="bu-note"><div class="empty">No bursts recorded. A burst is a jolt over 1.5 g (lunge, jump, shake or a bump), not a reaction by itself.</div>
+      <div class="bd-empty">Each burst gets a row: its time, movement from 1 min before to 5 min after, the peak, and how long until movement stayed below the vigorous band for 60 s.</div></li>`;
+    return;
+  }
   root.innerHTML = bs.map((b) => {
     const from = b.start - 60000, to = b.end + 5 * 60000;
     const pts = epochs.filter((e) => e.t >= from && e.t <= to);
