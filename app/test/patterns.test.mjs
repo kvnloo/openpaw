@@ -53,6 +53,20 @@ test('finds planted patterns in 90-day simulated histories, with honest power', 
   assert.equal(spuriousTrend, 0, 'no invented trends');
 });
 
+test('one same-day correlation between two targets is one finding, not two', () => {
+  // synthetic: energy (a target) and episodes (a target) move together; each same-day pair is one question
+  const ev = [];
+  for (let i = 0; i < 40; i++) {
+    const d = new Date(Date.parse('2026-10-01T00:00:00Z') + i * 86400000).toISOString().slice(0, 10);
+    const energy = 1 + ((i * 7) % 5);
+    ev.push({ timestamp: `${d}T20:00:00Z`, event_type: 'observation', payload: { metric: 'track.energy', value: energy } });
+    for (let k = 0; k < energy - 1; k++) ev.push({ event_id: `e${i}-${k}`, timestamp: `${d}T1${k}:00:00Z`, event_type: 'observation', payload: { metric: 'track.episode', value: 2 } });
+  }
+  const r = findPatterns(ev, { perms: 199 });
+  const same = r.findings.filter((f) => f.kind === 'association' && f.lag === 0 && [f.target, f.factor].sort().join('|') === 'energy|episodes');
+  assert.equal(same.length, 1, same.map((f) => f.id).join(', '));
+});
+
 test('too little data -> no associations claimed', () => {
   const r = findPatterns(demoHistory({ days: 10, seed: 3 }), { perms: 99 });
   assert.equal(r.findings.filter((f) => f.kind === 'association').length, 0);
