@@ -171,10 +171,16 @@ export function findPatterns(events, opts = {}) {
   const targets = (opts.targets || ['episodes', 'energy', 'alertness', 'episode_intensity', 'time_to_calm']).filter((k) => series[k]);
   const findings = [];
   const tests = [];
+  const sameDay = new Set(); // a same-day pair of two targets is one question: test (and report) it once
   for (const tk of targets) {
     for (const [fk, f] of Object.entries(series)) {
       if (fk === tk || ((tk.startsWith('episode') || tk === 'time_to_calm') && (fk.startsWith('episode') || fk === 'time_to_calm'))) continue;
       for (const lag of [0, 1]) {
+        if (lag === 0) {
+          const pair = [tk, fk].sort().join('|');
+          if (sameDay.has(pair)) continue;
+          sameDay.add(pair);
+        }
         const xs = [], ys = [], used = [];
         for (let i = lag; i < days.length; i++) {
           const xv = f.values[i - lag], yv = series[tk].values[i];
