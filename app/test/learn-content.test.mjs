@@ -230,7 +230,14 @@ test('c-quiet-aroused card: no barking after punishment is not calm; add distanc
   assert.match(c.explain, /not (randomi[sz]ed|assigned at random)|chose the school/i);
   assert.doesNotMatch(c.explain, /proven|guarantee|stress score/i);
   assert.ok(Array.isArray(c.examples) && c.examples.length >= 2, 'video examples');
-  for (const e of c.examples) assert.match(e.url, /^https:\/\/www\.youtube\.com\/watch\?v=jdWysYtU7HY&t=\d+s$/, e.url);
+  for (const e of c.examples) assert.match(e.url, /^https:\/\/www\.youtube\.com\/watch\?v=(jdWysYtU7HY|EBfq1Wz8jHw)&t=\d+s$/, e.url);
+  // Second source (force-free, no punishment): quiet over threshold at a door (eileenanddogs V14).
+  const door = c.examples.filter((e) => /EBfq1Wz8jHw/.test(e.url));
+  assert.ok(door.length >= 1, 'a force-free example of quiet over threshold (V14)');
+  assert.ok(door.some((e) => /door/i.test(e.label) && /sit/i.test(e.label) && /(no|not) (answer|respon)/i.test(e.label)), 'V14 example: known sit cue at the door gets no answer');
+  assert.ok(door.some((e) => /food|treat/i.test(e.label) && /(not|doesn.t|won.t|does not) (take|eat)/i.test(e.label)), 'V14 example: food offered, not taken');
+  for (const e of door) assert.doesNotMatch(e.label, /stress/i, 'visible signs only, not the author\'s feeling word');
+  assert.match(c.explain, /without (any )?punish/i, 'explain: quiet over threshold also happens without punishment');
   // This dog's tail is high and curled with no dogs around (1:30), so the examples must not read it as a sign.
   assert.ok(c.examples.every((e) => !/tail/i.test(e.label)), 'no example reads this dog\'s natural tail carriage as a signal');
   assert.match(c.context, /higher|stiffer|than (on )?(his )?(usual|normal)/i, 'scenario compares the tail with his own normal carriage');
