@@ -399,8 +399,7 @@ $$('details').forEach((d) => {
   tabs.forEach((t, i) => {
     t.addEventListener('click', () => show(t.dataset.l));
     t.addEventListener('keydown', (e) => {
-      if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
-      const j = (i + (e.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+      const j = tabStep(i, e.key, tabs.length); if (j === null) return;
       show(tabs[j].dataset.l, true); e.preventDefault();
     });
   });
