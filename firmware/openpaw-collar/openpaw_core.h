@@ -217,6 +217,41 @@ static inline float openpaw_power_step(openpaw_power_t *p, const openpaw_record_
   return p->still_epochs >= OPENPAW_STILL_EPOCHS ? OPENPAW_HZ_LOW : 50.0f;
 }
 
+// ---- Connection interval (power). The phone gets a 15 ms interval while it is
+// downloading the backlog, then 200 ms with peripheral latency 4 once the link has
+// been idle (no dump) for OPENPAW_LINK_IDLE_MS. Live records (one per 5 s epoch) and
+// status still arrive; latency only lets the collar skip empty connection events.
+// Units: interval 1.25 ms, supervision timeout 10 ms (BLE Core spec, LL connection
+// parameters). docs/POWER.md has the estimate.
+#define OPENPAW_LINK_FAST 12         // 15 ms
+#define OPENPAW_LINK_SLOW 160        // 200 ms
+#define OPENPAW_LINK_SLOW_LATENCY 4  // radio wakes at least every 1 s when idle
+#define OPENPAW_LINK_TIMEOUT_10MS 400
+#define OPENPAW_LINK_IDLE_MS 2000u
+
+typedef struct {
+  uint8_t connected, fast;
+  uint32_t last_busy_ms;
+} openpaw_link_t;
+
+static inline void openpaw_link_init(openpaw_link_t *l) { l->connected = 0; l->fast = 0; l->last_busy_ms = 0; }
+
+// Call from the main loop; returns the interval to request now (OPENPAW_LINK_FAST or
+// OPENPAW_LINK_SLOW, in 1.25 ms units) or 0 when nothing needs to change.
+static inline uint16_t openpaw_link_step(openpaw_link_t *l, int connected, int dumping, uint32_t now_ms) {
+  if (!connected) { l->connected = 0; l->fast = 0; return 0; }
+  if (!l->connected || dumping) l->last_busy_ms = now_ms;
+  if (!l->connected || (dumping && !l->fast)) {
+    l->connected = 1; l->fast = 1;
+    return OPENPAW_LINK_FAST;
+  }
+  if (l->fast && !dumping && (uint32_t)(now_ms - l->last_busy_ms) >= OPENPAW_LINK_IDLE_MS) {
+    l->fast = 0;
+    return OPENPAW_LINK_SLOW;
+  }
+  return 0;
+}
+
 // Little-endian wire format, 20 bytes. Must match app/openpaw-ble.js decodeRecord().
 static inline void openpaw_encode(const openpaw_record_t *r, uint8_t b[OPENPAW_RECORD_SIZE]) {
   b[0] = r->version;

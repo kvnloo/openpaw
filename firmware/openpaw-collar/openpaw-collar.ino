@@ -356,7 +356,18 @@ static void connect_cb(uint16_t conn) {
   g_conn = conn;
   BLEConnection *c = Bluefruit.Connection(conn);
   c->requestMtuExchange(247);
-  c->requestConnectionParameter(12, 0, 400);  // 15 ms interval while connected for fast dumps
+  // connection interval: loop() asks via openpaw_link_step (15 ms for dumps, 200 ms when idle)
+}
+
+static openpaw_link_t g_link;  // fast/slow connection interval state (openpaw_core.h)
+
+static void link_update(uint32_t now) {
+  uint16_t want = openpaw_link_step(&g_link, g_conn != BLE_CONN_HANDLE_INVALID, g_dumping, now);
+  if (!want) return;
+  BLEConnection *c = Bluefruit.Connection(g_conn);
+  if (!c) return;
+  if (want == OPENPAW_LINK_FAST) c->requestConnectionParameter(OPENPAW_LINK_FAST, 0, OPENPAW_LINK_TIMEOUT_10MS);
+  else c->requestConnectionParameter(OPENPAW_LINK_SLOW, OPENPAW_LINK_SLOW_LATENCY, OPENPAW_LINK_TIMEOUT_10MS);
 }
 static void disconnect_cb(uint16_t conn, uint8_t reason) {
   (void)conn; (void)reason;
@@ -475,6 +486,7 @@ void setup() {
   openpaw_init(&g_core, cfg);
   openpaw_ring_init(&g_ring, g_ring_store, RING_RECORDS);
   openpaw_power_init(&g_pwr);
+  openpaw_link_init(&g_link);
 
   bool ok = imu_begin();
   flash_probe();
@@ -507,6 +519,7 @@ void loop() {
   if (g_dumping && g_conn != BLE_CONN_HANDLE_INVALID) g_dumping = dump_step();
 
   uint32_t now = millis();
+  link_update(now);
   if ((int32_t)(now - next_ms) < 0) {
     if (!g_dumping) delay(next_ms - now);  // FreeRTOS delay = CPU sleeps between samples
     return;

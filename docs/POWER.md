@@ -15,7 +15,8 @@ Legend: **[D]** = value from a datasheet (source linked below), **[E]** = estima
 |---|---|---|---|---|
 | **Active** | Default | XIAO: LSM6DS3TR-C at 52 Hz low-power; T1000-E: QMA6100P | 50 per second | Advertising every 1 s (100 ms for the first 30 s) |
 | **Still** | 5 min of still epochs (mean VeDBA under 60 mg, no burst, no sensor gap) and no phone connected | XIAO: 12.5 Hz low-power; T1000-E: unchanged | 10 per second | Advertising every 1 s |
-| **Connected** | The app is connected | As in Active (a connected phone always gets 50 Hz) | 50 per second | Connection events every 15 ms (asked for fast backlog downloads) |
+| **Connected, downloading** | The app is connected and a backlog download runs (and for 2 s after it ends) | As in Active (a connected phone always gets 50 Hz) | 50 per second | Asks for connection events every 15 ms |
+| **Connected, idle** | Connected, no download for 2 s | As in Active | 50 per second | Asks for 200 ms events with peripheral latency 4: the collar may skip up to 4 empty events, so it answers at least once a second, and sooner whenever it has a live record to send |
 
 Any epoch that is not still, any burst, a sensor gap, or a phone connecting switches the collar back to
 Active at the next 5 s epoch boundary. Epochs recorded in Still mode carry record flag `0x10` (`LOWRATE`),
@@ -62,11 +63,25 @@ this estimate drops by about 3.5× (DC/DC) to 4× (LDO). For example, 16 h still
 The vendor has published no battery life for an always-on accelerometer with BLE
 (research/hardware.md); measure it before any page quotes battery days.
 
+## Estimated radio current while a phone stays connected
+
+The collar *asks* the phone for these connection parameters. The phone decides: it
+may pick another interval or refuse, so measure on hardware before trusting this.
+
+| Link state | Connection events | Radio, at ~2 µC per empty event [E] |
+|---|---|---|
+| Downloading (15 ms, latency 0) | ~67 per second | ~130 µA |
+| Idle (200 ms, latency 4) | ~1 per second when nothing is waiting, up to 5 per second when it is | ~2–10 µA |
+
+A phone left connected used to keep the 15 ms interval for the whole connection. Since
+firmware 0.4 the collar drops to the idle interval 2 s after the last download ends
+(`openpaw_link_step` in `openpaw_core.h`, host-tested), and asks for 15 ms again when
+the app starts another download. Live records (one per 5 s epoch) and status still arrive.
+The intervals stay inside the BLE Core rule that the supervision timeout (4 s) is longer than
+2 × interval × (latency + 1) = 2 s.
+
 ## What else costs power (not done yet)
 
-- **Connected at 15 ms.** The app asks for a 15 ms connection interval so the backlog downloads quickly,
-  and the collar keeps it for the whole connection. At ~2 µC per connection event [E], that alone is
-  well over 100 µA. Dropping to a slow interval after the download is the next easy win.
 - **Wake on motion.** Both accelerometers can raise an interrupt on motion: LSM6DS3TR-C wake-up and
   activity/inactivity, and QMA6100P `ANY_MOT_INT`. The CPU could then sleep until the dog moves,
   instead of polling at 10 Hz. That needs the interrupt pin wiring checked on real boards.

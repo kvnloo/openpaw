@@ -218,6 +218,29 @@ int main(int argc, char **argv) {
   openpaw_record_t back = run_epoch(&s6, gen_rest, &t6);
   CHECK(!(back.flags & OPENPAW_FLAG_LOWRATE) && back.seq == low.seq + 1, "50 Hz again, seq continues");
 
+  // 13. connection interval: 15 ms while a backlog download runs (fast sync), then a
+  // slow 200 ms interval with peripheral latency once the link has been idle for
+  // OPENPAW_LINK_IDLE_MS, so a phone left connected does not cost >100 uA (docs/POWER.md).
+  CHECK(OPENPAW_LINK_FAST == 12 && OPENPAW_LINK_SLOW == 160, "fast 12 x 1.25 = 15 ms, slow 160 x 1.25 = 200 ms");
+  CHECK(OPENPAW_LINK_SLOW_LATENCY == 4 && OPENPAW_LINK_TIMEOUT_10MS == 400, "slow: latency 4, 4 s supervision timeout");
+  CHECK((uint32_t)OPENPAW_LINK_SLOW * 125 / 100 * (OPENPAW_LINK_SLOW_LATENCY + 1) * 2 < OPENPAW_LINK_TIMEOUT_10MS * 10u,
+        "supervision timeout > 2 x interval x (latency + 1) (BLE Core spec)");
+  openpaw_link_t lk; openpaw_link_init(&lk);
+  CHECK(openpaw_link_step(&lk, 0, 0, 100) == 0, "not connected: nothing to request");
+  CHECK(openpaw_link_step(&lk, 1, 0, 1000) == OPENPAW_LINK_FAST, "on connect: ask for 15 ms (the app syncs first)");
+  CHECK(openpaw_link_step(&lk, 1, 0, 1500) == 0, "no repeated requests");
+  CHECK(openpaw_link_step(&lk, 1, 1, 2000) == 0, "dump running: stays fast");
+  CHECK(openpaw_link_step(&lk, 1, 1, 9000) == 0, "long dump: still fast");
+  CHECK(openpaw_link_step(&lk, 1, 0, 9000 + OPENPAW_LINK_IDLE_MS - 1) == 0, "idle just under the limit: still fast");
+  CHECK(openpaw_link_step(&lk, 1, 0, 9000 + OPENPAW_LINK_IDLE_MS) == OPENPAW_LINK_SLOW, "idle after the dump: slow");
+  CHECK(openpaw_link_step(&lk, 1, 0, 60000) == 0, "slow stays slow without new requests");
+  CHECK(openpaw_link_step(&lk, 1, 1, 61000) == OPENPAW_LINK_FAST, "a new dump asks for 15 ms again");
+  CHECK(openpaw_link_step(&lk, 0, 0, 62000) == 0, "disconnect: nothing to request");
+  CHECK(openpaw_link_step(&lk, 1, 0, 63000) == OPENPAW_LINK_FAST, "reconnect starts fast again");
+  openpaw_link_init(&lk);
+  CHECK(openpaw_link_step(&lk, 1, 0, 0xFFFFFF00u) == OPENPAW_LINK_FAST, "connect just before millis() wraps");
+  CHECK(openpaw_link_step(&lk, 1, 0, 0xFFFFFF00u + OPENPAW_LINK_IDLE_MS) == OPENPAW_LINK_SLOW, "idle time survives the wrap");
+
   if (argc > 1) {  // golden vectors for app/test: hex packet + expected decoded fields
     FILE *f = fopen(argv[1], "w");
     if (!f) { perror("golden"); return 2; }
