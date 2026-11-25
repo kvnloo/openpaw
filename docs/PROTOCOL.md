@@ -125,7 +125,7 @@ Useful derived measures may include:
 
 These are hypotheses for expert validation, not validated clinical endpoints.
 
-First implementation: `python3 tools/collar_derive.py export.jsonl [--json]` reads the app's JSONL export and, for each Field episode, reports the dog's own baseline band (median and 90th percentile of collar VeDBA in the 30 minutes before the "trigger seen" mark; "unknown" under one minute of data), the peak after the trigger, and when movement was back at or under the band for 30 s in a row ("not observed" when the data or the next episode comes first, with how long it was followed). `--json` prints `derived_state` events with `algorithm_version` `openpaw-episode-movement/1` and the evidence event IDs. It measures movement only: the owner's "Calm again" mark stays the record of recovery.
+First implementation: `python3 tools/collar_derive.py export.jsonl [--json]` reads the app's JSONL export and, for each Field episode, reports the dog's own baseline band (median and 90th percentile of collar VeDBA in the 30 minutes before the "trigger seen" mark; "unknown" under one minute of data; epochs the collar flagged clipped or gap, and an earlier episode's follow-up until it was back in band, are left out and counted), the peak after the trigger, and when movement was back at or under the band for 30 s in a row ("not observed" when the data or the next episode comes first, with how long it was followed). `--json` prints `derived_state` events with `algorithm_version` `openpaw-episode-movement/2` and the evidence event IDs. It measures movement only: the owner's "Calm again" mark stays the record of recovery.
 
 ## Provenance
 
