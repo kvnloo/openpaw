@@ -19,7 +19,7 @@ export function openDb() {
       if (!db.objectStoreNames.contains('trackers')) db.createObjectStore('trackers', { keyPath: 'id' });
     };
     r.onsuccess = () => res(r.result);
-    r.onerror = () => rej(r.error);
+    r.onerror = () => { dbp = null; rej(r.error); }; // don't cache a failure: the next call retries
   });
   return dbp;
 }
