@@ -1,5 +1,6 @@
 // OpenPaw landing interactions. No trackers, no third parties. Respects reduced motion.
 import { simulate, fmtDuration, protocolWeeks, DEFAULTS } from './reactivity-model.js';
+import { nearestIndex, stepIndex } from './week-nav.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -306,12 +307,17 @@ $$('details').forEach((d) => {
     card();
   }
   $$('#proto-chips [data-m]').forEach((b) => b.addEventListener('click', () => setMetric(b.dataset.m)));
-  svg.closest('.proto-plot').addEventListener('pointermove', (e) => {
+  // Mouse hover, phone tap (pointerdown) and keys on the focusable plot all pick a week.
+  const plot = svg.closest('.proto-plot');
+  const pick = (e) => {
     if (!ys) return;
-    const r = svg.getBoundingClientRect(); const fx = ((e.clientX - r.left) / r.width) * W;
-    let best = 0; xs.forEach((xx, i) => { if (Math.abs(xx - fx) < Math.abs(xs[best] - fx)) best = i; });
+    const r = svg.getBoundingClientRect();
+    const best = nearestIndex(xs, ((e.clientX - r.left) / r.width) * W);
     if (best !== sel || tip.hidden) showTip(best);
-  });
+  };
+  plot.addEventListener('pointermove', pick);
+  plot.addEventListener('pointerdown', pick);
+  plot.addEventListener('keydown', (e) => { const j = ys ? stepIndex(sel, e.key, weeks.length) : null; if (j === null) return; e.preventDefault(); showTip(j); });
   const loop = $('#loop');
   inView(loop, () => $$('li', loop).forEach((li, i) => setTimeout(() => li.classList.add('lit'), reduce ? 0 : 220 * i)));
   render(weeks.map(() => H)); card();
