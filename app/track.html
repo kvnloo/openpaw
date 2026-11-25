@@ -76,7 +76,8 @@
   .tile:hover .tap, .tile:focus-visible .tap { color:var(--gold); }
   .tile .meta { font:500 11px/1.3 var(--mono); color:var(--mute); letter-spacing:.03em; }
   .tile .today { font:500 13px/1.2 var(--mono); color:var(--gold); }
-  .tile.flash::after { content:""; position:absolute; inset:0; background:radial-gradient(circle at var(--fx,50%) var(--fy,50%), rgba(215,185,134,.35), transparent 60%); animation:flash .7s var(--ease) forwards; }
+  .tile.key { overflow:visible; }
+  .tile.flash::after { content:""; position:absolute; inset:0; border-radius:inherit; background:radial-gradient(circle at var(--fx,50%) var(--fy,50%), rgba(215,185,134,.35), transparent 60%); animation:flash .7s var(--ease) forwards; }
   @keyframes flash { from { opacity:1; } to { opacity:0; } }
   .tile.add { border-style:dashed; color:var(--mute); align-items:flex-start; justify-content:center; }
 

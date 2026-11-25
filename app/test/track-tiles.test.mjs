@@ -14,7 +14,7 @@ const js = readFileSync(join(root, 'app/track.js'), 'utf8');
 const html = readFileSync(join(root, 'app/track.html'), 'utf8');
 
 test('each logging tile renders an aria-hidden "+" tap cue', () => {
-  const tile = js.match(/<button class="tile" data-t=[^\n]*<\/button>/);
+  const tile = js.match(/<button class="tile[^"]*" data-t=[^\n]*<\/button>/);
   assert.ok(tile, 'no logging tile template in app/track.js');
   assert.match(tile[0], /<span class="tap" aria-hidden="true">\+<\/span>/);
 });
