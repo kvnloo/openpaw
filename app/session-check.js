@@ -3,13 +3,17 @@
 // Sources: East Bay SPCA LAT handout (threshold = can't look away, stops taking favourite food; make distance),
 // Grisha Stewart's BAT demo (shivering, pacing, panting -> stop or add distance; research/video-notes V2 05:50),
 // AVSAB 2021 (reward-based, distance-first). clark2020: panting is common and ambiguous on its own.
+// "Doesn't answer a cue it knows" (rule v2): eileenanddogs "Dog over Threshold" (a known sit cue at the door
+// gets no response, 0:05-0:17; when she does sit she won't take food, 0:56-1:06; the author calls it "over
+// threshold"), plus a trainer's session where a well-known down fails as dogs pass (research/video-notes V13
+// 15:15). Read it as "too close right now", not disobedience.
 // Owner observation only: no score, no feelings, no diagnosis.
 // SPDX-License-Identifier: GPL-3.0-only
 
-export const SESSION_SIGNS = ['won\u2019t take food', 'can\u2019t look away', 'pacing', 'panting', 'shivering'];
+export const SESSION_SIGNS = ['won\u2019t take food', 'can\u2019t look away', 'doesn\u2019t answer a cue it knows', 'pacing', 'panting', 'shivering'];
 
 export const SESSION_CHECK = {
-  rule: 'openpaw-session-check/1',
+  rule: 'openpaw-session-check/2',
   title: 'Session check',
   prompt: 'Tap what you see right now.',
   note: 'Any one of these means this is not a moment for practice. Panting can also be heat or exercise.',
@@ -17,6 +21,7 @@ export const SESSION_CHECK = {
   sources: [
     'https://eastbayspca.org/wp-content/uploads/2024/05/Look-At-That_A-Reactivity-Exercise.pdf',
     'https://www.youtube.com/watch?v=Q9BsLd6KQqM&t=350s',
+    'https://www.youtube.com/watch?v=EBfq1Wz8jHw',
   ],
 };
 

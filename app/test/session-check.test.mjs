@@ -14,6 +14,15 @@ test('signs are observable body/behaviour descriptions from the cited sources', 
   for (const s of ['won\u2019t take food', 'can\u2019t look away', 'pacing', 'panting', 'shivering']) assert.ok(SESSION_SIGNS.includes(s), s);
 });
 
+test('a known cue that gets no answer is a sign too, sourced to footage where it happens (rule v2)', () => {
+  // Second and third sources: eileenanddogs "Dog over Threshold" (a known sit cue gets no response at the
+  // door, 0:05-0:17) and a trainer's session where a well-known down fails near passing dogs.
+  assert.ok(SESSION_SIGNS.includes('doesn\u2019t answer a cue it knows'));
+  assert.ok(SESSION_CHECK.sources.some((u) => u.startsWith('https://www.youtube.com/watch?v=EBfq1Wz8jHw')));
+  assert.equal(SESSION_CHECK.rule, 'openpaw-session-check/2');
+  assert.match(sessionAdvice(['doesn\u2019t answer a cue it knows']).text, /stop the session or move further away/i);
+});
+
 test('any sign -> stop or move further away; no sign -> keep checking, never "relaxed"', () => {
   assert.match(sessionAdvice(['pacing']).text, /stop the session or move further away/i);
   assert.equal(sessionAdvice(['pacing']).stop, true);
@@ -57,4 +66,9 @@ test('Field page has the session check panel and wires it', () => {
   assert.match(html, /id="checkSave"/);
   const js = readFileSync(new URL('../field.js', here), 'utf8');
   assert.match(js, /from '\.\/session-check\.js'/);
+});
+
+test('every session-check source is linked in the panel the owner sees', () => {
+  const html = readFileSync(new URL('../field.html', here), 'utf8').replace(/&amp;/g, '&');
+  for (const u of SESSION_CHECK.sources) assert.ok(html.includes(`href="${u}"`), u);
 });
