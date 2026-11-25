@@ -54,6 +54,7 @@ export const SRC = {
   riemer2023: 'https://doi.org/10.3390/ani13233664',
   byosiere2016: 'https://doi.org/10.1016/j.beproc.2016.02.007',
   farago2017: 'https://doi.org/10.1098/rsos.170134',
+  butler2011: 'https://doi.org/10.1016/j.applanim.2010.11.001',
 };
 
 // Human-readable names for the source list.
@@ -97,6 +98,7 @@ export const SOURCE_NAMES = {
   [SRC.riemer2023]: 'Riemer 2023, Therapy and prevention of noise fears in dogs: a review for practitioners (Animals)',
   [SRC.byosiere2016]: 'Byosiere, Espinosa & Smuts 2016, Investigating the function of play bows in adult pet dogs (Behav Processes)',
   [SRC.farago2017]: 'Farag\u00f3 et al. 2017, Dog growls express various contextual and affective content for human listeners (R Soc Open Sci)',
+  [SRC.butler2011]: 'Butler, Sargisson & Elliffe 2011, Systematic desensitization for separation-related problem behaviour (Appl Anim Behav Sci)',
 };
 
 export const LESSONS = [
@@ -359,6 +361,17 @@ export const CARDS = [
     examples: [
       { url: 'https://www.youtube.com/watch?v=4mMF_XAX2b4&t=302s', label: 'Volume raised a few steps: she stops eating and sits back from the snuffle mat (5:02); one step louder and she walks away from it (5:21). The trainer filmed this on purpose to show going too fast (Happy Hounds Dog Training)' },
       { url: 'https://www.youtube.com/watch?v=4mMF_XAX2b4&t=349s', label: 'The trainer: her dog\u2019s tell is a tucked tail, often before she stops eating; she ended the session and tried again the next day, quieter and in a different room (5:49 to 6:13)' },
+    ] },
+  { id: 'c-door-knock', lesson: 'threshold', art: { posture: 'turn', ears: 'forward', eye: 'soft', mouth: 'closed', tail: 'mid' },
+    context: 'Your dog usually barks and rushes the door when someone knocks. You sit on the floor near the door feeding her small treats while a helper outside knocks, softly at first. She has been lying at your feet, eating. After a harder knock she gets up and stands, head up, but does not bark.',
+    choices: ['She did not bark, so knock harder next time', 'Make her lie down again and repeat the same knock until she stays down', 'That step was close to too much: next knock softer or fewer knocks, and keep sessions short', 'Stop the treats so she pays attention to the door'], answer: 2,
+    explain: 'Some trainers use a dog getting up out of a sit or down, or stopping chewing, as a sign she is close to reacting, so the next step should be easier. That is a trainer\u2019s rule of thumb; we know of no study that measured it. A review of noise-fear care says practice should start at a level that causes no fear and get harder only gradually, and that refusing food is a sign of high stress. In a small study of 8 dogs with separation problems (one group, no comparison group), graded steps paired with food lowered how often and how badly the problem showed. Door knocks were not studied there. AVSAB recommends reward-based methods. Your behavior consultant can plan the steps.',
+    sources: [SRC.riemer2023, SRC.butler2011, SRC.avsabHumane],
+    evidence: ['riemer2023-therapy-and-prevention-of-noise-fears-in-dogs', 'butler2011-the-efficacy-of-systematic-desensitization-for-treating-the', 'avsab2021-position-statement-on-humane-dog-training'],
+    examples: [
+      { url: 'https://www.youtube.com/watch?v=G_HJC6G4lcc&t=15s', label: 'First knock: she stops chewing and turns her head away; after a softer knock she keeps chewing (0:15 to 0:33, DGP Dog Behavior Videos)' },
+      { url: 'https://www.youtube.com/watch?v=G_HJC6G4lcc&t=129s', label: 'After harder knocks she gets up from lying to standing, but does not look at the door or bark; her guardian says she would normally bark and rush it (2:09 to 2:21)' },
+      { url: 'https://www.youtube.com/watch?v=G_HJC6G4lcc&t=170s', label: 'The trainer\u2019s rule: if the dog gets up or stops chewing, she is close to her limit, so turn the knock down or add distance (2:50 to 3:15)' },
     ] },
   { id: 'c-consent', lesson: 'consent', art: { posture: 'turn', ears: 'back', eye: 'whale', mouth: 'lick', tail: 'low', prop: 'hand' },
     context: 'You pet your dog for three seconds and stop. She shakes off, licks her lips and steps away.',

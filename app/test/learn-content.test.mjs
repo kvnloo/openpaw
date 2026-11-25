@@ -188,6 +188,31 @@ test('c-visitor-touch card: a visitor lets a nervous dog approach and does not r
   assert.ok(c.examples.some((e) => /sideways|crouch/i.test(e.label)), 'an example shows the small, still, side-on stance');
 });
 
+test('c-door-knock card: getting up after a knock means step back down; rule of thumb, not a finding', () => {
+  const c = CARDS.find((x) => x.id === 'c-door-knock');
+  assert.ok(c, 'c-door-knock card exists');
+  assert.equal(c.lesson, 'threshold');
+  const right = c.choices[c.answer];
+  assert.match(right, /softer|quieter|fewer/i);
+  assert.doesNotMatch(right, /louder|harder|tell her|make her/i);
+  assert.ok(c.choices.some((x, i) => i !== c.answer && /louder|harder/i.test(x)), 'a distractor pushes the knock harder');
+  assert.ok(c.choices.some((x, i) => i !== c.answer && /(tell|make) her (to )?(lie|sit|stay)/i.test(x)), 'a distractor commands her back down');
+  assert.ok(c.evidence && c.evidence.includes('riemer2023-therapy-and-prevention-of-noise-fears-in-dogs'), 'cites riemer2023');
+  assert.ok(c.evidence.includes('butler2011-the-efficacy-of-systematic-desensitization-for-treating-the'), 'cites butler2011');
+  assert.ok(c.evidence.includes('avsab2021-position-statement-on-humane-dog-training'), 'cites AVSAB');
+  // Getting up as an early sign is a trainer's rule of thumb: the copy must say so.
+  assert.match(c.explain, /rule of thumb/i);
+  assert.match(c.explain, /not (a )?measured|no study/i);
+  // butler2011 is small and about separation, not door reactivity: say both.
+  assert.match(c.explain, /8 dogs/);
+  assert.match(c.explain, /separation/i);
+  assert.doesNotMatch(c.explain, /proven|guarantee|for good|cure/i);
+  assert.ok(Array.isArray(c.examples) && c.examples.length >= 3, 'video examples');
+  for (const e of c.examples) assert.match(e.url, /^https:\/\/www\.youtube\.com\/watch\?v=G_HJC6G4lcc&t=\d+s$/, e.url);
+  assert.ok(c.examples.some((e) => /stand|gets? up/i.test(e.label)), 'an example shows her getting up after a harder knock');
+  assert.ok(c.examples.some((e) => /chew|eat/i.test(e.label)), 'an example shows eating pause / continue');
+});
+
 test('every card example is a timestamped https link with a label', () => {
   for (const c of CARDS.filter((x) => x.examples)) {
     for (const e of c.examples) {
