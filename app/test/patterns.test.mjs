@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { dailySeries, findPatterns, demoHistory, spearman, benjaminiHochberg, permutationP, dayKey, minutesOfDay, TEMPLATES, slug } from '../patterns.js';
+import { dailySeries, findPatterns, demoHistory, spearman, benjaminiHochberg, permutationP, dayKey, minutesOfDay, TEMPLATES, slug, ENGINE_VERSION } from '../patterns.js';
 
 test('helpers', () => {
   assert.equal(dayKey('2026-11-23T03:00:00Z', 360), '2026-11-22', 'CST shifts to previous day');
@@ -47,7 +47,7 @@ test('finds planted patterns in 90-day simulated histories, with honest power', 
   }
   assert.equal(energy, seeds.length, 'strong effect found every time');
   assert.ok(play >= 3, `play->episodes found in ${play}/5`);
-  assert.ok(sleep >= 3, `sleep->next-day episodes found in ${sleep}/5`);
+  assert.ok(sleep >= 4, `sleep->next-day episodes found in ${sleep}/5`);
   assert.equal(timing, seeds.length, 'evening cluster');
   assert.equal(negatives, 0, 'negative controls (medication time, treats, meal time) never reported');
   assert.equal(spuriousTrend, 0, 'no invented trends');
@@ -65,6 +65,27 @@ test('one same-day correlation between two targets is one finding, not two', () 
   const r = findPatterns(ev, { perms: 199 });
   const same = r.findings.filter((f) => f.kind === 'association' && f.lag === 0 && [f.target, f.factor].sort().join('|') === 'energy|episodes');
   assert.equal(same.length, 1, same.map((f) => f.id).join(', '));
+});
+
+test('a weaker factor is re-tested after allowing for the strongest one, and says so', () => {
+  // seed 21: same-day play drives most of the episode count, which hides the next-day sleep effect
+  const r = findPatterns(demoHistory({ days: 90, seed: 21 }), { perms: 499 });
+  const sleep = r.findings.find((f) => f.kind === 'association' && f.target === 'episodes' && f.factor === 'sleep' && f.lag === 1);
+  assert.ok(sleep, 'sleep -> next-day episodes found once play is allowed for');
+  assert.ok(sleep.rho < 0);
+  assert.deepEqual(sleep.adjustedFor, { factor: 'play', lag: 0 });
+  assert.match(sleep.detail, /allowing for play on the same day/i);
+  const play = r.findings.find((f) => f.kind === 'association' && f.target === 'episodes' && f.factor === 'play');
+  assert.ok(play && !play.adjustedFor, 'the strongest factor itself is reported unadjusted');
+  assert.doesNotMatch(play.detail, /allowing for/i);
+});
+
+test('the method note and engine version describe the adjustment', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const src = await readFile(new URL('../track.js', import.meta.url), 'utf8');
+  const method = src.split('\n').find((l) => l.includes("$('#method')"));
+  assert.match(method, /strongest/i, 'method note says weaker factors are re-checked after the strongest one');
+  assert.equal(ENGINE_VERSION, 'openpaw-patterns/0.2');
 });
 
 test('too little data -> no associations claimed', () => {
