@@ -262,6 +262,81 @@ int main(int argc, char **argv) {
   openpaw_adv_init(&av, 0xFFFFFF00u);
   CHECK(openpaw_adv_step(&av, 0, 0xFFFFFF00u + OPENPAW_ADV_PARK_MS) == OPENPAW_ADV_PARKED, "park time survives the millis() wrap");
 
+  // 15. LSM6DS3TR-C FIFO batching (power): the IMU queues accelerometer samples in its
+  // own FIFO and the CPU reads them about once a second instead of waking 50x/s.
+  // Register values from the LSM6DS3TR-C datasheet (FIFO_CTRL3 08h, FIFO_CTRL5 0Ah,
+  // FIFO_STATUS1..4 3Ah-3Dh) and ST's lsm6ds3tr-c_reg.h.
+  CHECK(OPENPAW_LSM_FIFO_CTRL3 == 0x01, "FIFO_CTRL3: accel in FIFO, no decimation, gyro not batched");
+  CHECK(openpaw_lsm_fifo_ctrl5(52.0f) == 0x1E, "FIFO_CTRL5 52 Hz continuous = 0x1E, got 0x%02x", openpaw_lsm_fifo_ctrl5(52.0f));
+  CHECK(openpaw_lsm_fifo_ctrl5(12.5f) == 0x0E, "FIFO_CTRL5 12.5 Hz continuous = 0x0E, got 0x%02x", openpaw_lsm_fifo_ctrl5(12.5f));
+  const uint8_t st_full[4] = {156, 0x00, 0x00, 0x00};  // 156 words, next word = X
+  openpaw_fifo_plan_t fp = openpaw_lsm_fifo_plan(st_full);
+  CHECK(fp.samples == 52 && fp.skip_words == 0 && !fp.overrun, "156 words aligned -> 52 samples (%u, skip %u)", fp.samples,
+        fp.skip_words);
+  const uint8_t st_mis[4] = {156, 0x00, 0x01, 0x00};   // next word is Y: drop Y and Z of a torn sample
+  fp = openpaw_lsm_fifo_plan(st_mis);
+  CHECK(fp.skip_words == 2 && fp.samples == 51, "pattern 1 -> skip 2 words, 51 samples (%u, %u)", fp.skip_words, fp.samples);
+  const uint8_t st_big[4] = {0x01, 0x03, 0x00, 0x00};  // DIFF_FIFO is 11 bits: 0x301 = 769 words
+  fp = openpaw_lsm_fifo_plan(st_big);
+  CHECK(fp.samples == 256, "11-bit word count 769 -> 256 samples, got %u", fp.samples);
+  const uint8_t st_over[4] = {0x00, 0x47, 0x00, 0x00};  // OVER_RUN: oldest samples were overwritten
+  CHECK(openpaw_lsm_fifo_plan(st_over).overrun == 1, "overrun bit 0x40 seen");
+  const uint8_t st_empty[4] = {0x00, 0x10, 0x00, 0x00};
+  fp = openpaw_lsm_fifo_plan(st_empty);
+  CHECK(fp.samples == 0 && fp.skip_words == 0, "empty FIFO -> nothing to read");
+  const uint8_t st_one[4] = {1, 0x00, 0x02, 0x00};     // only the Z of a torn sample is queued
+  fp = openpaw_lsm_fifo_plan(st_one);
+  CHECK(fp.skip_words == 1 && fp.samples == 0, "torn tail: skip 1, no samples (%u, %u)", fp.skip_words, fp.samples);
+  const uint8_t raw6[6] = {0x00, 0x10, 0x00, 0xF0, 0x00, 0x00};  // +4096, -4096, 0 LSB at +/-8 g
+  int16_t mx, my, mz;
+  openpaw_lsm_xyz_mg(raw6, &mx, &my, &mz);
+  CHECK(mx == 999 && my == -999 && mz == 0, "0.244 mg/LSB, same truncation as the polled read: %d %d %d", mx, my, mz);
+
+  // a batch gives the same epochs as feeding the samples one by one
+  openpaw_state_t sa, sb; openpaw_init(&sa, cfg); openpaw_init(&sb, cfg);
+  int16_t xyz[3 * 37]; uint32_t ta = 0, n_rec_a = 0, n_rec_b = 0, mism = 0;
+  openpaw_record_t ra[8], rb[8];
+  rng = 4242;
+  for (int batch = 0; batch < 22; batch++) {  // 22 x 37 = 814 samples = 3 epochs + 64
+    for (int i = 0; i < 37; i++, ta++) {
+      for (int k = 0; k < 3; k++) xyz[3 * i + k] = gen_trot(k, ta);
+      openpaw_record_t r;
+      if (openpaw_push(&sa, xyz[3 * i], xyz[3 * i + 1], xyz[3 * i + 2], 0, 0, 80, 0, &r) && n_rec_a < 8) ra[n_rec_a++] = r;
+    }
+    uint32_t off = 0, used = 0;
+    openpaw_record_t r;
+    while (off < 37) {
+      if (openpaw_push_batch(&sb, xyz + 3 * off, 37 - off, 1000u * (batch + 1), 0, 80, 0, &r, &used) && n_rec_b < 8)
+        rb[n_rec_b++] = r;
+      if (used == 0) { CHECK(0, "push_batch consumed nothing"); break; }
+      off += used;
+    }
+  }
+  CHECK(n_rec_a == 3 && n_rec_b == 3, "3 epochs either way (%u, %u)", n_rec_a, n_rec_b);
+  for (uint32_t i = 0; i < 3 && i < n_rec_b; i++)
+    if (ra[i].vedba_mean_mg != rb[i].vedba_mean_mg || ra[i].vedba_max_mg != rb[i].vedba_max_mg ||
+        ra[i].active_frac != rb[i].active_frac || ra[i].pitch_deg != rb[i].pitch_deg ||
+        ra[i].roll_half_deg != rb[i].roll_half_deg || ra[i].bursts != rb[i].bursts || ra[i].seq != rb[i].seq) mism++;
+  CHECK(mism == 0, "batched epochs match sample-by-sample epochs (%u differ)", mism);
+  CHECK(sa.n == sb.n && sb.n == 64, "64 samples of the 4th epoch pending either way (%u, %u)", sa.n, sb.n);
+
+  // each sample gets its own time: the newest sample was read at now_ms, older ones
+  // are 1/hz apart, so an epoch that closes mid-batch is not dated to the read time
+  openpaw_cfg_t c52 = cfg; c52.sample_hz = 52.0f;
+  openpaw_state_t sc; openpaw_init(&sc, c52);
+  CHECK(sc.expected == 260, "52 Hz x 5 s = 260 samples, got %u", sc.expected);
+  openpaw_record_t rc;
+  for (int i = 0; i < 230; i++) openpaw_push(&sc, 0, 0, 1000, 0, 0, 80, 0, &rc);
+  int16_t flat[3 * 52];
+  for (int i = 0; i < 52; i++) { flat[3 * i] = 0; flat[3 * i + 1] = 0; flat[3 * i + 2] = 1000; }
+  uint32_t used = 0;
+  CHECK(openpaw_push_batch(&sc, flat, 52, 20300, 0, 80, 0, &rc, &used) == 1 && used == 30,
+        "epoch closes at the 30th sample of the batch (used %u)", used);
+  CHECK(rc.uptime_s == 19, "closing sample is 22/52 s older than the read at 20.3 s -> uptime 19, got %u", rc.uptime_s);
+  CHECK(openpaw_push_batch(&sc, flat + 3 * 30, 22, 20300, 0, 80, 0, &rc, &used) == 0 && used == 22 && sc.n == 22,
+        "the rest of the batch starts the next epoch (used %u, n %u)", used, sc.n);
+  CHECK(openpaw_push_batch(&sc, flat, 0, 20300, 0, 80, 0, &rc, &used) == 0 && used == 0, "empty batch is a no-op");
+
   if (argc > 1) {  // golden vectors for app/test: hex packet + expected decoded fields
     FILE *f = fopen(argv[1], "w");
     if (!f) { perror("golden"); return 2; }

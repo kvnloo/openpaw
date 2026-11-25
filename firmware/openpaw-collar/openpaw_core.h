@@ -284,6 +284,69 @@ static inline uint16_t openpaw_adv_step(openpaw_adv_t *a, int connected, uint32_
   return 0;
 }
 
+// ---- LSM6DS3TR-C FIFO batching (power, XIAO nRF52840 Sense). The IMU queues its
+// accelerometer samples in its own FIFO (up to 4 KB = 682 XYZ samples, ~13 s at 52 Hz)
+// and the CPU reads them in one burst about once a second instead of waking 50x/s.
+// Registers: LSM6DS3TR-C datasheet section 5 / 9 and ST's lsm6ds3tr-c_reg.h:
+//   FIFO_CTRL3 08h DEC_FIFO_XL[2:0]=001 (accel, no decimation), gyro not batched
+//   FIFO_CTRL5 0Ah ODR_FIFO[6:3] (1 = 12.5 Hz, 3 = 52 Hz), FIFO_MODE[2:0]=110 continuous
+//   FIFO_STATUS1/2 3Ah/3Bh DIFF_FIFO[10:0] unread 16-bit words, 3Bh bit 6 OVER_RUN, bit 4 EMPTY
+//   FIFO_STATUS3/4 3Ch/3Dh FIFO_PATTERN[9:0] = which word comes next (0 = X when only accel)
+//   FIFO_DATA_OUT_L/H 3Eh/3Fh, read as one burst (ST driver fifo_raw_data_get)
+#define OPENPAW_LSM_FIFO_CTRL3 0x01
+#define OPENPAW_FIFO_READ_MS 1000u  // how often the CPU drains the FIFO
+
+static inline uint8_t openpaw_lsm_fifo_ctrl5(float hz) {
+  const uint8_t odr = hz <= 12.5f ? 1 : 3;  // the two rates the collar uses: 12.5 Hz still, 52 Hz full
+  return (uint8_t)((odr << 3) | 0x06);
+}
+
+typedef struct {
+  uint16_t samples;    // whole XYZ samples to read after the skip
+  uint8_t skip_words;  // words of a torn sample to read and drop first
+  uint8_t overrun;     // the FIFO overflowed: the oldest samples are gone
+} openpaw_fifo_plan_t;
+
+// st = FIFO_STATUS1..4 read in one burst from 3Ah.
+static inline openpaw_fifo_plan_t openpaw_lsm_fifo_plan(const uint8_t st[4]) {
+  openpaw_fifo_plan_t p;
+  const uint32_t words = (uint32_t)st[0] | ((uint32_t)(st[1] & 0x07) << 8);
+  const uint32_t pattern = (uint32_t)st[2] | ((uint32_t)(st[3] & 0x03) << 8);
+  uint32_t skip = (3 - pattern % 3) % 3;
+  if (skip > words) skip = words;
+  p.skip_words = (uint8_t)skip;
+  p.samples = (uint16_t)((words - skip) / 3);
+  p.overrun = (st[1] & 0x40) ? 1 : 0;
+  return p;
+}
+
+// One XYZ sample (6 bytes, little-endian int16) -> milli-g at +/-8 g (0.244 mg/LSB,
+// datasheet table 3); truncates like the polled read always did.
+static inline void openpaw_lsm_xyz_mg(const uint8_t b[6], int16_t *x, int16_t *y, int16_t *z) {
+  *x = (int16_t)((int16_t)(b[0] | (b[1] << 8)) * 0.244f);
+  *y = (int16_t)((int16_t)(b[2] | (b[3] << 8)) * 0.244f);
+  *z = (int16_t)((int16_t)(b[4] | (b[5] << 8)) * 0.244f);
+}
+
+// Feed n samples (xyz interleaved, mg) read at now_ms; the last one is the newest and
+// the others are 1/sample_hz apart, so each sample is dated on its own. Returns 1 when
+// an epoch closed (*out filled, its uptime = its closing sample's time); *used = samples
+// consumed. Call again with the rest of the batch.
+static inline int openpaw_push_batch(openpaw_state_t *s, const int16_t *xyz, uint32_t n, uint32_t now_ms,
+                                     uint8_t hr_bpm, uint8_t battery_pct, uint8_t extra_flags,
+                                     openpaw_record_t *out, uint32_t *used) {
+  for (uint32_t i = 0; i < n; i++) {
+    const uint32_t age_ms = (uint32_t)((float)(n - 1 - i) * 1000.0f / s->cfg.sample_hz + 0.5f);
+    const uint32_t up = (uint32_t)(now_ms - age_ms) / 1000u;
+    if (openpaw_push(s, xyz[3 * i], xyz[3 * i + 1], xyz[3 * i + 2], up, hr_bpm, battery_pct, extra_flags, out)) {
+      *used = i + 1;
+      return 1;
+    }
+  }
+  *used = n;
+  return 0;
+}
+
 // Little-endian wire format, 20 bytes. Must match app/openpaw-ble.js decodeRecord().
 static inline void openpaw_encode(const openpaw_record_t *r, uint8_t b[OPENPAW_RECORD_SIZE]) {
   b[0] = r->version;

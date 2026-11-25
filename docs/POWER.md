@@ -13,16 +13,22 @@ Legend: **[D]** = value from a datasheet (source linked below), **[E]** = estima
 
 | Mode | When | Accelerometer | CPU wake-ups | Radio |
 |---|---|---|---|---|
-| **Active** | Default | XIAO: LSM6DS3TR-C at 52 Hz low-power; T1000-E: QMA6100P | 50 per second | Advertising every 100 ms for 30 s after boot or a disconnect, then every 1 s; Advertising every 2 s once no phone has connected for 10 min ("parked") |
-| **Still** | 5 min of still epochs (mean VeDBA under 60 mg, no burst, no sensor gap) and no phone connected | XIAO: 12.5 Hz low-power; T1000-E: unchanged | 10 per second | As in Active (usually parked: 2 s) |
-| **Connected, downloading** | The app is connected and a backlog download runs (and for 2 s after it ends) | As in Active (a connected phone always gets 50 Hz) | 50 per second | Asks for connection events every 15 ms |
-| **Connected, idle** | Connected, no download for 2 s | As in Active | 50 per second | Asks for 200 ms events with peripheral latency 4: the collar may skip up to 4 empty events, so it answers at least once a second, and sooner whenever it has a live record to send |
+| **Active** | Default | XIAO: LSM6DS3TR-C at 52 Hz low-power, samples queued in its FIFO; T1000-E: QMA6100P polled at 50 Hz | XIAO: 1 per second (FIFO read); T1000-E: 50 per second | Advertising every 100 ms for 30 s after boot or a disconnect, then every 1 s; Advertising every 2 s once no phone has connected for 10 min ("parked") |
+| **Still** | 5 min of still epochs (mean VeDBA under 60 mg, no burst, no sensor gap) and no phone connected | XIAO: 12.5 Hz low-power, FIFO; T1000-E: unchanged, polled at 10 Hz | XIAO: 1 per second; T1000-E: 10 per second | As in Active (usually parked: 2 s) |
+| **Connected, downloading** | The app is connected and a backlog download runs (and for 2 s after it ends) | As in Active (a connected phone always gets the full rate) | As in Active | Asks for connection events every 15 ms |
+| **Connected, idle** | Connected, no download for 2 s | As in Active | As in Active | Asks for 200 ms events with peripheral latency 4: the collar may skip up to 4 empty events, so it answers at least once a second, and sooner whenever it has a live record to send |
 
 Any epoch that is not still, any burst, a sensor gap, or a phone connecting switches the collar back to
 Active at the next 5 s epoch boundary. Epochs recorded in Still mode carry record flag `0x10` (`LOWRATE`),
-and the app exports it as `provenance.quality.low_rate`, so analysis never confuses a 10 Hz epoch with a
-50 Hz one. The 60 mg limit is a provisional power setting. It is tighter than the app's "still" band
+and the app exports it as `provenance.quality.low_rate`, so analysis never confuses a low-rate epoch with a
+full-rate one. The 60 mg limit is a provisional power setting. It is tighter than the app's "still" band
 (under 250 mg, which also covers standing), and it has not been calibrated against labelled data.
+
+On the XIAO an epoch is 260 of the IMU's own 52 Hz samples (63 at 12.5 Hz in Still mode), so its
+length follows the IMU's clock: nominally 5 s, not measured. Each sample is dated from the moment
+the FIFO was read and its place in the batch (`openpaw_push_batch`), so an epoch that ends in the
+middle of a batch keeps its own end time. If the FIFO overflows (samples lost), the open epoch is
+closed with the `GAP` flag.
 
 ## Per-part current
 
@@ -40,18 +46,32 @@ and the app exports it as `provenance.quality.low_rate`, so analysis never confu
 
 ## Estimated average current, not connected
 
-The largest item is the CPU waking for every sample. Each wake reads 6 bytes over
-I²C at 100 kHz: about 9 bytes on the wire, roughly 0.8 ms. Assume **~1 ms awake per
-sample** [E]. Whether the Seeed core turns on the DC/DC converter is not verified, so
-both regulator cases are shown.
+The largest item is the CPU being awake for I²C reads. The Seeed core's `Wire` driver
+(`Wire_nRF52.cpp`, core 1.1.13) runs the bus at 100 kHz and spins in a loop until each
+transfer ends, so the CPU stays awake for the whole time a byte is on the wire, about
+90 µs per byte (9 bits). Whether the Seeed core turns on the DC/DC converter is not
+verified, so both regulator cases are shown.
+
+- **Polled (T1000-E, and the XIAO before FIFO batching):** each sample is its own wake-up
+  and read of about 9 bytes on the wire, roughly 0.8 ms. Assume **~1 ms awake per sample** [E]:
+  50 ms per second at 50 Hz.
+- **FIFO batching (XIAO, firmware 0.4 and later):** one wake-up per second reads the 4 status
+  bytes and then the queued samples in 60-byte bursts. At 52 Hz that is about 312 data bytes
+  plus ~25 bytes of addressing, ~340 bytes ≈ **~30 ms awake per second** [E]; at 12.5 Hz
+  about 90 bytes ≈ 8 ms. Wake-ups drop from 50 to 1 per second, but the bytes still have to
+  cross the bus, so the CPU time drops by only about 40%. I²C at 400 kHz (next item) would
+  cut the 30 ms to about 8 ms.
 
 | Item | Active, DC/DC | Active, LDO | Still, DC/DC | Still, LDO |
 |---|---|---|---|---|
 | nRF52840 asleep | 3 µA | 3 µA | 3 µA | 3 µA |
-| CPU wake per sample (1 ms × rate × CPU current) [E] | 165 µA | 315 µA | 33 µA | 63 µA |
+| CPU awake for the FIFO read (30 ms or 8 ms per second × CPU current) [E] | 100 µA | 190 µA | 26 µA | 50 µA |
 | Accelerometer (XIAO) | 25 µA | 25 µA | 9 µA | 9 µA |
 | Advertising, parked at 2 s: 3 channels × ~0.6 ms × ~6.4 mA ≈ 12 µC per event, plus radio start-up, every 2 s [E] | ~8 µA | ~8 µA | ~8 µA | ~8 µA |
-| **Total (XIAO, parts only)** | **~200 µA** | **~350 µA** | **~55 µA** | **~85 µA** |
+| **Total (XIAO, parts only)** | **~135 µA** | **~225 µA** | **~45 µA** | **~70 µA** |
+
+Polled at 50 / 10 Hz, the CPU line was 165 / 315 / 33 / 63 µA and the totals ~200 / ~350 /
+~55 / ~85 µA. On the T1000-E the QMA6100P is still polled, so those polled figures apply there.
 
 Advertising every 1 s (the first 10 min after a phone leaves) costs about twice the parked
 figure, ~15 µA [E]. Parking saves ~7 µA, which matters most in Still mode (~13% of its
@@ -66,8 +86,8 @@ figures. The board's LoRa radio, GNSS and other sensors are never switched on by
 firmware, but their off-state leakage is not in the table.
 
 A dog that lies still most of the day spends most of its time in Still mode, where
-this estimate drops by about 4×. For example, 16 h still and
-8 h active per day averages about 100 µA (DC/DC) [E]. That is a parts-only lower bound.
+this estimate drops by about 3×. For example, 16 h still and
+8 h active per day averages about 75 µA on the XIAO (DC/DC) [E], down from about 100 µA when polled. That is a parts-only lower bound.
 The vendor has published no battery life for an always-on accelerometer with BLE
 (research/hardware.md); measure it before any page quotes battery days.
 
@@ -93,10 +113,10 @@ The intervals stay inside the BLE Core rule that the supervision timeout (4 s) i
 - **Wake on motion.** Both accelerometers can raise an interrupt on motion: LSM6DS3TR-C wake-up and
   activity/inactivity, and QMA6100P `ANY_MOT_INT`. The CPU could then sleep until the dog moves,
   instead of polling at 10 Hz. That needs the interrupt pin wiring checked on real boards.
-- **FIFO batching.** The LSM6DS3TR-C FIFO can hold samples so the CPU reads them in one burst
-  per second instead of waking 50 times. The data stays identical, and the wake-up cost drops by
-  about 50×.
-- **I²C at 400 kHz.** Both sensors support fast mode. It would shorten each read about 4×.
+- **FIFO batching on the T1000-E.** Done for the XIAO's LSM6DS3TR-C (above). The QMA6100P also has
+  a FIFO; it is still polled.
+- **I²C at 400 kHz.** Both sensors support fast mode. It would shorten each read about 4×, which now
+  matters more than the number of wake-ups.
 
 ## Sources
 
@@ -105,5 +125,10 @@ The intervals stay inside the BLE Core rule that the supervision timeout (4 s) i
 - STMicroelectronics, *LSM6DS3TR-C datasheet*, Table 4 "Electrical characteristics" (Seeed mirror:
   https://files.seeedstudio.com/wiki/XIAO-BLE/ST_LSM6DS3TR_Datasheet.pdf) and *AN5130*, Table 7
   "Power consumption" (https://www.st.com/resource/en/application_note/an5130-lsm6ds3trc-alwayson-3d-accelerometer-and-3d-gyroscope-stmicroelectronics.pdf).
+- STMicroelectronics, LSM6DS3TR-C datasheet section 5.5 "FIFO" and register map (FIFO_CTRL3 08h,
+  FIFO_CTRL5 0Ah, FIFO_STATUS1-4 3Ah-3Dh, FIFO_DATA_OUT 3Eh), cross-checked against ST's driver
+  `lsm6ds3tr-c_reg.h` / `lsm6ds3tr-c_reg.c` (https://github.com/STMicroelectronics/lsm6ds3tr-c, BSD-3-Clause).
+- Seeed nRF52 Arduino core 1.1.13, `libraries/Wire/Wire_nRF52.cpp` (100 kHz default, busy-wait transfers,
+  64-byte buffer).
 - QST, *QMA6100P datasheet Rev F*, electrical characteristics
   (https://qstcorp.com/upload/pdf/202602/13-52-20%20QMA6100P%20Datasheet%20Rev%20F.pdf).
