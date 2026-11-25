@@ -4,6 +4,7 @@ import * as S from './store.js';
 import { TEMPLATES, findPatterns, demoHistory, metricFor, slug, ENGINE_VERSION } from './patterns.js';
 import { packGroups } from './tile-pack.js';
 import { todayRows } from './today-list.js';
+import { tabStep } from './tab-keys.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -226,6 +227,7 @@ function renderTrackerList() {
 function show(tab) {
   for (const n of ['today', 'patterns', 'trackers']) {
     $(`#tab-${n}`).setAttribute('aria-selected', String(n === tab));
+    $(`#tab-${n}`).tabIndex = n === tab ? 0 : -1; // APG Tabs: one Tab stop, the selected tab
     $(`#v-${n}`).hidden = n !== tab;
   }
   if (tab === 'patterns') renderPatterns();
@@ -268,9 +270,10 @@ document.addEventListener('click', async (ev) => {
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && cur) closeSheet();
   if ((e.key === 'Enter' || e.key === ' ') && e.target.classList && e.target.classList.contains('finding')) { e.preventDefault(); e.target.click(); }
-  if (e.target.matches && e.target.matches('[role=tab]') && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
-    const tabs = [...document.querySelectorAll('[role=tab]')], i = tabs.indexOf(e.target);
-    const n = tabs[(i + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length]; n.focus(); show(n.id.slice(4));
+  if (e.target.matches && e.target.matches('[role=tab]')) {
+    const tabs = [...document.querySelectorAll('[role=tab]')];
+    const j = tabStep(tabs.indexOf(e.target), e.key, tabs.length);
+    if (j !== null) { e.preventDefault(); tabs[j].focus(); show(tabs[j].id.slice(4)); }
   }
 });
 $('#scrim').onclick = closeSheet;
