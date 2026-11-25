@@ -79,13 +79,16 @@ export function circadian(epochs, { tz = 0, now = Date.now(), days = 7, binMin =
   const n = Math.round(1440 / binMin);
   const today = localDay(now, tz);
   const sum = new Array(n).fill(0), cnt = new Array(n).fill(0), tSum = new Array(n).fill(0), tCnt = new Array(n).fill(0);
+  const past = new Set();
   for (const e of epochs) {
     if (e.t < now - (days + 1) * 864e5 || e.t > now) continue;
     const b = Math.min(n - 1, Math.floor(minuteOfDay(e.t, tz) / binMin));
-    if (localDay(e.t, tz) === today) { tSum[b] += e.vedba; tCnt[b]++; } else { sum[b] += e.vedba; cnt[b]++; }
+    const d = localDay(e.t, tz);
+    if (d === today) { tSum[b] += e.vedba; tCnt[b]++; } else { sum[b] += e.vedba; cnt[b]++; past.add(d); }
   }
   return {
     binMin,
+    pastDays: past.size,
     typical: sum.map((s, i) => (cnt[i] ? s / cnt[i] : null)),
     today: tSum.map((s, i) => (tCnt[i] ? s / tCnt[i] : null)),
     nowBin: Math.floor(minuteOfDay(now, tz) / binMin),
