@@ -176,15 +176,18 @@ export function renderRhythm(svg, center, epochs, { tz, now }) {
 export function renderBudget(root, epochs, { tz, now }) {
   const days = dayBudget(epochs, { tz, now, days: 7 });
   const today = days[days.length - 1].day;
+  // An empty week shows the day axis as quiet tracks and says so once, instead of 7 × "no data".
+  const empty = days.every((d) => !d.covered);
   root.innerHTML = days.map((d) => {
     const tot = d.covered || 1;
     const active = activeMinutes(d);
-    return `<div class="bd-row ${d.day === today ? 'is-today' : ''}" tabindex="0" aria-label="${dayName(d.day)}: ${LEVELS.map((L, i) => `${L.label} ${fmtMin(d.minutes[i])}`).join(', ')}">
+    const label = d.covered ? LEVELS.map((L, i) => `${L.label} ${fmtMin(d.minutes[i])}`).join(', ') : 'no data';
+    return `<div class="bd-row ${d.day === today ? 'is-today' : ''}" tabindex="0" aria-label="${dayName(d.day)}: ${label}">
       <span class="bd-day">${d.day === today ? 'Today' : dayName(d.day)}</span>
-      <span class="bd-bar">${d.covered ? d.minutes.map((m, i) => `<i style="--w:${((m / tot) * 100).toFixed(2)}%;background:${LEVEL_COLORS[i]}" title="${LEVELS[i].label}: ${fmtMin(m)}"></i>`).join('') : '<em>no data</em>'}</span>
-      <span class="bd-val">${d.covered ? fmtMin(active) : '–'}</span>
+      <span class="bd-bar${empty ? ' none' : ''}">${d.covered ? d.minutes.map((m, i) => `<i style="--w:${((m / tot) * 100).toFixed(2)}%;background:${LEVEL_COLORS[i]}" title="${LEVELS[i].label}: ${fmtMin(m)}"></i>`).join('') : empty ? '' : '<em>no data</em>'}</span>
+      <span class="bd-val">${d.covered ? fmtMin(active) : empty ? '' : '–'}</span>
       <span class="bd-b">${d.bursts ? `${d.bursts}<svg viewBox="0 0 8 12" aria-hidden="true"><path d="M4 0l4 6-4 6-4-6z" fill="#e8a35f"/></svg>` : ''}</span></div>`;
-  }).join('');
+  }).join('') + (empty ? '<p class="bd-empty">No collar data in the last 7 days. Each day fills in as the collar records; Demo week shows a full one.</p>' : '');
   const full = days.filter((d) => d.covered > 1200 && d.day !== today);
   if (full.length >= 2) {
     const avg = (i) => full.reduce((s, d) => s + d.minutes[i], 0) / full.length;
