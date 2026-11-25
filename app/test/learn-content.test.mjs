@@ -140,6 +140,11 @@ test('c-hackles-play card: play bows restart play after a pause; cites byosiere2
   for (const e of c.examples) assert.match(e.url, /^https:\/\/www\.youtube\.com\/watch\?v=[\w-]{11}&t=\d+s$/, e.url);
   assert.ok(c.examples.some((e) => /both .*(stop|still|pause)/i.test(e.label)), 'an example shows both dogs pausing together');
   assert.ok(c.examples.some((e) => /sound|growl|noise/i.test(e.label)), 'an example warns that play noise can sound like a fight');
+  // The "step in" advice needs a picture of play that is not mutual.
+  const oneSided = c.examples.find((e) => /emKIZgprH48/.test(e.url));
+  assert.ok(oneSided, 'a one-sided play example (one dog keeps pursuing, the other turns away)');
+  assert.match(oneSided.label, /one-sided/i);
+  assert.match(oneSided.label, /turn/i);
 });
 
 test('c-play-sound card: noise misleads both ways; cites farago2017 with its numbers and links both directions', () => {

@@ -391,6 +391,7 @@ export const CARDS = [
     examples: [
       { url: 'https://www.youtube.com/watch?v=ZrG3SIYDILc&t=202s', label: 'Mid-wrestle, both dogs stop and stand still for about a second and a half, then start again with the roles swapped; the trainer calls these shared pauses a good sign (3:22 to 3:26, Dunbar Academy)' },
       { url: 'https://www.youtube.com/watch?v=ZrG3SIYDILc&t=82s', label: 'The same play with the sound off: the noise made it sound like a fight; the trainer points to bouncy, bendy movement and taking turns chasing instead (1:22 to 3:30)' },
+      { url: 'https://www.youtube.com/watch?v=emKIZgprH48&t=563s', label: 'When to step in, one-sided play: a puppy keeps pushing at a small dog who twists away, then stands still with her head turned and never restarts the game; the trainer says she is only putting up with it (9:23 to 10:15, The True-Hearted Trainer)' },
     ] },
   { id: 'c-play-sound', lesson: 'freeze-hackles', art: { posture: 'bow', ears: 'neutral', eye: 'soft', mouth: 'loose', tail: 'high', wag: 'loose', prop: 'dog' },
     context: 'Two dogs who know each other are wrestling in the yard, growling loudly. Their bodies look bouncy and they keep swapping who chases whom.',
