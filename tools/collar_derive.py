@@ -4,7 +4,9 @@
 For each Field episode (owner marks sharing one episode_id, anchored at its "trigger seen"
 mark) it reports, from the collar's VeDBA epochs only:
   - baseline band: median and nearest-rank 90th percentile of this dog's own 30 minutes
-    before the trigger ("unknown" with under a minute of epochs);
+    before the trigger ("unknown" with under a minute of epochs). The window leaves out
+    epochs the collar flagged clipped or gap, and an earlier episode's follow-up (its trigger
+    until it was back in band, or until this trigger if it never was); both counts are kept;
   - peak: the largest epoch between the trigger and the end of follow-up;
   - back in band: start of the first 30 s run (six 5 s epochs, no hole) at or under the
     band's upper edge after the peak; "not observed" when follow-up ends first, with how far
@@ -30,7 +32,7 @@ from pathlib import Path
 from statistics import median
 import sys
 
-ALGORITHM_VERSION = 'openpaw-episode-movement/1'
+ALGORITHM_VERSION = 'openpaw-episode-movement/2'   # /2: band leaves out poor-quality and earlier-episode epochs
 BASELINE_S = 1800
 MIN_BASELINE_EPOCHS = 12   # one minute of 5 s epochs
 SETTLE_S = 30              # six 5 s epochs in a row at or under the band
@@ -49,6 +51,12 @@ def _iso(t):
 def _p90(values):
     s = sorted(values)
     return s[max(0, math.ceil(0.9 * len(s)) - 1)]
+
+
+def _poor(e):
+    """Epochs the collar flagged as clipped (sensor at full scale) or gap (missing samples)."""
+    q = (e.get('provenance') or {}).get('quality') or {}
+    return bool(q.get('clipped') or q.get('gap'))
 
 
 def _num(x):
@@ -91,19 +99,30 @@ def derive(events):
                 triggers[e['episode_id']] = e
     order = sorted(triggers.values(), key=lambda e: _t(e['timestamp']))
     simulated = any((e.get('provenance') or {}).get('origin') == 'simulated' for _, e in epochs)
-    out = []
+    out, busy = [], []   # busy: [start, end) of earlier episodes' follow-up until back in band
     for i, trig in enumerate(order):
         t0 = _t(trig['timestamp'])
         t_end = _t(order[i + 1]['timestamp']) if i + 1 < len(order) else math.inf
-        base = [e for t, e in epochs if t0 - BASELINE_S <= t < t0]
+        base, excluded = [], {'quality': 0, 'earlier_episode': 0}
+        for t, e in epochs:
+            if not t0 - BASELINE_S <= t < t0:
+                continue
+            if any(s <= t < u for s, u in busy):
+                excluded['earlier_episode'] += 1
+            elif _poor(e):
+                excluded['quality'] += 1
+            else:
+                base.append(e)
         after = [(t, e) for t, e in epochs if t0 <= t < t_end]
         if not after:
+            busy.append((t0, t_end))
             continue
         vals = [e['payload']['value'] for e in base]
         known = len(base) >= MIN_BASELINE_EPOCHS
         upper = _num(_p90(vals)) if known else None
         pt, pe = max(after, key=lambda x: x[1]['payload']['value'])
         back = _back_in_band([x for x in after if x[0] > pt], upper, t0, pt, after[-1][0])
+        busy.append((t0, t0 + back['after_trigger_s'] if back['status'] == 'observed' else t_end))
         evidence = [trig['event_id'], pe['event_id']] + ([back['event_id']] if back['event_id'] else [])
         out.append({
             'schema_version': '0.1',
@@ -118,6 +137,7 @@ def derive(events):
             'payload': {
                 'metric': 'episode.movement',
                 'baseline': {'status': 'known' if known else 'unknown', 'window_s': BASELINE_S, 'epochs': len(base),
+                             'excluded': excluded,
                              'median_mg': _num(median(vals)) if known else None, 'upper_mg': upper,
                              'first_event_id': base[0]['event_id'] if base else None,
                              'last_event_id': base[-1]['event_id'] if base else None},

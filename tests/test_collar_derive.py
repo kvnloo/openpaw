@@ -125,6 +125,37 @@ class DeriveTests(unittest.TestCase):
         self.assertIsNone(d['baseline']['upper_mg'])
         self.assertEqual(d['back_in_band']['status'], 'unknown')
 
+    def test_clipped_and_gap_epochs_are_left_out_of_the_band(self):
+        evs = walk()
+        bad = {7: 'clipped', 17: 'clipped', 27: 'gap', 37: 'gap'}   # all 80 mg slots, so the clean band is unchanged
+        for e in evs:
+            k = e['provenance'].get('device_seq')
+            if k in bad:
+                e['payload']['value'] = 2000
+                e['provenance']['quality'][bad[k]] = True
+        b = self.one(evs)['payload']['baseline']
+        self.assertEqual(b['epochs'], 356)
+        self.assertEqual(b['excluded'], {'quality': 4, 'earlier_episode': 0})
+        self.assertEqual(b['upper_mg'], 70)
+
+    def test_an_earlier_episodes_follow_up_is_left_out_of_the_next_band(self):
+        # ep-1 never settles (tail 200 mg); ep-2 10 min later must not take 200 mg as its baseline
+        evs = walk(tail_mg=200, after_tail=200)
+        evs.append(mark('trigger.seen', T0 + timedelta(seconds=600), ep='ep-2', eid='owner:trigger-2'))
+        out = {d['episode_id']: d['payload'] for d in self.m.derive(evs)}
+        b = out['ep-2']['baseline']
+        self.assertEqual(b['excluded'], {'quality': 0, 'earlier_episode': 120})  # T0 .. T0+595
+        self.assertEqual(b['epochs'], 240)
+        self.assertEqual(b['median_mg'], 52.5)
+        self.assertEqual(b['upper_mg'], 70)
+
+    def test_an_earlier_episode_stops_excluding_once_back_in_band(self):
+        evs = walk(after_tail=200)   # ep-1 back in band at +40 s
+        evs.append(mark('trigger.seen', T0 + timedelta(seconds=600), ep='ep-2', eid='owner:trigger-2'))
+        out = {d['episode_id']: d['payload'] for d in self.m.derive(evs)}
+        self.assertEqual(out['ep-2']['baseline']['excluded'], {'quality': 0, 'earlier_episode': 8})
+        self.assertEqual(out['ep-2']['baseline']['epochs'], 352)
+
     def test_output_is_a_schema_valid_derived_state_with_evidence_and_version(self):
         from jsonschema import Draft202012Validator, FormatChecker
         schema = json.loads((ROOT / 'schema' / 'openpaw-event.schema.json').read_text(encoding='utf-8'))
@@ -132,7 +163,7 @@ class DeriveTests(unittest.TestCase):
         self.assertEqual(list(Draft202012Validator(schema, format_checker=FormatChecker()).iter_errors(d)), [])
         self.assertEqual(d['event_type'], 'derived_state')
         self.assertEqual(d['episode_id'], 'ep-1')
-        self.assertEqual(d['provenance']['algorithm_version'], 'openpaw-episode-movement/1')
+        self.assertEqual(d['provenance']['algorithm_version'], 'openpaw-episode-movement/2')
         self.assertEqual(d['provenance']['origin'], 'model')
         self.assertEqual(d['provenance']['evidence_event_ids'],
                          ['owner:trigger', 'dev:362:movement.vedba_mean', 'dev:368:movement.vedba_mean'])
