@@ -60,7 +60,8 @@
   .need-wrap { position:relative; } .need-wrap em { position:absolute; inset:0; display:grid; place-items:center; font:500 13px/1 var(--mono); font-style:normal; color:var(--ink); }
 
   /* tracker tiles */
-  .cat { margin:18px 0 8px; }
+  /* group label on a hairline across the group's width (landing section-divider pattern): groups read as sections */
+  .cat { margin:18px 0 10px; padding-bottom:7px; border-bottom:1px solid var(--line); }
   /* category groups share one 4-column grid (same columns as the needs row), so small groups sit side by side */
   #tiles { display:grid; grid-template-columns:repeat(4,1fr); column-gap:10px; }
   .grp { grid-column:span var(--n,4); min-width:0; }
