@@ -7,7 +7,7 @@
 //  - minimum data before anything is claimed; findings carry the evidence days.
 // SPDX-License-Identifier: GPL-3.0-only
 
-export const ENGINE_VERSION = 'openpaw-patterns/0.1';
+export const ENGINE_VERSION = 'openpaw-patterns/0.2';
 
 // Default trackers. Owners can add any others ("whatever I wanna track").
 // type: count | quantity | duration | scale | check
@@ -139,9 +139,22 @@ function pearson(a, b) {
 }
 export function spearman(x, y) { return pearson(ranks(x), ranks(y)); }
 
+// Ranks of y with the linear effect of c's ranks removed (rank partial: y | c).
+function rankResidual(y, c) {
+  const ry = ranks(y), rc = ranks(c), n = y.length;
+  let mc = 0, my = 0;
+  for (let i = 0; i < n; i++) { mc += rc[i]; my += ry[i]; }
+  mc /= n; my /= n;
+  let scy = 0, scc = 0;
+  for (let i = 0; i < n; i++) { scy += (rc[i] - mc) * (ry[i] - my); scc += (rc[i] - mc) ** 2; }
+  const b = scc ? scy / scc : 0;
+  return ry.map((v, i) => v - my - b * (rc[i] - mc));
+}
+
 // Two-sided permutation p-value for Spearman's rho (deterministic seed).
-export function permutationP(x, y, rho, { perms = 999, seed = 7 } = {}) {
-  const rx = ranks(x), ry = ranks(y).slice(), r = rng(seed);
+// yRanked: y is already a rank residual (partial test), use it as is.
+export function permutationP(x, y, rho, { perms = 999, seed = 7, yRanked = false } = {}) {
+  const rx = ranks(x), ry = (yRanked ? y : ranks(y)).slice(), r = rng(seed);
   let hits = 0;
   for (let p = 0; p < perms; p++) {
     for (let i = ry.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [ry[i], ry[j]] = [ry[j], ry[i]]; }
@@ -195,8 +208,38 @@ export function findPatterns(events, opts = {}) {
     }
   }
   tests.forEach((t, k) => { t.p = permutationP(t.xs, t.ys, t.rho, { perms, seed: 101 + k }); });
-  const qs = benjaminiHochberg(tests.map((t) => t.p));
+  let qs = benjaminiHochberg(tests.map((t) => t.p));
   tests.forEach((t, k) => { t.q = qs[k]; });
+  // A strong factor can hide a weaker one (lots of play on a day swamps last night's sleep). Per target,
+  // hold the strongest factor that already passes fixed and re-test the others on the target's rank
+  // residual. Only factors already visible unadjusted (p <= .05, same direction) are re-tested, so a
+  // factor can't appear only after adjustment; the family size (BH) stays the same.
+  const control = new Map();
+  for (const t of tests) {
+    if (t.q > maxQ || Math.abs(t.rho) < minAbsRho) continue;
+    if (!control.has(t.tk) || Math.abs(control.get(t.tk).rho) < Math.abs(t.rho)) control.set(t.tk, t);
+  }
+  if (control.size) {
+    const dayIdx = new Map(days.map((d, i) => [d, i]));
+    tests.forEach((t, k) => {
+      const c = control.get(t.tk);
+      if (!c || c.fk === t.fk || t.p > 0.05) return;
+      const xs = [], ys = [], cs = [], used = [];
+      t.used.forEach((d, j) => {
+        const i = dayIdx.get(d) - c.lag, cv = i >= 0 ? series[c.fk].values[i] : null;
+        if (cv === null || cv === undefined) return;
+        xs.push(t.xs[j]); ys.push(t.ys[j]); cs.push(cv); used.push(d);
+      });
+      if (xs.length < minDays || new Set(cs).size < 2) return;
+      const e = rankResidual(ys, cs);
+      const rho = pearson(ranks(xs), e);
+      if (Math.sign(rho) !== Math.sign(t.rho)) return;
+      const p = permutationP(xs, e, rho, { perms, seed: 101 + k, yRanked: true });
+      Object.assign(t, { xs, ys, used, rho, p, adjustedFor: { factor: c.fk, lag: c.lag } });
+    });
+    qs = benjaminiHochberg(tests.map((t) => t.p));
+    tests.forEach((t, k) => { t.q = qs[k]; });
+  }
   // keep the stronger lag per (target, factor) pair
   const best = new Map();
   for (const t of tests) {
@@ -219,8 +262,9 @@ export function findPatterns(events, opts = {}) {
       kind: 'association',
       target: t.tk, factor: t.fk, lag: t.lag,
       title: `${tl} ${t.rho < 0 ? 'lower' : 'higher'} ${when} days with ${factorHi}`,
-      detail: `${tl}: ${fmtNum(mh)} vs ${fmtNum(ml)} per day (${hi.length} vs ${lo.length} days). Spearman ρ = ${t.rho.toFixed(2)}, q = ${t.q.toFixed(3)}.`,
+      detail: `${tl}: ${fmtNum(mh)} vs ${fmtNum(ml)} per day (${hi.length} vs ${lo.length} days). Spearman ρ = ${t.rho.toFixed(2)}${t.adjustedFor ? ` allowing for ${series[t.adjustedFor.factor].label.toLowerCase()} ${t.adjustedFor.lag ? 'the day before' : 'on the same day'}` : ''}, q = ${t.q.toFixed(3)}.`,
       rho: t.rho, q: t.q, n: t.xs.length, days: t.used,
+      ...(t.adjustedFor ? { adjustedFor: t.adjustedFor } : {}),
       split: { high: mh, low: ml, nHigh: hi.length, nLow: lo.length, cut: med },
       strength: Math.abs(t.rho) * (1 - t.q),
       caveat: 'An association in your own logs, not proof of cause. Try changing one thing for two weeks and see if it holds.',
