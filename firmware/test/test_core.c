@@ -292,6 +292,30 @@ int main(int argc, char **argv) {
   openpaw_lsm_xyz_mg(raw6, &mx, &my, &mz);
   CHECK(mx == 999 && my == -999 && mz == 0, "0.244 mg/LSB, same truncation as the polled read: %d %d %d", mx, my, mz);
 
+  // 15b. QMA6100P FIFO batching (power, T1000-E). QST datasheet Rev F: 7.8 FIFO_INT,
+  // 9.7 INT_STATUS_2 0Bh (bit 7 FIFO_OR), 9.9 FIFO_STATUS 0Eh (frame counter),
+  // 9.11 ODR 10h, 9.48 FIFO_CFG0 3Eh, 9.49 FIFO_DATA 3Fh (LSB bit 0 = frame valid).
+  CHECK(OPENPAW_QMA_FIFO_CFG0 == 0x87, "FIFO_CFG0: STREAM mode (10b in bits 7:6) + X/Y/Z enabled = 0x87");
+  CHECK(openpaw_qma_odr(50.0f) == 0x05, "ODR 50 Hz = 0x05, LPF off, got 0x%02x", openpaw_qma_odr(50.0f));
+  CHECK(openpaw_qma_odr(12.5f) == 0x07, "ODR 12.5 Hz = 0x07, got 0x%02x", openpaw_qma_odr(12.5f));
+  CHECK(OPENPAW_QMA_FIFO_DEPTH == 64, "64-frame FIFO");
+  CHECK(OPENPAW_QMA_FIFO_READ_MS * 50u < OPENPAW_QMA_FIFO_DEPTH * 1000u,
+        "a read every %u ms at 50 Hz fits the 64-frame FIFO (1.28 s)", OPENPAW_QMA_FIFO_READ_MS);
+  const uint8_t q_st[4] = {0x00, 0x00, 0x00, 40};  // 0Bh..0Eh burst: 40 frames queued
+  fp = openpaw_qma_fifo_plan(q_st);
+  CHECK(fp.samples == 40 && fp.skip_words == 0 && !fp.overrun, "40 frames -> 40 samples (%u)", fp.samples);
+  const uint8_t q_over[4] = {0x80, 0x00, 0x00, 64};
+  fp = openpaw_qma_fifo_plan(q_over);
+  CHECK(fp.overrun == 1 && fp.samples == 64, "FIFO_OR bit 7 -> overrun, 64 frames (%u)", fp.samples);
+  const uint8_t q_bad[4] = {0x00, 0x00, 0x00, 200};  // counter beyond the depth: never read past it
+  CHECK(openpaw_qma_fifo_plan(q_bad).samples == 64, "frame counter clamps to the 64-frame depth");
+  // +2048, -2048, 0 counts (14-bit, left-aligned), X LSB bit 0 = valid frame
+  const uint8_t qf[6] = {0x01, 0x20, 0x00, 0xE0, 0x00, 0x00};
+  CHECK(openpaw_qma_frame_mg(qf, &mx, &my, &mz) == 1, "LSB bit 0 set -> valid frame");
+  CHECK(mx == 2000 && my == -2000 && mz == 0, "0.977 mg/LSB, same as the polled read: %d %d %d", mx, my, mz);
+  const uint8_t qe[6] = {0, 0, 0, 0, 0, 0};  // read past the fill level: all zeroes
+  CHECK(openpaw_qma_frame_mg(qe, &mx, &my, &mz) == 0, "all-zero frame (FIFO empty) is not valid");
+
   // a batch gives the same epochs as feeding the samples one by one
   openpaw_state_t sa, sb; openpaw_init(&sa, cfg); openpaw_init(&sb, cfg);
   int16_t xyz[3 * 37]; uint32_t ta = 0, n_rec_a = 0, n_rec_b = 0, mism = 0;
