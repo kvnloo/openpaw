@@ -252,6 +252,38 @@ static inline uint16_t openpaw_link_step(openpaw_link_t *l, int connected, int d
   return 0;
 }
 
+// ---- Advertising (power). After boot or a disconnect the collar advertises every
+// 100 ms for 30 s, then every 1 s. Once no phone has been connected for
+// OPENPAW_ADV_PARK_MS it "parks" at 2 s: half the advertising radio cost, and a phone
+// that opens the app still finds it within ~2 s. A connection restores the normal pair,
+// so the next disconnect starts fast again. Units: 0.625 ms (BLE Core spec).
+#define OPENPAW_ADV_FAST 160      // 100 ms
+#define OPENPAW_ADV_SLOW 1600     // 1 s
+#define OPENPAW_ADV_PARKED 3200   // 2 s
+#define OPENPAW_ADV_PARK_MS 600000u  // 10 min with no phone
+
+typedef struct {
+  uint8_t parked;
+  uint32_t last_conn_ms;  // boot, or the last moment a phone was connected
+} openpaw_adv_t;
+
+static inline void openpaw_adv_init(openpaw_adv_t *a, uint32_t now_ms) { a->parked = 0; a->last_conn_ms = now_ms; }
+
+// Call from the main loop; returns OPENPAW_ADV_PARKED (restart advertising at 2 s),
+// OPENPAW_ADV_SLOW (restore the 100 ms / 1 s pair) or 0 when nothing needs to change.
+static inline uint16_t openpaw_adv_step(openpaw_adv_t *a, int connected, uint32_t now_ms) {
+  if (connected) {
+    a->last_conn_ms = now_ms;
+    if (a->parked) { a->parked = 0; return OPENPAW_ADV_SLOW; }
+    return 0;
+  }
+  if (!a->parked && (uint32_t)(now_ms - a->last_conn_ms) >= OPENPAW_ADV_PARK_MS) {
+    a->parked = 1;
+    return OPENPAW_ADV_PARKED;
+  }
+  return 0;
+}
+
 // Little-endian wire format, 20 bytes. Must match app/openpaw-ble.js decodeRecord().
 static inline void openpaw_encode(const openpaw_record_t *r, uint8_t b[OPENPAW_RECORD_SIZE]) {
   b[0] = r->version;

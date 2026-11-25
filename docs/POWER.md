@@ -13,8 +13,8 @@ Legend: **[D]** = value from a datasheet (source linked below), **[E]** = estima
 
 | Mode | When | Accelerometer | CPU wake-ups | Radio |
 |---|---|---|---|---|
-| **Active** | Default | XIAO: LSM6DS3TR-C at 52 Hz low-power; T1000-E: QMA6100P | 50 per second | Advertising every 1 s (100 ms for the first 30 s) |
-| **Still** | 5 min of still epochs (mean VeDBA under 60 mg, no burst, no sensor gap) and no phone connected | XIAO: 12.5 Hz low-power; T1000-E: unchanged | 10 per second | Advertising every 1 s |
+| **Active** | Default | XIAO: LSM6DS3TR-C at 52 Hz low-power; T1000-E: QMA6100P | 50 per second | Advertising every 100 ms for 30 s after boot or a disconnect, then every 1 s; Advertising every 2 s once no phone has connected for 10 min ("parked") |
+| **Still** | 5 min of still epochs (mean VeDBA under 60 mg, no burst, no sensor gap) and no phone connected | XIAO: 12.5 Hz low-power; T1000-E: unchanged | 10 per second | As in Active (usually parked: 2 s) |
 | **Connected, downloading** | The app is connected and a backlog download runs (and for 2 s after it ends) | As in Active (a connected phone always gets 50 Hz) | 50 per second | Asks for connection events every 15 ms |
 | **Connected, idle** | Connected, no download for 2 s | As in Active | 50 per second | Asks for 200 ms events with peripheral latency 4: the collar may skip up to 4 empty events, so it answers at least once a second, and sooner whenever it has a live record to send |
 
@@ -50,16 +50,24 @@ both regulator cases are shown.
 | nRF52840 asleep | 3 µA | 3 µA | 3 µA | 3 µA |
 | CPU wake per sample (1 ms × rate × CPU current) [E] | 165 µA | 315 µA | 33 µA | 63 µA |
 | Accelerometer (XIAO) | 25 µA | 25 µA | 9 µA | 9 µA |
-| Advertising at 1 s: 3 channels × ~0.6 ms × ~6.4 mA ≈ 12 µC per event, plus radio start-up [E] | ~15 µA | ~15 µA | ~15 µA | ~15 µA |
-| **Total (XIAO, parts only)** | **~210 µA** | **~360 µA** | **~60 µA** | **~90 µA** |
+| Advertising, parked at 2 s: 3 channels × ~0.6 ms × ~6.4 mA ≈ 12 µC per event, plus radio start-up, every 2 s [E] | ~8 µA | ~8 µA | ~8 µA | ~8 µA |
+| **Total (XIAO, parts only)** | **~200 µA** | **~350 µA** | **~55 µA** | **~85 µA** |
+
+Advertising every 1 s (the first 10 min after a phone leaves) costs about twice the parked
+figure, ~15 µA [E]. Parking saves ~7 µA, which matters most in Still mode (~13% of its
+total). The trade-off: a phone that opens the app waits up to one advertising interval to
+see the collar, so about 2 s instead of 1 s (not measured). The 10 min limit and the 2 s
+interval are `OPENPAW_ADV_PARK_MS` and `OPENPAW_ADV_PARKED` in `openpaw_core.h`
+(`openpaw_adv_step`, host-tested). A connection restores the 100 ms / 1 s pair, so the
+next disconnect starts with the fast 30 s again.
 
 On the T1000-E, the QMA6100P adds 38 µA in both modes instead of the LSM6DS3TR-C
 figures. The board's LoRa radio, GNSS and other sensors are never switched on by this
 firmware, but their off-state leakage is not in the table.
 
 A dog that lies still most of the day spends most of its time in Still mode, where
-this estimate drops by about 3.5× (DC/DC) to 4× (LDO). For example, 16 h still and
-8 h active per day averages about 110 µA (DC/DC) [E]. That is a parts-only lower bound.
+this estimate drops by about 4×. For example, 16 h still and
+8 h active per day averages about 100 µA (DC/DC) [E]. That is a parts-only lower bound.
 The vendor has published no battery life for an always-on accelerometer with BLE
 (research/hardware.md); measure it before any page quotes battery days.
 
