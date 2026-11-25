@@ -53,6 +53,7 @@ export const SRC = {
   lopesfagundes2018: 'https://doi.org/10.3389/fvets.2018.00017',
   riemer2023: 'https://doi.org/10.3390/ani13233664',
   byosiere2016: 'https://doi.org/10.1016/j.beproc.2016.02.007',
+  farago2017: 'https://doi.org/10.1098/rsos.170134',
 };
 
 // Human-readable names for the source list.
@@ -95,6 +96,7 @@ export const SOURCE_NAMES = {
   [SRC.lopesfagundes2018]: 'Lopes Fagundes et al. 2018, Noise sensitivities in dogs with and without musculoskeletal pain (Front Vet Sci)',
   [SRC.riemer2023]: 'Riemer 2023, Therapy and prevention of noise fears in dogs: a review for practitioners (Animals)',
   [SRC.byosiere2016]: 'Byosiere, Espinosa & Smuts 2016, Investigating the function of play bows in adult pet dogs (Behav Processes)',
+  [SRC.farago2017]: 'Farag\u00f3 et al. 2017, Dog growls express various contextual and affective content for human listeners (R Soc Open Sci)',
 };
 
 export const LESSONS = [
@@ -389,6 +391,16 @@ export const CARDS = [
     examples: [
       { url: 'https://www.youtube.com/watch?v=ZrG3SIYDILc&t=202s', label: 'Mid-wrestle, both dogs stop and stand still for about a second and a half, then start again with the roles swapped; the trainer calls these shared pauses a good sign (3:22 to 3:26, Dunbar Academy)' },
       { url: 'https://www.youtube.com/watch?v=ZrG3SIYDILc&t=82s', label: 'The same play with the sound off: the noise made it sound like a fight; the trainer points to bouncy, bendy movement and taking turns chasing instead (1:22 to 3:30)' },
+    ] },
+  { id: 'c-play-sound', lesson: 'freeze-hackles', art: { posture: 'bow', ears: 'neutral', eye: 'soft', mouth: 'loose', tail: 'high', wag: 'loose', prop: 'dog' },
+    context: 'Two dogs who know each other are wrestling in the yard, growling loudly. Their bodies look bouncy and they keep swapping who chases whom.',
+    choices: ['The growling means it is a fight: pull them apart now', 'Judge by their bodies: bouncy movement, pauses and taking turns point to play; step in if one dog keeps trying to get away', 'Growling during play is a sign of pain', 'Loud play is the best kind of play'], answer: 1,
+    explain: 'Sound alone can fool you in both directions. In a study where 40 adults listened to growl recordings from 18 dogs, people picked the right situation (play, guarding food, or a threatening stranger) 63% of the time, against 33% by guessing: better than chance, but wrong about one time in three. A wagging tail can mislead the same way, because dogs also wag when highly aroused during a reaction. Watch their bodies: bouncy, loose movement, short pauses and swapping roles usually mean play; stiffness, or one dog trying to leave, means give them a break.',
+    sources: [SRC.farago2017, SRC.byosiere2016, SRC.vcaLang],
+    evidence: ['farago2017-dog-growls-express-various-contextual-and-affective-content-for', 'byosiere2016-investigating-the-function-of-play-bows-in-adult-pet-dogs'],
+    examples: [
+      { url: 'https://www.youtube.com/watch?v=ZrG3SIYDILc&t=14s', label: 'Two dogs in rough play with the sound on: the trainer says it sounds scary, then replays it with the sound off to read their bodies (0:14 to 0:25, Dunbar Academy)' },
+      { url: 'https://www.youtube.com/watch?v=Q9BsLd6KQqM&t=22s', label: 'The other way round: a dog reacting to a vacuum cleaner behind a gate wags fast, and the trainer warns you might think she is playing (0:22 to 0:57, BAT demo by Grisha Stewart)' },
     ] },
   { id: 'c-collar-settle', lesson: 'recovery', art: { posture: 'loose', ears: 'back', eye: 'soft', mouth: 'closed', tail: 'low' },
     context: 'Your dog lunged at a dog on a walk. A minute later the collar\u2019s movement line is back in the "Still" band.',

@@ -142,6 +142,24 @@ test('c-hackles-play card: play bows restart play after a pause; cites byosiere2
   assert.ok(c.examples.some((e) => /sound|growl|noise/i.test(e.label)), 'an example warns that play noise can sound like a fight');
 });
 
+test('c-play-sound card: noise misleads both ways; cites farago2017 with its numbers and links both directions', () => {
+  const c = CARDS.find((x) => x.id === 'c-play-sound');
+  assert.ok(c, 'c-play-sound card exists');
+  assert.ok(c.evidence && c.evidence.includes('farago2017-dog-growls-express-various-contextual-and-affective-content-for'), 'cites farago2017');
+  assert.ok(c.sources.includes(SRC.farago2017), 'links the paper');
+  // The study's own numbers, not a paraphrase that overstates it.
+  assert.match(c.explain, /40 adults/);
+  assert.match(c.explain, /63%/);
+  assert.match(c.explain, /33%/);
+  assert.match(c.explain, /bod(y|ies)/i);
+  // Never a verdict from sound alone.
+  assert.doesNotMatch(c.explain, /always|never/i);
+  assert.ok(Array.isArray(c.examples) && c.examples.length >= 2, 'video examples');
+  for (const e of c.examples) assert.match(e.url, /^https:\/\/www\.youtube\.com\/watch\?v=[\w-]{11}&t=\d+s$/, e.url);
+  assert.ok(c.examples.some((e) => /ZrG3SIYDILc/.test(e.url) && /play/i.test(e.label)), 'rough-sounding play example');
+  assert.ok(c.examples.some((e) => /Q9BsLd6KQqM/.test(e.url) && /wag/i.test(e.label)), 'wagging-but-reacting example');
+});
+
 test('every card example is a timestamped https link with a label', () => {
   for (const c of CARDS.filter((x) => x.examples)) {
     for (const e of c.examples) {
