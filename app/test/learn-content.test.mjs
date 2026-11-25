@@ -213,6 +213,28 @@ test('c-door-knock card: getting up after a knock means step back down; rule of 
   assert.ok(c.examples.some((e) => /chew|eat/i.test(e.label)), 'an example shows eating pause / continue');
 });
 
+test('c-quiet-aroused card: no barking after punishment is not calm; add distance; cites vieiradecastro2020 with its numbers', () => {
+  const c = CARDS.find((x) => x.id === 'c-quiet-aroused');
+  assert.ok(c, 'c-quiet-aroused card exists');
+  assert.equal(c.lesson, 'threshold');
+  const right = c.choices[c.answer];
+  assert.match(right, /distance|further away/i);
+  assert.match(right, /not the same as (calm|relaxed)/i);
+  assert.doesNotMatch(right, /firmer|correct|punish|closer/i);
+  assert.ok(c.choices.some((x, i) => i !== c.answer && /fixed|cured/i.test(x)), 'a distractor says no bark = fixed');
+  assert.ok(c.choices.some((x, i) => i !== c.answer && /firmer|correct/i.test(x)), 'a distractor enforces the cue harder');
+  assert.ok(c.evidence && c.evidence.includes('vieiradecastro2020-does-training-method-matter-evidence-for-the-negative'), 'cites vieiradecastro2020');
+  assert.ok(c.evidence.includes('avsab2021-position-statement-on-humane-dog-training'), 'cites AVSAB');
+  // The study's own design and limits: 92 dogs, 7 schools, not randomised.
+  assert.match(c.explain, /92 dogs/);
+  assert.match(c.explain, /not (randomi[sz]ed|assigned at random)|chose the school/i);
+  assert.doesNotMatch(c.explain, /proven|guarantee|stress score/i);
+  assert.ok(Array.isArray(c.examples) && c.examples.length >= 2, 'video examples');
+  for (const e of c.examples) assert.match(e.url, /^https:\/\/www\.youtube\.com\/watch\?v=jdWysYtU7HY&t=\d+s$/, e.url);
+  assert.ok(c.examples.some((e) => /tail/i.test(e.label)), 'an example shows the high, curled tail while passing dogs');
+  assert.ok(c.examples.some((e) => /not recommended|aversive/i.test(e.label)), 'an example flags the technique');
+});
+
 test('every card example is a timestamped https link with a label', () => {
   for (const c of CARDS.filter((x) => x.examples)) {
     for (const e of c.examples) {
