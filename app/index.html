@@ -112,7 +112,7 @@
   #rhythm .wd { transition:opacity .2s; }
   .rh-c { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; pointer-events:none; text-align:center; }
   .rh-c b { font:600 26px/1 var(--serif); margin:5px 0 4px; } .rh-c b small { font:500 11px var(--mono); color:var(--mute); }
-  .rh-c .micro { font-size:10px; } .rh-c .today { color:var(--ink); margin-top:2px; }
+  .rh-c b.none { font-size:19px; } .rh-c .micro { font-size:10px; } .rh-c .today { color:var(--ink); margin-top:2px; }
   #rhythm text.night { font-size:9px; fill:var(--dim); letter-spacing:.08em; text-transform:uppercase; }
   .rh-key { display:flex; justify-content:center; gap:16px; margin-top:6px; }
   .rh-key span { display:inline-flex; align-items:center; gap:6px; font:500 11px/1 var(--mono); color:var(--mute); }
@@ -217,7 +217,7 @@
       <div class="card-h"><div><p class="micro">24-hour rhythm</p><h2 id="rh-h">When your dog moves</h2></div></div>
       <div class="rh">
         <svg id="rhythm" viewBox="0 0 320 320" role="img" aria-label="Average movement for each half hour of the day, with today's values as dots"></svg>
-        <div class="rh-c" id="rhythmC"><span class="micro">Typical day</span><b>7 days</b><span class="micro">hover a slice</span></div>
+        <div class="rh-c" id="rhythmC"><span class="micro">Typical day</span><b class="none">No data yet</b><span class="micro">starts on day 2</span></div>
       </div>
       <div class="rh-key"><span><i style="width:10px;height:10px;border-radius:3px;background:#cdb27c;opacity:.6"></i>typical</span><span><i style="width:7px;height:7px;border-radius:50%;background:#ece8df"></i>today</span><span><i style="width:10px;height:2px;background:#d7b986"></i>now</span><span><i style="width:12px;height:2px;background:#6d685e"></i>night 22–06</span></div>
     </section>

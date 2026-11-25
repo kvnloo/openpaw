@@ -154,7 +154,10 @@ export function renderRhythm(svg, center, epochs, { tz, now }) {
   h += `<path class="hl" d="" fill="none" stroke="#ece8df" stroke-width="1.2"/>`;
   svg.innerHTML = h;
   const hl = svg.querySelector('.hl');
-  const defaultCenter = center.innerHTML;
+  const pd = c.pastDays;
+  const defaultCenter = center.innerHTML = pd
+    ? `<span class="micro">Typical day</span><b>${pd} day${pd === 1 ? '' : 's'}</b><span class="micro">hover a slice</span>`
+    : `<span class="micro">Typical day</span><b class="none">No data yet</b><span class="micro">starts on day 2</span>`;
   svg.onpointermove = (e) => {
     const r = svg.getBoundingClientRect(); const dx = ((e.clientX - r.left) / r.width) * S - C, dy = ((e.clientY - r.top) / r.height) * S - C;
     const rad = Math.hypot(dx, dy); if (rad < r0 - 8 || rad > r1 + 20) { hl.setAttribute('d', ''); center.innerHTML = defaultCenter; return; }
