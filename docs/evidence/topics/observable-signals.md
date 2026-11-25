@@ -7,6 +7,8 @@ OpenPaw should store a behavior label, onset and duration where observable, and 
 
 In adult dogs playing in pairs, play bows most often followed a brief pause and were followed by play starting again (moving together, or the bowing dog running off and being chased), so a pause and a bow are part of the play sequence rather than a sign that it has turned. This is a sequence finding, not a measure of how the dogs felt. [Byosiere 2016](../cards/byosiere2016-investigating-the-function-of-play-bows-in-adult-pet-dogs.md)
 
+Growl bouts carry some information about context: 40 adult listeners named the right context (play, food guarding, threatening stranger) for 63% of recorded bouts against a 33% chance level, best for play (81%). One bout in three was still misread, so OpenPaw should not treat vocal sound as a reading on its own; body movement and context come first. [Faragó 2017](../cards/farago2017-dog-growls-express-various-contextual-and-affective-content-for.md)
+
 ## What is contested
 The proposed appeasement function of individual displacement behaviors remains uncertain: some appeared outside the threatening condition, and receiver responses were not tested. [Pedretti 2023](../cards/pedretti2023-appeasement-function-of-displacement-behaviours-dogs-behavioural-displays.md)
 
