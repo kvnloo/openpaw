@@ -5,6 +5,8 @@ Specific signals, such as nose licking or head turns, can be coded and compared 
 
 OpenPaw should store a behavior label, onset and duration where observable, and context or uncertainty, without equating a code with an emotional state. [Pedretti 2023](../cards/pedretti2023-appeasement-function-of-displacement-behaviours-dogs-behavioural-displays.md) [Clark 2020](../cards/clark2020-therapy-dogs-and-handlers-behavior-and-salivary-cortisol.md) [Macchi 2026](../cards/macchi2026-behavioral-and-cortisol-based-evaluation-of-stress-in.md)
 
+In adult dogs playing in pairs, play bows most often followed a brief pause and were followed by play starting again (moving together, or the bowing dog running off and being chased), so a pause and a bow are part of the play sequence rather than a sign that it has turned. This is a sequence finding, not a measure of how the dogs felt. [Byosiere 2016](../cards/byosiere2016-investigating-the-function-of-play-bows-in-adult-pet-dogs.md)
+
 ## What is contested
 The proposed appeasement function of individual displacement behaviors remains uncertain: some appeared outside the threatening condition, and receiver responses were not tested. [Pedretti 2023](../cards/pedretti2023-appeasement-function-of-displacement-behaviours-dogs-behavioural-displays.md)
 
