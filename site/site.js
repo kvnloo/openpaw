@@ -1,6 +1,7 @@
 // OpenPaw landing interactions. No trackers, no third parties. Respects reduced motion.
 import { simulate, fmtDuration, protocolWeeks, DEFAULTS } from './reactivity-model.js';
 import { nearestIndex, stepIndex } from './week-nav.js';
+import { tabStep } from './tab-keys.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -303,10 +304,18 @@ $$('details').forEach((d) => {
     metric = m; const next = yFor(m), from = ys || next.map(() => H);
     cancel();
     cancel = tween(520, (k) => { const cur = next.map((v, i) => lerp(from[i], v, k)); render(cur); }, () => { ys = next; showTip(sel); });
-    $$('#proto-chips [data-m]').forEach((b) => { const on = b.dataset.m === m; b.setAttribute('aria-selected', String(on)); b.classList.toggle('on', on); });
+    $$('#proto-chips [data-m]').forEach((b) => { const on = b.dataset.m === m; b.setAttribute('aria-selected', String(on)); b.classList.toggle('on', on); b.tabIndex = on ? 0 : -1; });
     card();
   }
-  $$('#proto-chips [data-m]').forEach((b) => b.addEventListener('click', () => setMetric(b.dataset.m)));
+  const chips = $$('#proto-chips [data-m]');
+  chips.forEach((b, i) => {
+    b.addEventListener('click', () => setMetric(b.dataset.m));
+    // One Tab stop for the chips; Left/Right/Home/End move and select (APG Tabs pattern).
+    b.addEventListener('keydown', (e) => {
+      const j = tabStep(i, e.key, chips.length); if (j === null) return;
+      e.preventDefault(); setMetric(chips[j].dataset.m); chips[j].focus();
+    });
+  });
   // Mouse hover, phone tap (pointerdown) and keys on the focusable plot all pick a week.
   const plot = svg.closest('.proto-plot');
   const pick = (e) => {
