@@ -74,8 +74,15 @@ test('food card: unedited footage where food and name stop working before the re
 test('stacking card: session footage of triggers adding up, then distance and recovery, citing evidence', () => {
   const c = CARDS.find((x) => x.id === 'c-stack');
   assert.ok(Array.isArray(c.examples) && c.examples.length >= 2, 'video examples');
-  for (const e of c.examples) assert.match(e.url, /^https:\/\/www\.youtube\.com\/watch\?v=Sp3B0KmBVFQ&t=\d+s$/, e.url);
+  for (const e of c.examples) assert.match(e.url, /^https:\/\/www\.youtube\.com\/watch\?v=(Sp3B0KmBVFQ|z85LFeypIMM)&t=\d+s$/, e.url);
   assert.ok(c.examples.some((e) => /car/i.test(e.label) && /dog/i.test(e.label)), 'an example names the stacked triggers');
+  // Stacking can be seen before any reaction: the trainer's own caption at 24:30, then extra distance.
+  const near = c.examples.find((e) => e.url === 'https://www.youtube.com/watch?v=z85LFeypIMM&t=1470s');
+  assert.ok(near, 'an unedited example of stacking with no reaction (V17 24:30)');
+  assert.match(near.label, /voices/i);
+  assert.match(near.label, /kid/i);
+  assert.match(near.label, /no reaction|not reacting|wasn\u2019t reacting/i);
+  assert.match(near.label, /distance/i);
   assert.ok(c.examples.some((e) => /distance|away|leav/i.test(e.label) && /sniff|nose/i.test(e.label)), 'an example shows distance then a recovery cue');
   assert.ok(c.evidence && c.evidence.includes('beerda1998-behavioural-saliva-cortisol-and-heart-rate-responses-to'), 'cites docs/evidence');
   assert.match(c.explain, /minutes/);
