@@ -11,6 +11,7 @@ import { episodesFrom, consultRows, ownerRows, vetRows, lensCaption } from './ep
 import { reportHtml } from './episode-report.js';
 import { deriveMovement } from './episode-movement.js';
 import { SESSION_SIGNS, sessionAdvice, sessionCheckPayload } from './session-check.js';
+import { refusalPayload, refusalText } from './walk-refusal.js';
 
 const $ = (id) => document.getElementById(id);
 const SOURCE = 'openpaw-field';
@@ -26,6 +27,7 @@ export const ACTS = {
   turn: { kind: 'intervention', metric: 'intervention.distance', label: 'U-turn' },
   tags: { kind: 'observation', metric: 'body_language.tags', label: 'Body language' },
   check: { kind: 'observation', metric: 'session.check', label: 'Session check' },
+  refuse: { kind: 'observation', metric: 'behavior.walk_refusal', label: 'Won’t walk on' },
 };
 export const BANDS = { '<10': [0, 10], '10-20': [10, 20], '20-40': [20, 40], '40+': [40, null] };
 const BAND_LABEL = { '<10': '<10 ft', '10-20': '10–20 ft', '20-40': '20–40 ft', '40+': '40+ ft' };
@@ -140,7 +142,7 @@ function render() {
 const LENS = {
   owner: ['Owner view', (eps) => ownerRows(eps[eps.length - 1], eps[eps.length - 2] || null)],
   consult: ['Consultant view', (eps, events) => consultRows(eps[eps.length - 1], eps[eps.length - 2] || null, deriveMovement(S.liveEvents(events)))],
-  vet: ['Vet view', (eps) => vetRows(eps)],
+  vet: ['Vet view', (eps, events) => vetRows(eps, events)],
 };
 let lens = 'consult';
 for (const b of document.querySelectorAll('#epLens [data-lens]')) {
@@ -152,6 +154,7 @@ for (const b of document.querySelectorAll('#epLens [data-lens]')) {
 }
 async function renderEpisode() {
   const events = await S.allEvents();
+  $('refuseSummary').textContent = refusalText(events);
   const eps = episodesFrom(events);
   const box = $('epRows');
   if (!eps.length) return;
@@ -202,6 +205,7 @@ function describe(e) {
     case 'intervention.distance': return 'U-turn / distance';
     case 'body_language.tags': return `Body: ${p.value.join(', ')}${p.seen === 'before_reaction' ? ' · seen before the reaction' : ''}${p.photo ? ' · photo kept' : ''}`;
     case 'session.check': return `Session check · ${p.value.length ? p.value.join(', ') : 'no stop signs marked'}`;
+    case 'behavior.walk_refusal': return `Won’t walk on${p.place ? ` · ${p.place}` : ''}`;
     case 'owner.retract': return 'Undid last entry';
     default: return p.metric;
   }
@@ -392,6 +396,17 @@ $('checkSave').onclick = async () => {
   if (advice.stop) { buzz([60, 60, 60]); hud('reaction', 'turn', 'Stop · add distance', '', 4000); speak('Stop, or move further away.'); }
   else buzz(20);
   toast(advice.stop ? 'Logged · stop or add distance' : 'Logged · no stop signs');
+  render();
+};
+
+// ---------------------------------------------------------------- won't walk on (app/walk-refusal.js)
+$('refuseSave').onclick = async () => {
+  const p = refusalPayload($('refusePlace').value);
+  const e = S.ownerEvent({ dog, kind: 'observation', metric: p.metric, value: p.value, episodeId: ep ? ep.id : null, sourceId: SOURCE, extra: { input: 'tap', ...p.extra } });
+  if (ep) ep.chain.push({ act: 'refuse', t: Date.now(), eventId: e.event_id });
+  await save([e]); await persistEpisode();
+  $('refusePlace').value = '';
+  buzz(20); toast(`Logged · won’t walk on${p.extra.place ? ` at ${p.extra.place}` : ''}`);
   render();
 };
 
