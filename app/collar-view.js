@@ -178,15 +178,20 @@ export function renderBudget(root, epochs, { tz, now }) {
   const today = days[days.length - 1].day;
   // An empty week shows the day axis as quiet tracks and says so once, instead of 7 × "no data".
   const empty = days.every((d) => !d.covered);
+  // Empty week: the track runs to the card edge (no blank value/burst cells) and the
+  // "active min" header, which would label an empty column, is hidden.
+  const unit = root.closest?.('.card')?.querySelector('.bd-unit');
+  if (unit) unit.hidden = empty;
   root.innerHTML = days.map((d) => {
     const tot = d.covered || 1;
     const active = activeMinutes(d);
     const label = d.covered ? LEVELS.map((L, i) => `${L.label} ${fmtMin(d.minutes[i])}`).join(', ') : 'no data';
-    return `<div class="bd-row ${d.day === today ? 'is-today' : ''}" tabindex="0" aria-label="${dayName(d.day)}: ${label}">
+    const cls = ['bd-row', d.day === today ? 'is-today' : '', empty ? 'bd-none' : ''].filter(Boolean).join(' ');
+    return `<div class="${cls}" tabindex="0" aria-label="${dayName(d.day)}: ${label}">
       <span class="bd-day">${d.day === today ? 'Today' : dayName(d.day)}</span>
-      <span class="bd-bar${empty ? ' none' : ''}">${d.covered ? d.minutes.map((m, i) => `<i style="--w:${((m / tot) * 100).toFixed(2)}%;background:${LEVEL_COLORS[i]}" title="${LEVELS[i].label}: ${fmtMin(m)}"></i>`).join('') : empty ? '' : '<em>no data</em>'}</span>
-      <span class="bd-val">${d.covered ? fmtMin(active) : empty ? '' : '–'}</span>
-      <span class="bd-b">${d.bursts ? `${d.bursts}<svg viewBox="0 0 8 12" aria-hidden="true"><path d="M4 0l4 6-4 6-4-6z" fill="#e8a35f"/></svg>` : ''}</span></div>`;
+      <span class="bd-bar${empty ? ' none' : ''}">${d.covered ? d.minutes.map((m, i) => `<i style="--w:${((m / tot) * 100).toFixed(2)}%;background:${LEVEL_COLORS[i]}" title="${LEVELS[i].label}: ${fmtMin(m)}"></i>`).join('') : empty ? '' : '<em>no data</em>'}</span>${empty ? '' : `
+      <span class="bd-val">${d.covered ? fmtMin(active) : '–'}</span>
+      <span class="bd-b">${d.bursts ? `${d.bursts}<svg viewBox="0 0 8 12" aria-hidden="true"><path d="M4 0l4 6-4 6-4-6z" fill="#e8a35f"/></svg>` : ''}</span>`}</div>`;
   }).join('') + (empty ? '<p class="bd-empty">No collar data in the last 7 days. Each day fills in as the collar records; Demo week shows a full one.</p>' : '');
   const full = days.filter((d) => d.covered > 1200 && d.day !== today);
   if (full.length >= 2) {

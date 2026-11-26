@@ -127,6 +127,8 @@
   #budget.in .bd-bar i { width:var(--w); }
   .bd-row:nth-child(2) i { transition-delay:.04s } .bd-row:nth-child(3) i { transition-delay:.08s } .bd-row:nth-child(4) i { transition-delay:.12s } .bd-row:nth-child(5) i { transition-delay:.16s } .bd-row:nth-child(6) i { transition-delay:.2s } .bd-row:nth-child(7) i { transition-delay:.24s }
   .bd-bar.none, .is-today .bd-bar.none { height:0; border-radius:0; background:none; box-shadow:none; border-top:1px dashed var(--line2); }
+  .bd-row.bd-none .bd-bar { grid-column:2 / -1; }
+  .bd-unit[hidden] { display:none; }
   .bd-empty { margin:12px 0 0; font:500 11px/1.5 var(--mono); color:var(--mute); letter-spacing:.02em; }
   .bd-bar em { font:500 10.5px/14px var(--mono); color:var(--dim); padding-left:8px; font-style:normal; }
   .bd-val { font:500 13px/1 var(--mono); text-align:right; }
@@ -241,7 +243,7 @@
     </section>
 
     <section class="card c7" aria-labelledby="bd-h"><span class="br tl"></span><span class="br bR"></span>
-      <div class="card-h"><div><p class="micro">Activity budget · 7 days</p><h2 id="bd-h">Where the day goes</h2></div><span class="micro" style="text-align:right">active<br>min</span></div>
+      <div class="card-h"><div><p class="micro">Activity budget · 7 days</p><h2 id="bd-h">Where the day goes</h2></div><span class="micro bd-unit" style="text-align:right">active<br>min</span></div>
       <div id="budget"></div>
       <div class="legend"><span><i style="background:#55665c"></i>still</span><span><i style="background:#8fb39b"></i>active</span><span><i style="background:#e8a35f"></i>vigorous</span></div>
     </section>
