@@ -343,6 +343,7 @@ export const CARDS = [
     examples: [
       { url: 'https://www.youtube.com/watch?v=Sp3B0KmBVFQ&t=19s', label: 'Several triggers at once during a BAT session: a car creeping up, a dog approaching and a lively young dog nearby; the handler names it as factors adding up (0:19, handler\u2019s own session video)' },
       { url: 'https://www.youtube.com/watch?v=Sp3B0KmBVFQ&t=76s', label: 'After the reaction the handler adds distance and waits; as the other dog leaves he makes a different choice and puts his nose down at the fence line (1:16 to 1:30)' },
+      { url: 'https://www.youtube.com/watch?v=z85LFeypIMM&t=1470s', label: 'Stacking you can see before any reaction: the trainer\u2019s caption says the dog \u201cwasn\u2019t reacting, but the combination of voices, a dog, AND a kid was testing her threshold\u201d, so the trainer has her follow to take extra distance (24:30, unedited session, Happy Hounds Dog Training)' },
     ] },
   { id: 'c-food', lesson: 'threshold', art: { posture: 'stiff', ears: 'forward', eye: 'hard', mouth: 'closed', tail: 'high' },
     context: 'Near a trigger, your dog suddenly will not take even his favourite treat and does not respond to his name.',
