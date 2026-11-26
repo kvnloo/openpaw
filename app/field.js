@@ -459,7 +459,7 @@ function drawSpark() {
   const max = Math.max(400, ...pts.map((p) => p.v)) * 1.1, x = (i) => (i / 59) * W, y = (v) => H - 6 - (v / max) * (H - 12);
   g.strokeStyle = '#d7b986'; g.lineWidth = 1.6; g.lineJoin = 'round'; g.beginPath();
   pts.forEach((p, i) => (i ? g.lineTo(x(i), y(p.v)) : g.moveTo(x(i), y(p.v)))); g.stroke();
-  g.fillStyle = '#e0925f'; pts.forEach((p, i) => { if (p.b) g.fillRect(x(i) - 1.5, 2, 3, H - 4); });
+  g.fillStyle = '#e8a35f'; pts.forEach((p, i) => { if (p.b) g.fillRect(x(i) - 1.5, 2, 3, H - 4); });
 }
 async function onRecord(rec, deviceId, clock, origin) {
   $('vVal').textContent = rec.vedba_mean_mg;
