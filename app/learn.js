@@ -5,6 +5,7 @@
 import { getMeta, setMeta, putEvents, allEvents, liveEvents, ownerEvent, dogId, download } from './store.js';
 import { LESSONS, CARDS, SOURCE_NAMES, DISCLAIMER, askFor } from './learn-content.js';
 import { choiceOrder } from './choice-order.js';
+import { lessonFoot } from './lesson-card.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -311,8 +312,8 @@ function renderLessons() {
       return `<li><a class="lcard" href="#learn/${l.id}" data-lesson="${l.id}">
         <span class="br tl"></span><span class="br br-"></span>
         <div class="thumb">${l.figs[0].diagram === 'ladder' ? ladderThumb() : thumb}</div>
-        <div><p class="k">${String(i + 1).padStart(2, '0')} \u00b7 ${esc(l.tag)}${readLessons[l.id] ? ' \u00b7 read' : ''}</p>
-        <h3>${esc(l.title)}</h3><p class="small muted">${esc(l.summary)}</p></div></a></li>`;
+        <div class="body"><p class="k">${String(i + 1).padStart(2, '0')} \u00b7 ${esc(l.tag)}${readLessons[l.id] ? ' \u00b7 read' : ''}</p>
+        <h3>${esc(l.title)}</h3><p class="small muted">${esc(l.summary)}</p>${lessonFoot(l, readLessons[l.id])}</div></a></li>`;
     }).join('')}</ol>
     <p class="disclaimer small">${esc(DISCLAIMER)}</p>`;
 }
