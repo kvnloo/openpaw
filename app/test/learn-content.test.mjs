@@ -385,6 +385,41 @@ test('c-wait-look card: after a real lunge, wait quietly and reward the first lo
   for (const e of c.examples) assert.doesNotMatch(e.label, /scared|afraid|fearful|stress|nervous|anxious|happy/i, 'visible facts only');
 });
 
+test('c-step-back card: when he stops taking treats closer to a person, go back to the last distance that worked; cites the trainer study with its scope', async () => {
+  const c = CARDS.find((x) => x.id === 'c-step-back');
+  assert.ok(c, 'c-step-back card exists');
+  assert.equal(c.lesson, 'threshold');
+  assert.equal(c.art.prop, 'person', 'stranger-directed: the trigger is a person');
+  assert.match(c.context, /helper|friend/i, 'a set-up the owner controls');
+  assert.match(c.context, /\b\d+ (steps|metres|m)\b.*\b\d+ (steps|metres|m)\b/i, 'two distances: the one that worked and the closer one');
+  assert.match(c.context, /(stops|won.t|will not) (taking|take) (the )?(treats|food)/i);
+  const { askFor } = await import('../learn-content.js');
+  assert.match(askFor(c), /\bdo\b.*\?$/i, 'an action question');
+  const right = c.choices[c.answer];
+  assert.match(right, /back to/i);
+  assert.match(right, /(took|taking|takes) (the )?(treats|food)/i, 'the last distance where he still ate');
+  assert.match(right, /small(er)? steps|another day|next time/i);
+  assert.doesNotMatch(right, /hold|sit|closer now|greet/i);
+  assert.ok(c.choices.some((x, i) => i !== c.answer && /stay/i.test(x) && /used to/i.test(x)), 'a distractor waits it out at the closer distance');
+  assert.ok(c.choices.some((x, i) => i !== c.answer && /sit/i.test(x)), 'a distractor holds him in a sit');
+  assert.ok(c.choices.some((x, i) => i !== c.answer && /closer|sniff|say hello/i.test(x)), 'a distractor moves him in to meet her');
+  assert.deepEqual(c.evidence, ['shnookal2025-exploring-trainer-insights-and-understanding-of-on-lead', 'butler2011-the-efficacy-of-systematic-desensitization-for-treating-the', 'avsab2021-position-statement-on-humane-dog-training']);
+  assert.ok(c.sources.includes(SRC.shnookal2025) && c.sources.includes(SRC.butler2011) && c.sources.includes(SRC.avsabHumane));
+  // Each study is stated with its real scope and limit.
+  assert.match(c.explain, /other dogs/i, 'the trainer study was about dogs reacting to dogs');
+  assert.match(c.explain, /varied|differ/i, 'trainers applied controlled exposure differently');
+  assert.match(c.explain, /unclear/i);
+  assert.match(c.explain, /8 dogs|eight dogs/i);
+  assert.match(c.explain, /separation|left alone/i, 'butler2011 is a different problem');
+  assert.match(c.explain, /consultant/i);
+  assert.doesNotMatch(c.explain, /proven|always|guarantee|cure|stress score|happy|fearful|afraid/i);
+  assert.ok(Array.isArray(c.examples) && c.examples.length >= 2);
+  for (const e of c.examples) assert.match(e.url, /^https:\/\/www\.youtube\.com\/watch\?v=mY-pXoYOUjs&t=\d+s$/, e.url);
+  assert.ok(c.examples.some((e) => /20/.test(e.label) && /17/.test(e.label)), 'an example: back from 17 to 20 feet');
+  assert.ok(c.examples.some((e) => /treat/i.test(e.label) && /take/i.test(e.label)), 'an example: not taking the treat as the signal');
+  for (const e of c.examples) assert.doesNotMatch(e.label, /scared|afraid|fearful|stress|nervous|anxious|happy/i, 'visible facts only');
+});
+
 test('every card example is a timestamped https link with a label', () => {
   for (const c of CARDS.filter((x) => x.examples)) {
     for (const e of c.examples) {
