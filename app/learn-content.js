@@ -520,6 +520,18 @@ export const CARDS = [
       { url: 'https://www.youtube.com/watch?v=Kf48BFJahuI&t=231s', label: 'After a loud explosion on a walk, the owner describes him turning back a few houses down, lip licking and pulling to go home (03:51; later in the video she walks him back to the place on a head collar, which is not recommended)' },
       { url: 'https://www.youtube.com/watch?v=BceBaeNBeX4&t=34s', label: 'A force-free trainer: before training a dog that stops on walks, rule out pain with a vet check and fear of something on the route, such as traffic noise (0:34 to 0:59, Happy Hounds Dog Training)' },
     ] },
+  { id: 'c-step-back', lesson: 'threshold', art: { posture: 'stiff', ears: 'forward', eye: 'hard', mouth: 'closed', tail: 'high', prop: 'person' },
+    context: 'Your dog barks at strangers. A friend he does not know well helps you practise: at 20 steps away he looks at her, then back at you for a treat, again and again. You move to 17 steps. Now he stares at her with his mouth shut and stops taking treats.',
+    ask: 'What do you do?',
+    choices: ['Stay at 17 steps until he gets used to her', 'Ask him to sit and hold him there so he learns to stay calm', 'Go back to 20 steps, where he was taking treats, and practise there; try closer another day, in smaller steps', 'Walk closer so he can sniff her and say hello'], answer: 2,
+    explain: 'Stopping taking food is a common sign a dog is over threshold, so 17 steps was too close for today. Going back to the last distance where he still ate keeps the practice at a level he can cope with. In interviews with ten trainers about dogs that react to other dogs on the lead, all recommended controlled exposure, but how they applied it varied, and which approach works best for owners remains unclear: what trainers do, not a trial. Small steps are the idea behind systematic desensitisation; in a small study of 8 dogs with a different problem (behaviour when left alone, separation-related), that approach went with fewer and milder problems. Holding him in a sit takes away his choice to move away. AVSAB recommends reward-based methods. Ask your behaviour consultant when to move closer.',
+    sources: [SRC.shnookal2025, SRC.butler2011, SRC.avsabHumane],
+    evidence: ['shnookal2025-exploring-trainer-insights-and-understanding-of-on-lead', 'butler2011-the-efficacy-of-systematic-desensitization-for-treating-the', 'avsab2021-position-statement-on-humane-dog-training'],
+    examples: [
+      { url: 'https://www.youtube.com/watch?v=mY-pXoYOUjs&t=681s', label: 'A trainer working with a dog who barks at people: start about 25 feet away, then 23, then 20; if at 17 feet he will not sit, go back to 20 and practise there, at the dog\u2019s pace (11:20 to 11:39, DGP Dog Behavior Videos)' },
+      { url: 'https://www.youtube.com/watch?v=mY-pXoYOUjs&t=545s', label: 'The same trainer: if the dog won\u2019t take the treat, that is a sign he is uncomfortable (9:05)' },
+      { url: 'https://www.youtube.com/watch?v=mY-pXoYOUjs&t=789s', label: 'Ending on an easy step: a helper appears for about a second, then turns and walks away (13:09 to 13:20)' },
+    ] },
 ];
 
 // The quiz question. Reading cards use the default; cards whose right answer is a next step
