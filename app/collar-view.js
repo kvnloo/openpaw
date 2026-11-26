@@ -83,7 +83,7 @@ export function renderTimeline(svg, readout, epochs, { range = 3600e3, now, anim
   let h = `<defs><linearGradient id="tlg" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#d7b986" stop-opacity=".34"/><stop offset=".7" stop-color="#d7b986" stop-opacity=".05"/><stop offset="1" stop-color="#d7b986" stop-opacity="0"/></linearGradient>
     <clipPath id="tlc"><rect x="${L}" y="0" width="${W - L - Rr}" height="${H}"/></clipPath></defs>`;
   let prev = 0;
-  LEVELS.forEach((Lv, i) => { const hi = Math.min(MAX, Lv.max); h += `<rect x="${L}" y="${y(hi)}" width="${W - L - Rr}" height="${y(prev) - y(hi)}" fill="${LEVEL_COLORS[i]}" opacity="${0.02 + i * 0.008}"/><text class="band" x="${W - Rr + 10}" y="${(y(prev) + y(hi)) / 2 + 3}" fill="${LEVEL_TEXT[i]}">${Lv.label.toLowerCase()}</text>`; if (i < VIGOROUS) h += `<line x1="${L}" x2="${W - Rr}" y1="${y(hi)}" y2="${y(hi)}" stroke="#2a2823" stroke-dasharray="2 4"/>`; prev = hi; });
+  LEVELS.forEach((Lv, i) => { const hi = Math.min(MAX, Lv.max); h += `<rect x="${L}" y="${y(hi)}" width="${W - L - Rr}" height="${y(prev) - y(hi)}" fill="${LEVEL_COLORS[i]}" opacity="${0.02 + i * 0.008}"/><text class="band" x="${W - Rr + 10}" y="${(y(prev) + y(hi)) / 2 + 3}" fill="${LEVEL_TEXT[i]}">${Lv.label.toLowerCase()}</text>`; if (i < VIGOROUS) h += `<line x1="${L}" x2="${W - Rr}" y1="${y(hi)}" y2="${y(hi)}" stroke="#2a2823" stroke-dasharray="2 4"/><text class="cut" x="${L + 6}" y="${(y(hi) - 4).toFixed(1)}">${Lv.max} mg</text>`; prev = hi; });
   // time ticks
   const narrow = W < 560;
   const step = range <= 3600e3 ? (narrow ? 20 : 10) * 60000 : range <= 6 * 3600e3 ? (narrow ? 2 : 1) * 3600e3 : (narrow ? 6 : 4) * 3600e3;
