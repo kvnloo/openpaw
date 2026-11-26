@@ -256,6 +256,13 @@ class OwnExportTimelineTests(unittest.TestCase):
         for synthetic in ('fictional-dog-001', 'id="week"', 'id="source-data"', 'SYNTHETIC RECORDS ONLY'):
             self.assertNotIn(synthetic, self.html)
 
+    def test_episode_eyebrow_says_computed_from_collar_data_not_model(self):
+        # (i) provenance origin "model" is schema jargon; the card says what it means
+        card = self.html.split('class="collar-episode"', 1)[1].split('</article>', 1)[0]
+        eyebrow = card.split('class="eyebrow"', 1)[1].split('</span>', 1)[0]
+        self.assertIn('computed from collar data', eyebrow)
+        self.assertNotIn('· model', eyebrow)
+
     def test_every_link_resolves_and_nothing_loads_from_the_network(self):
         for h in self.scan.hrefs:
             if h.startswith('#'):
