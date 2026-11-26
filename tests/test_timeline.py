@@ -224,5 +224,90 @@ class CollarTimelineTests(unittest.TestCase):
             self.assertIn('id="collar"', out.read_text(encoding='utf-8'))
 
 
+def _own_export():
+    """A collar export as the app writes it for a real walk: sensor epochs + owner Field marks (synthetic values)."""
+    evs = _collar_walk(origin='sensor')
+    for e in evs:
+        if e['event_type'] == 'trigger' or e['event_id'].startswith('owner:'):
+            e['provenance']['origin'] = 'owner'
+    return evs
+
+
+class OwnExportTimelineTests(unittest.TestCase):
+    """(h) an owner renders their own export: consent banner, no fictional week, file kept out of the repo."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.events = _own_export()
+        cls.html = renderer.render_own(cls.events)
+        cls.scan = HTMLScan()
+        cls.scan.feed(cls.html)
+
+    def test_banner_says_it_is_your_own_data_kept_on_this_computer(self):
+        self.assertIn('YOUR OWN COLLAR EXPORT', self.html)
+        self.assertIn('stays on this computer', self.html)
+        self.assertIn('not a diagnosis', self.html)
+
+    def test_shows_the_collar_episode_from_real_origins_without_the_fictional_week(self):
+        self.assertEqual(self.html.count('class="collar-episode"'), 1)
+        self.assertIn('900 mg', self.html)
+        self.assertIn('40 s after the trigger', self.html)
+        self.assertIn('owner, sensor', self.html)
+        for synthetic in ('fictional-dog-001', 'id="week"', 'id="source-data"', 'SYNTHETIC RECORDS ONLY'):
+            self.assertNotIn(synthetic, self.html)
+
+    def test_every_link_resolves_and_nothing_loads_from_the_network(self):
+        for h in self.scan.hrefs:
+            if h.startswith('#'):
+                self.assertIn(h[1:], self.scan.ids, h)
+        self.assertEqual(len(self.scan.ids), len(set(self.scan.ids)))
+        self.assertIn("connect-src 'none'", self.html)
+        self.assertIn('<meta name="robots" content="noindex">', self.html)
+        self.assertEqual(self.scan.links, [])
+        self.assertTrue(all('src' not in s for s in self.scan.scripts))
+
+    def test_page_never_names_a_feeling_or_recovery(self):
+        low = self.html.lower()
+        for word in ('stress', 'calm', 'anxious', 'fear', 'recovered', 'recovery', 'arousal'):
+            self.assertNotIn(word, low)
+
+    def _cli(self, out, extra=()):
+        import json
+        import subprocess
+        tmp = Path(self._tmp.name)
+        p = tmp / 'export.jsonl'
+        p.write_text('\n'.join(json.dumps(e) for e in self.events) + '\n', encoding='utf-8')
+        args = [sys.executable, '-I', str(PATH), '--own-export', str(p), *extra]
+        if out is not None:
+            args += ['--output', str(out)]
+        return subprocess.run(args, capture_output=True, text=True)
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def test_cli_writes_the_page_outside_the_repo(self):
+        out = Path(self._tmp.name) / 'my-collar.html'
+        r = self._cli(out)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn('1 collar episode', r.stdout)
+        self.assertIn('nothing uploaded', r.stdout)
+        self.assertIn('YOUR OWN COLLAR EXPORT', out.read_text(encoding='utf-8'))
+
+    def test_cli_refuses_an_output_inside_the_public_repo(self):
+        out = ROOT / 'demo' / 'own-export-test.html'
+        r = self._cli(out)
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn('outside the repository', r.stderr)
+        self.assertFalse(out.exists())
+
+    def test_cli_needs_an_explicit_output_path(self):
+        r = self._cli(None)
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn('--output', r.stderr)
+
+
 if __name__=='__main__':
     unittest.main()
