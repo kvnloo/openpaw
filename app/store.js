@@ -8,6 +8,28 @@ export const DB_NAME = 'openpaw';
 export const DB_VERSION = 2;
 
 let dbp = null;
+let stale = null;
+// 'versionchange' (another tab opened a newer version) or 'VersionError' (the DB on disk is newer
+// than this page's code): this tab is out of date. null while it is current.
+export function staleReason() { return stale; }
+function markStale(reason) {
+  if (!stale) stale = reason;
+  const doc = globalThis.document;
+  if (!doc || !doc.body || doc.getElementById('op-stale')) return;
+  const box = doc.createElement('div');
+  box.id = 'op-stale';
+  box.setAttribute('role', 'alert');
+  box.setAttribute('style', 'position:sticky;top:0;z-index:100;display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;justify-content:center;padding:10px 16px;background:var(--gold,#d7b986);color:var(--gold-ink,#1b160c);font:600 14px/1.35 var(--sans,system-ui,sans-serif);text-align:center');
+  const msg = doc.createElement('span');
+  msg.textContent = 'OpenPaw was updated in another tab. Reload this page to keep saving.';
+  const btn = doc.createElement('button');
+  btn.type = 'button';
+  btn.textContent = 'Reload';
+  btn.setAttribute('style', 'border:1px solid currentColor;border-radius:8px;background:transparent;color:inherit;font:inherit;padding:5px 12px;cursor:pointer');
+  btn.addEventListener('click', () => globalThis.location && globalThis.location.reload());
+  box.append(msg, btn);
+  doc.body.prepend(box);
+}
 export function openDb() {
   if (dbp) return dbp;
   const p = new Promise((res, rej) => {
@@ -23,11 +45,15 @@ export function openDb() {
       const drop = () => { if (dbp === p) dbp = null; };
       // Another tab opening a newer version (a new deploy) waits ('blocked') while this connection
       // stays open: close it and forget it, so that tab upgrades and our next call opens again.
-      db.onversionchange = () => { db.close(); drop(); };
+      db.onversionchange = () => { db.close(); drop(); markStale('versionchange'); };
       db.onclose = drop; // closed by the browser (storage cleared, disk error): don't reuse it
       res(db);
     };
-    r.onerror = () => { if (dbp === p) dbp = null; rej(r.error); }; // don't cache a failure: the next call retries
+    r.onerror = () => { // don't cache a failure: the next call retries
+      if (dbp === p) dbp = null;
+      if (r.error && r.error.name === 'VersionError') markStale('VersionError');
+      rej(r.error);
+    };
   });
   dbp = p;
   return dbp;
