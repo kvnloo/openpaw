@@ -111,10 +111,17 @@ def collar_event_card(e):
     </details>'''
 
 
-def collar_section(events):
-    """Per-episode movement rows from tools/collar_derive.py, each figure linked to its source event."""
-    if any((e.get("provenance") or {}).get("origin") != "simulated" for e in events):
+def _origins(events):
+    return sorted({str((e.get("provenance") or {}).get("origin")) for e in events})
+
+
+def collar_section(events, own=False):
+    """Per-episode movement rows from tools/collar_derive.py, each figure linked to its source event.
+
+    own=False (the synthetic page) refuses anything not simulated; own=True is the owner's own export page."""
+    if not own and any((e.get("provenance") or {}).get("origin") != "simulated" for e in events):
         raise ValueError("Refusing to render a collar export that is not entirely simulated on this synthetic page")
+    label = ("your own export · origins: " + ", ".join(_origins(events))) if own else "simulated"
     derived = _collar_derive().derive(events)
     by_id = {e.get("event_id"): e for e in events}
 
@@ -160,7 +167,7 @@ def collar_section(events):
     sources = "".join(collar_event_card(by_id[i]) for i in sorted(shown, key=lambda i: by_id[i]["timestamp"]))
     body = "".join(cards) or '<p class="empty-day">No episode with a "trigger seen" mark and collar epochs after it.</p>'
     version = escape(getattr(_collar_derive(), "ALGORITHM_VERSION", ""))
-    return len(derived), f'''<section id="collar" aria-labelledby="collar-title"><div class="sectionhead"><h2 id="collar-title">Collar episodes</h2><span class="hint">From an app export · simulated · tools/collar_derive.py {version} · movement (VeDBA) only</span></div>
+    return len(derived), f'''<section id="collar" aria-labelledby="collar-title"><div class="sectionhead"><h2 id="collar-title">Collar episodes</h2><span class="hint">From an app export · {escape(label)} · tools/collar_derive.py {version} · movement (VeDBA) only</span></div>
 <p class="side-note">Each band is this dog's own 30 minutes before the trigger. A hypothesis for experts to check, not a finding. Every figure opens the collar event it came from.</p>
 <div class="collar-grid">{body}</div><div class="collar-sources"><h3 class="kicker">Source events behind these figures</h3>{sources}</div></section>'''
 
@@ -329,24 +336,76 @@ def render(records, source, collar=None):
 <textarea id="source-data" hidden readonly>{escape(source,quote=False)}</textarea><script>{JS}</script></body></html>'''
 
 
+OWN_JS = r"""
+document.querySelectorAll('#collar a[href^="#ev-"]').forEach(link => link.addEventListener('click', event => {
+  const source = document.getElementById(decodeURIComponent(link.getAttribute('href').slice(1)));
+  if (!source) return;
+  event.preventDefault();
+  source.open = true;
+  history.replaceState(null, '', '#' + source.id);
+  source.scrollIntoView({block: 'start'});
+  source.querySelector('summary').focus({preventScroll: true});
+}));
+"""
+
+
+def render_own(events):
+    """The owner's own collar export as a standalone local page: collar episodes only, no fictional week."""
+    n, section = collar_section(events, own=True)
+    times = sorted(e["timestamp"] for e in events if isinstance(e.get("timestamp"), str))
+    span = f'{escape(times[0][:10])} to {escape(times[-1][:10])} (UTC)' if times else "no timestamps"
+    return f'''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'none'; img-src data:; form-action 'none'; base-uri 'none'">
+<meta name="robots" content="noindex"><title>OpenPaw · Your collar export</title><style>{CSS}</style></head>
+<body><div class="topnotice" role="note">YOUR OWN COLLAR EXPORT · THIS PAGE STAYS ON THIS COMPUTER · MEASUREMENTS ONLY, NOT A DIAGNOSIS</div>
+<div class="shell"><header class="sitehead"><div class="brand"><span class="brandmark">P</span> OpenPaw <span class="hint">/ Your export</span></div><nav class="nav" aria-label="Page navigation"><a href="#collar">Collar</a></nav></header>
+<section class="hero"><div><div class="kicker">Your own export · {span}</div><h1>Your collar episodes.</h1><p>Built on this computer from the file you exported. Nothing was uploaded, and this page loads nothing from the internet. It can still hold details about your dog and your walks: it stays on this computer until you choose to share it, so read it first. Movement measured by the collar, next to the marks you made in Field: measurements only, not a diagnosis.</p></div>
+<div class="stats"><div class="stat"><b>{len(events)}</b><span>Export events</span></div><div class="stat"><b>{n}</b><span>Collar episodes</span></div></div></section>
+{section}
+<footer>OpenPaw · measurements and your own marks, not a medical device. <a href="https://github.com/kvnloo/openpaw" rel="noreferrer">Protocol &amp; source ↗</a></footer></div>
+<script>{OWN_JS}</script></body></html>'''
+
+
+def _read_export(path):
+    import json
+    events = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        try:
+            ev = json.loads(line) if line.strip() else None
+        except json.JSONDecodeError:
+            continue
+        if isinstance(ev, dict):
+            events.append(ev)
+    return events
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--output", type=Path, default=ROOT / "demo" / "timeline.html")
+    parser.add_argument("--output", type=Path, default=None)
     parser.add_argument("--collar", type=Path, help="simulated app JSONL export: adds per-episode collar movement rows")
+    parser.add_argument("--own-export", type=Path,
+                        help="your own app JSONL export: a separate local page (needs --output outside this repository)")
     args = parser.parse_args()
+    if args.own_export:
+        if args.output is None:
+            parser.error("--own-export needs --output, a path outside this repository (for example ~/Desktop/my-collar.html)")
+        out = args.output.expanduser().resolve()
+        if out == ROOT or ROOT in out.parents:
+            parser.error(f"--output must be outside the repository ({ROOT}) so your own data is never committed to the public repo")
+        events = _read_export(args.own_export)
+        html = render_own(events)
+        n = collar_section(events, own=True)[0]
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(html, encoding="utf-8")
+        print(f"Wrote {out} ({n} collar episode{'s' if n != 1 else ''} from {len(events)} export events; built locally, nothing uploaded)")
+        return
+    if args.output is None:
+        args.output = ROOT / "demo" / "timeline.html"
     records = read_fixture()
     source = FIXTURE.read_text(encoding="utf-8")
     collar, extra = None, ""
     if args.collar:
-        import json
-        collar = []
-        for line in args.collar.read_text(encoding="utf-8").splitlines():
-            try:
-                ev = json.loads(line) if line.strip() else None
-            except json.JSONDecodeError:
-                continue
-            if isinstance(ev, dict):
-                collar.append(ev)
+        collar = _read_export(args.collar)
         n = collar_section(collar)[0]
         extra = f"; {n} collar episode{'s' if n != 1 else ''} from {len(collar)} simulated export events"
     args.output.parent.mkdir(parents=True, exist_ok=True)

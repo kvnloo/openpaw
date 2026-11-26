@@ -21,6 +21,16 @@ python demo/render_timeline.py --collar /tmp/export.jsonl
 
 A "Collar episodes" section then shows, per Field episode, what `tools/collar_derive.py` measured: the dog's own 30 min movement band before the trigger, the peak, and when movement was back in band (or "not observed"). Every figure links to the collar event it came from. Movement only; a hypothesis for experts to check.
 
+### Your own export
+
+To see your **own** collar export (the JSONL the app downloads) the same way, on a separate page with no fictional week:
+
+```sh
+python demo/render_timeline.py --own-export ~/Downloads/openpaw-<dog>-<date>.jsonl --output ~/Desktop/my-collar.html
+```
+
+The page says at the top that it is your own data and stays on this computer; it loads nothing from the internet and is marked `noindex`. `--output` is required and must be outside this repository, so your dog's data can't end up in a commit to the public repo. It shows the same per-episode band, peak and back-in-band figures, each linked to its collar event, and lists which origins the export holds (`sensor`, `owner`, `simulated`). Measurements only, not a diagnosis. Read the page before you share it with a vet or trainer.
+
 For all fixture/schema tests: `python -m pip install jsonschema && python -m unittest discover -s tests -v`.
 
 ## Audit an exported review locally
