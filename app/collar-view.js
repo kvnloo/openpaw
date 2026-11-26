@@ -95,7 +95,12 @@ export function renderTimeline(svg, readout, epochs, { range = 3600e3, now, anim
     h += `<path class="line" d="${d}" fill="none" stroke="#d7b986" stroke-width="1.6" stroke-linejoin="round"/></g>`;
     for (const e of pts) if (e.bursts) h += `<g class="burst"><line x1="${x(e.t)}" x2="${x(e.t)}" y1="${T}" y2="${H - B}" stroke="#e8a35f" stroke-opacity=".5" stroke-dasharray="2 3"/><path d="M${x(e.t)} ${T - 1} l4 6 -4 6 -4 -6z" fill="#e8a35f"/></g>`;
     for (const e of pts) if (e.clipped) h += `<circle cx="${x(e.t)}" cy="${H - B + 6}" r="2.2" fill="#c0392b"><title>sensor clipped (over 4 g)</title></circle>`;
-  } else h += `<text class="empty" x="${W / 2}" y="${H / 2}" text-anchor="middle">No collar data in this window yet</text>`;
+  } else {
+    // centred on the plot (not the band-name gutter) and inside the still band, the tallest one at
+    // phone width too (the active band is too thin there for two lines), clear of the 250 mg cutoff
+    const mid = L + (W - L - Rr) / 2, band = (y(LEVELS[0].max) + y(0)) / 2;
+    h += `<text class="empty" x="${mid}" y="${(band - 4).toFixed(1)}" text-anchor="middle">No collar data in this window yet</text><text class="empty-hint" x="${mid}" y="${(band + 12).toFixed(1)}" text-anchor="middle">Connect the collar, or load Demo week</text>`;
+  }
   h += `<line class="scrub" x1="0" x2="0" y1="${T}" y2="${H - B}" stroke="#ece8df" stroke-opacity=".5" visibility="hidden"/><circle class="scrubdot" r="4" fill="#0c0c0a" stroke="#ece8df" stroke-width="1.5" visibility="hidden"/>`;
   svg.innerHTML = h;
   const line = svg.querySelector('.line');
