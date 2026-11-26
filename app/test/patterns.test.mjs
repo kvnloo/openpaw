@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { dailySeries, findPatterns, demoHistory, spearman, benjaminiHochberg, permutationP, dayKey, minutesOfDay, TEMPLATES, slug, ENGINE_VERSION } from '../patterns.js';
+import { dailySeries, findPatterns, demoHistory, spearman, benjaminiHochberg, permutationP, dayKey, minutesOfDay, TEMPLATES, slug, ENGINE_VERSION, APP_PERMS, DEFAULT_MAX_Q } from '../patterns.js';
 
 test('helpers', () => {
   assert.equal(dayKey('2026-11-23T03:00:00Z', 360), '2026-11-22', 'CST shifts to previous day');
@@ -36,7 +36,7 @@ test('finds planted patterns in 90-day simulated histories, with honest power', 
   const seeds = [3, 5, 9, 12, 21];
   let play = 0, sleep = 0, energy = 0, timing = 0, negatives = 0, spuriousTrend = 0;
   for (const seed of seeds) {
-    const r = findPatterns(demoHistory({ days: 90, seed }), { perms: 499 });
+    const r = findPatterns(demoHistory({ days: 90, seed }), { perms: APP_PERMS });
     const A = r.findings.filter((f) => f.kind === 'association');
     if (A.some((f) => f.target === 'episodes' && f.factor === 'play' && f.rho < 0)) play++;
     if (A.some((f) => f.target === 'episodes' && f.factor === 'sleep' && f.lag === 1 && f.rho < 0)) sleep++;
@@ -69,7 +69,7 @@ test('one same-day correlation between two targets is one finding, not two', () 
 
 test('a weaker factor is re-tested after allowing for the strongest one, and says so', () => {
   // seed 21: same-day play drives most of the episode count, which hides the next-day sleep effect
-  const r = findPatterns(demoHistory({ days: 90, seed: 21 }), { perms: 499 });
+  const r = findPatterns(demoHistory({ days: 90, seed: 21 }), { perms: APP_PERMS });
   const sleep = r.findings.find((f) => f.kind === 'association' && f.target === 'episodes' && f.factor === 'sleep' && f.lag === 1);
   assert.ok(sleep, 'sleep -> next-day episodes found once play is allowed for');
   assert.ok(sleep.rho < 0);
@@ -85,7 +85,25 @@ test('the method note and engine version describe the adjustment', async () => {
   const src = await readFile(new URL('../track.js', import.meta.url), 'utf8');
   const method = src.split('\n').find((l) => l.includes("$('#method')"));
   assert.match(method, /strongest/i, 'method note says weaker factors are re-checked after the strongest one');
-  assert.equal(ENGINE_VERSION, 'openpaw-patterns/0.2');
+  assert.equal(ENGINE_VERSION, 'openpaw-patterns/0.3');
+});
+
+test('enough permutations for the q cut: 1999 permutations, q < 0.07, and Track uses both', async () => {
+  // With 499 permutations the smallest p is 0.002, so even a strong true effect can't reach a q much
+  // below 0.002 x tests / findings; a stricter cut then drops real findings. 1999 lifts that floor.
+  assert.equal(APP_PERMS, 1999);
+  assert.equal(DEFAULT_MAX_Q, 0.07);
+  const { readFile } = await import('node:fs/promises');
+  const src = await readFile(new URL('../track.js', import.meta.url), 'utf8');
+  assert.match(src, /findPatterns\(src, \{[^}]*perms: APP_PERMS/, 'Track runs the engine at APP_PERMS');
+  const method = src.split('\n').find((l) => l.includes("$('#method')"));
+  assert.match(method, /q < \$\{DEFAULT_MAX_Q\}/, 'method note states the cut the engine uses');
+  // simulated seed 526: a chance link between treats and next-day episode intensity (treats are a
+  // planted no-effect control) has q between 0.07 and 0.1; the planted effects all stay
+  const r = findPatterns(demoHistory({ days: 90, seed: 526 }), { perms: APP_PERMS });
+  assert.ok(!r.findings.some((f) => f.target === 'episode_intensity' && f.factor === 'treats'), 'chance finding not reported');
+  const A = r.findings.filter((f) => f.kind === 'association');
+  assert.ok(A.some((f) => f.target === 'energy' && f.factor === 'walk' && f.rho > 0), 'walk -> energy kept');
 });
 
 test('too little data -> no associations claimed', () => {

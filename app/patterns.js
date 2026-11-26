@@ -7,7 +7,12 @@
 //  - minimum data before anything is claimed; findings carry the evidence days.
 // SPDX-License-Identifier: GPL-3.0-only
 
-export const ENGINE_VERSION = 'openpaw-patterns/0.2';
+export const ENGINE_VERSION = 'openpaw-patterns/0.3';
+// Benjamini-Hochberg cut, and the permutation count Track runs it with. They go together: with 499
+// permutations the smallest p is 0.002, which caps how low any q can get; 1999 lifts that floor so a
+// 0.07 cut keeps the real findings (measured on simulated histories, factory climb r26).
+export const DEFAULT_MAX_Q = 0.07;
+export const APP_PERMS = 1999;
 
 // Default trackers. Owners can add any others ("whatever I wanna track").
 // type: count | quantity | duration | scale | check
@@ -179,7 +184,7 @@ const fmtClock = (m) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String
 // targets: series keys we try to explain (episodes, energy, alertness ...). Every other series is a candidate factor,
 // same day and previous day ("lag 1").
 export function findPatterns(events, opts = {}) {
-  const { minDays = 14, maxQ = 0.1, minAbsRho = 0.3, perms = 999, tzOffsetMin = 0, trackers = TEMPLATES } = opts;
+  const { minDays = 14, maxQ = DEFAULT_MAX_Q, minAbsRho = 0.3, perms = 999, tzOffsetMin = 0, trackers = TEMPLATES } = opts;
   const { days, series } = dailySeries(events, { trackers, tzOffsetMin });
   const targets = (opts.targets || ['episodes', 'energy', 'alertness', 'episode_intensity', 'time_to_calm']).filter((k) => series[k]);
   const findings = [];
