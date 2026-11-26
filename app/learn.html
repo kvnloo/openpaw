@@ -77,10 +77,15 @@ main { max-width: 1120px; margin: 0 auto; padding: 28px 20px 80px; }
 
 /* lessons list */
 .lessons { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 330px), 1fr)); gap: 16px; }
-.lcard { position: relative; display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 16px; align-items: start; padding: 16px; border: 1px solid var(--line2); border-radius: 10px; background: var(--bg2); text-decoration: none; height: 100%; transition: border-color .15s; }
+.lcard { position: relative; display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 16px; align-items: stretch; padding: 16px; border: 1px solid var(--line2); border-radius: 10px; background: var(--bg2); text-decoration: none; height: 100%; transition: border-color .15s; }
 .lcard:hover { border-color: var(--gold); }
 .lcard h3 { margin-bottom: 6px; }
 .lcard .small { margin: 0; }
+.lcard > .thumb { align-self: start; }
+.lcard > .body { display: flex; flex-direction: column; min-width: 0; }
+.lfoot { margin: 0; margin-top: auto; padding-top: 14px; display: flex; justify-content: space-between; gap: 12px; font-size: 11px; letter-spacing: .09em; text-transform: uppercase; color: var(--dim); }
+.lfoot .go { color: var(--mute); transition: color .15s; }
+.lcard:hover .go, .lcard:focus-visible .go { color: var(--gold); }
 .thumb { --bg: var(--bg2); aspect-ratio: 4 / 3; border: 1px solid var(--line); border-radius: 6px; display: grid; place-items: center; overflow: hidden; background: var(--bg2); }
 .thumb svg { width: 100%; height: 100%; }
 .disclaimer { margin-top: 34px; padding-top: 16px; border-top: 1px solid var(--line); color: var(--mute); max-width: 72ch; }
