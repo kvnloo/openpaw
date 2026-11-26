@@ -7,7 +7,7 @@
 
 import * as S from './store.js';
 import { UUIDS, decodeRecord, decodeStatus, recordToEvents, makeClock } from './openpaw-ble.js';
-import { episodesFrom, consultRows, ownerRows, vetRows } from './episodes.js';
+import { episodesFrom, consultRows, ownerRows, vetRows, lensCaption } from './episodes.js';
 import { reportHtml } from './episode-report.js';
 import { deriveMovement } from './episode-movement.js';
 import { SESSION_SIGNS, sessionAdvice, sessionCheckPayload } from './session-check.js';
@@ -160,7 +160,9 @@ async function renderEpisode() {
   const [label, rowsOf] = LENS[lens];
   $('epLabel').textContent = `${label} · ${new Date(last.start).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}${open ? ' · open' : ''}`;
   box.innerHTML = '';
-  for (const [k, v] of rowsOf(eps, events)) {
+  const rows = rowsOf(eps, events);
+  $('epCaption').textContent = lensCaption(rows);
+  for (const [k, v] of rows) {
     const row = document.createElement('div');
     const dt = document.createElement('dt'); dt.className = 'micro'; dt.textContent = k;
     const dd = document.createElement('dd'); dd.textContent = v;

@@ -98,6 +98,16 @@ export function consultRows(ep, previous, movement = []) {
   ];
 }
 
+// Caption under the lens rows: the rows are the owner's marks, except a "Collar movement" row,
+// which the collar measured; say so only when that row is shown.
+export function lensCaption(rows) {
+  const collar = rows.some(([k]) => k === 'Collar movement');
+  const whose = collar
+    ? 'Your own marks, plus one row measured by the collar (Collar movement, VeDBA), not marked by you,'
+    : 'Your own marks,';
+  return `${whose} laid out the way an owner, a behavior consultant or a vet reads them; the vet view covers the 7 days up to this episode. Minutes since the previous episode are shown as-is: there is no validated rule for “trigger stacking”.`;
+}
+
 // Gap in words for the owner: minutes under 90, hours under 48 h, then days.
 function gapWords(min) {
   if (min < 90) return `${min} min`;
