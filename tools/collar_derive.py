@@ -10,7 +10,9 @@ mark) it reports, from the collar's VeDBA epochs only:
   - peak: the largest epoch between the trigger and the end of follow-up;
   - back in band: start of the first 30 s run (six 5 s epochs, no hole) at or under the
     band's upper edge after the peak; "not observed" when follow-up ends first, with how far
-    it was followed. Follow-up ends at the next episode's trigger or the end of the data.
+    it was followed. Follow-up ends at the next episode's trigger or the end of the data;
+    ended_by says which, and an episode cut short by the next one is marked incomplete
+    (with that trigger's event id), so a missing settle is never read as a slow one.
 
 This is movement only. It is not "recovery" (the app's Calm again mark is the owner's
 observation of that), and nothing here names a feeling, a diagnosis or a stress level. There
@@ -123,7 +125,16 @@ def derive(events):
         pt, pe = max(after, key=lambda x: x[1]['payload']['value'])
         back = _back_in_band([x for x in after if x[0] > pt], upper, t0, pt, after[-1][0])
         busy.append((t0, t0 + back['after_trigger_s'] if back['status'] == 'observed' else t_end))
-        evidence = [trig['event_id'], pe['event_id']] + ([back['event_id']] if back['event_id'] else [])
+        nxt = order[i + 1] if i + 1 < len(order) else None
+        if back['status'] == 'observed':
+            back['ended_by'] = None
+        elif nxt is not None:   # incomplete: the next episode began before a 30 s run was seen
+            back['ended_by'] = {'reason': 'next episode', 'episode_id': nxt['episode_id'],
+                                'after_trigger_s': round(t_end - t0), 'event_id': nxt['event_id']}
+        else:
+            back['ended_by'] = {'reason': 'end of data'}
+        evidence = ([trig['event_id'], pe['event_id']] + ([back['event_id']] if back['event_id'] else [])
+                    + ([nxt['event_id']] if (back['ended_by'] or {}).get('reason') == 'next episode' else []))
         out.append({
             'schema_version': '0.1',
             'event_id': f'{ALGORITHM_VERSION}:{trig["episode_id"]}',
@@ -160,6 +171,11 @@ def line(d):
         tail = 'back in band: unknown without a band'
     else:
         tail = f'back in band: not observed in {bb["followed_up_s"]} s of follow-up'
+        end = bb.get('ended_by') or {}
+        if end.get('reason') == 'next episode':
+            tail += f' (incomplete, cut short: next episode {end["episode_id"]} began {end["after_trigger_s"]} s after the trigger)'
+        elif end.get('reason') == 'end of data':
+            tail += ' (data ended)'
     sim = ' [simulated]' if d['provenance']['origin'] == 'simulated' else ''
     return f'{d["episode_id"]}{sim}: {band}; peak {pk["value_mg"]} mg at +{pk["after_trigger_s"]} s; {tail}'
 
