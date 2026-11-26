@@ -420,6 +420,45 @@ test('c-step-back card: when he stops taking treats closer to a person, go back 
   for (const e of c.examples) assert.doesNotMatch(e.label, /scared|afraid|fearful|stress|nervous|anxious|happy/i, 'visible facts only');
 });
 
+test('c-bite-first card: after a bite on a person, keep people away, vet check, reward-based professional; a "dominance" label is not a plan', async () => {
+  const c = CARDS.find((x) => x.id === 'c-bite-first');
+  assert.ok(c, 'c-bite-first card exists');
+  assert.equal(c.lesson, 'pain', 'the "see your vet first" lesson');
+  assert.equal(c.art.prop, 'person', 'stranger-directed: the trigger is a person');
+  assert.match(c.context, /bit(ten)?\b/i, 'a bite has happened');
+  assert.match(c.context, /dominant|boss/i, 'someone offers the dominance reading');
+  const { askFor } = await import('../learn-content.js');
+  assert.match(askFor(c), /\bdo\b.*\?$/i, 'an action question');
+  const right = c.choices[c.answer];
+  assert.match(right, /vet/i);
+  assert.match(right, /reward-based/i);
+  assert.match(right, /away from|distance/i, 'keep people safe while you get help');
+  assert.doesNotMatch(right, /correct|hold|boss|used to/i);
+  assert.ok(c.choices.some((x, i) => i !== c.answer && /correct/i.test(x)), 'a distractor: lead corrections');
+  assert.ok(c.choices.some((x, i) => i !== c.answer && /hold|pin/i.test(x) && /still|quiet/i.test(x)), 'a distractor: hold him down until he goes still');
+  assert.ok(c.choices.some((x, i) => i !== c.answer && /used to/i.test(x)), 'a distractor: bring people close so he gets used to them');
+  assert.deepEqual(c.evidence, ['amat2024-the-relationship-between-aggression-and-physical-disease-in', 'mikkola2021-aggressive-behaviour-is-affected-by-demographic-environmental-and', 'vieiradecastro2020-does-training-method-matter-evidence-for-the-negative', 'avsab2021-position-statement-on-humane-dog-training']);
+  for (const k of ['amat2024', 'mikkola2021', 'vieiradecastro2020', 'avsabHumane']) assert.ok(SRC[k] && c.sources.includes(SRC[k]), k);
+  // Each study with its real scope and limit.
+  assert.match(c.explain, /review/i, 'amat2024 is a clinical review');
+  assert.match(c.explain, /pain/i);
+  assert.match(c.explain, /9,?270 dogs/, 'mikkola2021 size');
+  assert.match(c.explain, /owner/i);
+  assert.match(c.explain, /(cannot|does not|can.t) show (what )?caus/i, 'mikkola2021 is cross-sectional owner report');
+  assert.match(c.explain, /92 dogs/);
+  assert.match(c.explain, /not randomi[sz]ed/i);
+  assert.match(c.explain, /write down/i, 'record what you see instead of a label');
+  // AVSAB 2021 FAQ names these techniques and the dominance framing explicitly.
+  assert.match(c.explain, /choke chain/i);
+  assert.match(c.explain, /dominance/i);
+  assert.match(c.explain, /management/i);
+  assert.doesNotMatch(c.explain, /proven|always|guarantee|cure|stress score|is dominant/i);
+  assert.ok(Array.isArray(c.examples) && c.examples.length >= 2);
+  for (const e of c.examples) assert.match(e.url, /^https:\/\/www\.youtube\.com\/watch\?v=7s7C4yKRphk&t=\d+s$/, e.url);
+  assert.ok(c.examples.some((e) => /not recommended|aversive/i.test(e.label)), 'an example flags the technique');
+  for (const e of c.examples) assert.doesNotMatch(e.label, /scared|afraid|fearful|stress|nervous|anxious|happy|submissive/i, 'visible facts only');
+});
+
 test('every card example is a timestamped https link with a label', () => {
   for (const c of CARDS.filter((x) => x.examples)) {
     for (const e of c.examples) {
