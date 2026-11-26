@@ -111,6 +111,10 @@ def collar_event_card(e):
     </details>'''
 
 
+# Schema provenance origins in words a reader can act on ("model" = derived by tools/collar_derive.py).
+_ORIGIN_TEXT = {"model": "computed from collar data"}
+
+
 def _origins(events):
     return sorted({str((e.get("provenance") or {}).get("origin")) for e in events})
 
@@ -154,7 +158,7 @@ def collar_section(events, own=False):
             elif end.get("reason") == "end of data":
                 back += " (data ended)"
         cards.append(f'''<article class="collar-episode">
-      <span class="eyebrow">{escape(trig['timestamp'][:10])} · {link(trig['event_id'], trig['timestamp'][11:19] + ' UTC trigger mark')} · {escape(d['provenance']['origin'])}</span>
+      <span class="eyebrow">{escape(trig['timestamp'][:10])} · {link(trig['event_id'], trig['timestamp'][11:19] + ' UTC trigger mark')} · {escape(str(_ORIGIN_TEXT.get(d['provenance']['origin'], d['provenance']['origin'])))}</span>
       <strong>Episode {escape(str(d['episode_id']))}</strong>
       <dl><dt>Band before</dt><dd>{band}</dd>
         <dt>Peak</dt><dd>{link(pk['event_id'], str(pk['value_mg']) + ' mg')} at +{pk['after_trigger_s']} s</dd>
