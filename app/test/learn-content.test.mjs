@@ -281,6 +281,45 @@ test('c-one-step card: a scary thing is added one change at a time by a person t
   for (const e of c.examples) assert.doesNotMatch(e.label, /scared|afraid|fearful|stress|calm/i, 'visible facts only');
 });
 
+test('c-greet-away card: a dog turning away mid-greeting is let go and rewarded, whatever the other owner says; cites mariti2017 with its numbers', async () => {
+  const c = CARDS.find((x) => x.id === 'c-greet-away');
+  assert.ok(c, 'c-greet-away card exists');
+  assert.equal(c.lesson, 'turn-paw');
+  // The scenario carries a spoken label ("they're fine") that the dog's body disagrees with.
+  assert.match(c.context, /turns? (her|his) head away/i);
+  assert.match(c.context, /fine/i);
+  const { askFor } = await import('../learn-content.js');
+  assert.match(askFor(c), /\bdo\b.*\?$/i, 'an action question');
+  const right = c.choices[c.answer];
+  assert.match(right, /let (her|him) (move|walk) away/i);
+  assert.match(right, /space|distance/i);
+  assert.doesNotMatch(right, /finish|hold|tell (her|him) off|nose to nose/i);
+  assert.ok(c.choices.some((x, i) => i !== c.answer && /finish the greeting|back so they can/i.test(x)), 'a distractor brings her back to finish the greeting');
+  assert.ok(c.choices.some((x, i) => i !== c.answer && /rude|tell (her|him) off/i.test(x)), 'a distractor calls it rude');
+  const slug = 'mariti2017-analysis-of-the-intraspecific-visual-communication-in-the-domestic';
+  assert.ok(c.evidence && c.evidence.includes(slug), 'cites mariti2017');
+  assert.ok(c.evidence.includes('avsab2021-position-statement-on-humane-dog-training'), 'cites AVSAB');
+  assert.ok(c.sources.includes(SRC.mariti2017), 'links the paper');
+  // The study's own numbers and limits: 24 dogs, pilot; 73 of 109; 58 of 73.
+  assert.match(c.explain, /24 dogs/);
+  assert.match(c.explain, /73 of 109/);
+  assert.match(c.explain, /58 of (those )?73/);
+  assert.match(c.explain, /pilot/i);
+  assert.match(c.explain, /not (tell you )?what .* feels|does not tell you what/i, 'no feeling read off one signal');
+  assert.doesNotMatch(c.explain, /proven|guarantee|always|rude/i);
+  assert.ok(Array.isArray(c.examples) && c.examples.length >= 3, 'video examples');
+  for (const e of c.examples) assert.match(e.url, /^https:\/\/www\.youtube\.com\/watch\?v=SbR0YXaMyvM&t=\d+s$/, e.url);
+  assert.ok(c.examples.some((e) => /between/i.test(e.label) && /handler/i.test(e.label)), 'an example: she puts her handler between herself and the puppy');
+  assert.ok(c.examples.some((e) => /break/i.test(e.label) && /eye contact/i.test(e.label)), 'an example: eye contact, then she walks off for a break');
+  assert.ok(c.examples.some((e) => /switch(es)? sides/i.test(e.label) && /(go|step) back a step/i.test(e.label)), 'an example: on a walk she switches sides; the trainer goes back a step');
+  for (const e of c.examples) assert.doesNotMatch(e.label, /scared|afraid|fearful|stress|uncomfortable/i, 'visible facts only');
+  // The evidence card itself carries the study's design.
+  const { readFileSync } = await import('node:fs');
+  const card = readFileSync(new URL(`../../docs/evidence/cards/${slug}.md`, import.meta.url), 'utf8');
+  assert.match(card, /doi: "10\.1016\/j\.jveb\.2016\.12\.009"/);
+  assert.match(card, /n_dogs: 24/);
+});
+
 test('every card example is a timestamped https link with a label', () => {
   for (const c of CARDS.filter((x) => x.examples)) {
     for (const e of c.examples) {
