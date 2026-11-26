@@ -155,6 +155,8 @@ async function renderEpisode() {
   const eps = episodesFrom(events);
   const box = $('epRows');
   if (!eps.length) return;
+  $('epFull').hidden = false;
+  $('epEmpty').hidden = true;
   const last = eps[eps.length - 1];
   const open = !last.end;
   const [label, rowsOf] = LENS[lens];
