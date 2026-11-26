@@ -55,6 +55,7 @@ export const SRC = {
   byosiere2016: 'https://doi.org/10.1016/j.beproc.2016.02.007',
   farago2017: 'https://doi.org/10.1098/rsos.170134',
   butler2011: 'https://doi.org/10.1016/j.applanim.2010.11.001',
+  shnookal2025: 'https://doi.org/10.1007/s44338-025-00119-1',
 };
 
 // Human-readable names for the source list.
@@ -99,6 +100,7 @@ export const SOURCE_NAMES = {
   [SRC.byosiere2016]: 'Byosiere, Espinosa & Smuts 2016, Investigating the function of play bows in adult pet dogs (Behav Processes)',
   [SRC.farago2017]: 'Farag\u00f3 et al. 2017, Dog growls express various contextual and affective content for human listeners (R Soc Open Sci)',
   [SRC.butler2011]: 'Butler, Sargisson & Elliffe 2011, Systematic desensitization for separation-related problem behaviour (Appl Anim Behav Sci)',
+  [SRC.shnookal2025]: 'Shnookal, Clay, Howell & Bennett 2025, Trainer insights on on-lead dog-directed aggressive behaviour (Discover Animals)',
 };
 
 export const LESSONS = [
@@ -374,6 +376,17 @@ export const CARDS = [
     examples: [
       { url: 'https://www.youtube.com/watch?v=GH7nSv1Pt08&t=254s', label: 'After a noise the trainer remarks on, he stands still by the door with his head up for about 6 s (4:14 to 4:20), then has his nose down to the floor for a scattered find it (4:22 to 4:33; In Stride Pet Dog Training)' },
       { url: 'https://www.youtube.com/watch?v=GH7nSv1Pt08&t=272s', label: 'The trainer: she went straight from the noise into a big find it, because you can\u2019t reinforce fear; seconds later he answers a recall and comes when called (4:32 to 4:45)' },
+    ] },
+  { id: 'c-wait-look', lesson: 'threshold', art: { posture: 'stiff', ears: 'forward', eye: 'hard', mouth: 'closed', tail: 'high' },
+    context: 'A car drives past and your dog jumps and lunges at the end of a tight lead. The car has gone. Now she stands at the end of the lead, staring at the road, and does not turn when you say her name.',
+    ask: 'What do you do?',
+    choices: ['Repeat her name and \u201cwatch me\u201d until she does it', 'Pull her round to face you so she has to pay attention', 'Stand quietly and wait; the moment she looks back at you, say \u201cyes\u201d and give a treat, then walk a little further away from the road', 'Tell her off so she learns cars are not worth it'], answer: 2,
+    explain: 'Not turning to her name is a common sign a dog is over threshold: cues repeated now mostly go unheard. Waiting and then rewarding the first look back pairs the trigger with food and rewards checking in with you, the idea behind Look At That; more distance makes the next look easier. In interviews with ten professional trainers about dogs that react on the lead, counterconditioning with controlled exposure was the approach they described most often, but which approach works best for owners remains unclear: what trainers do, not a trial. Pulling and telling off are aversive methods, which the evidence the project follows advises against. If reactions happen often, talk to your vet or a behaviour consultant.',
+    sources: [SRC.shnookal2025, SRC.latEastBay, SRC.foreverHounds, SRC.avsabHumane],
+    evidence: ['shnookal2025-exploring-trainer-insights-and-understanding-of-on-lead', 'avsab2021-position-statement-on-humane-dog-training'],
+    examples: [
+      { url: 'https://www.youtube.com/watch?v=I5HEz-lfQ7I&t=0s', label: 'A rescue dog who reacts to vehicles jumps and lunges on a tight lead (0:00 to 0:09); the caption says she cannot hear the handler yet, so the handler waits. She stands facing the road, then turns her head to the camera at about 0:16 and is marked and fed (0:17 to 0:19; edited clip, times approximate; Benevolent Sun Dogs)' },
+      { url: 'https://www.youtube.com/watch?v=I5HEz-lfQ7I&t=43s', label: 'Later she stands facing down the drive, tail high and wagging; the caption: the wag is not a good sign here, and then the handler sees a cat (0:43 to 0:56). She turns back to the camera within about 3 s, \u201cnow it\u2019s easier to get her focus back\u201d (0:57 to 1:02; edited clip, times approximate)' },
     ] },
   { id: 'c-door-knock', lesson: 'threshold', art: { posture: 'turn', ears: 'forward', eye: 'soft', mouth: 'closed', tail: 'mid' },
     context: 'Your dog usually barks and rushes the door when someone knocks. You sit on the floor near the door feeding her small treats while a helper outside knocks, softly at first. She has been lying at your feet, eating. After a harder knock she gets up and stands, head up, but does not bark.',
