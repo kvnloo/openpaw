@@ -1,7 +1,7 @@
 // OpenPaw Track: quick logging for any tracker + the pattern view.
 // SPDX-License-Identifier: GPL-3.0-only
 import * as S from './store.js';
-import { TEMPLATES, findPatterns, demoHistory, metricFor, slug, ENGINE_VERSION } from './patterns.js';
+import { TEMPLATES, findPatterns, demoHistory, metricFor, slug, ENGINE_VERSION, APP_PERMS, DEFAULT_MAX_Q } from './patterns.js';
 import { packGroups } from './tile-pack.js';
 import { todayRows, dayLabel } from './today-list.js';
 import { tabStep } from './tab-keys.js';
@@ -170,7 +170,7 @@ function refreshToday(flashId) {
 /* ------------------------------------------------------------- patterns */
 function renderPatterns() {
   const src = demo ? demoHistory({ days: 90, seed: 5, dog: DOG, start: localDay(new Date(Date.now() - 89 * 86400000)), tzOffsetMin: TZ }) : events;
-  const r = findPatterns(src, { tzOffsetMin: TZ, trackers, perms: 499 });
+  const r = findPatterns(src, { tzOffsetMin: TZ, trackers, perms: APP_PERMS });
   const ep = r.series.episodes ? r.series.episodes.values : [];
   const logged = r.days.length;
   const recent = ep.slice(-14).filter((v) => v !== null), prior = ep.slice(-28, -14).filter((v) => v !== null);
@@ -193,7 +193,7 @@ function renderPatterns() {
   const need = Math.max(0, 14 - logged);
   $('#findings').innerHTML = (demo ? '<p style="margin:16px 0 0"><span class="sim">SIMULATED</span> <span class="fine">90 invented days with planted effects (play, sleep, walks). Turn off to see your own.</span></p>' : '') +
     (F.length ? F.map((f, k) => findingCard(f, k)).join('') : `<div class="card finding" style="cursor:default"><span class="br tl"></span><span class="br bR"></span><div class="micro">No patterns yet</div><h3>${need ? `Log ${need} more day${need === 1 ? '' : 's'} to start` : 'Nothing stands out yet'}</h3><p>${need ? 'Patterns need at least 14 logged days. Meals, play, energy and episodes are the most useful to start with.' : 'That is a real answer too: with this much data nothing passes the bar. Keep logging; small effects need more days.'}</p></div>`);
-  $('#method').textContent = `${r.tested} comparisons checked with a rank correlation and a permutation test; factors that already show up are re-checked after allowing for the strongest one, then everything is corrected for testing many things at once (Benjamini–Hochberg, q < 0.1). Associations, not causes. Engine ${ENGINE_VERSION}.`;
+  $('#method').textContent = `${r.tested} comparisons checked with a rank correlation and a permutation test; factors that already show up are re-checked after allowing for the strongest one, then everything is corrected for testing many things at once (Benjamini–Hochberg, q < ${DEFAULT_MAX_Q}). Associations, not causes. Engine ${ENGINE_VERSION}.`;
   requestAnimationFrame(() => requestAnimationFrame(() => document.querySelectorAll('.bars .b i').forEach((i) => { i.style.width = i.dataset.w; })));
   lastFindings = { generated_at: new Date().toISOString(), simulated: demo, dog_id: DOG, engine: ENGINE_VERSION, days_logged: logged, tested: r.tested, findings: F.map(({ days, ...f }) => ({ ...f, n_days: days ? days.length : undefined })) };
 }
