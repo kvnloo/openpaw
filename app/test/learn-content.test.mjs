@@ -351,6 +351,40 @@ test('c-noise-find card: after a sudden noise, food straight away (a find it) is
   for (const e of c.examples) assert.doesNotMatch(e.label, /scared|afraid|fearful|stress|nervous|anxious/i, 'visible facts only');
 });
 
+test('c-wait-look card: after a real lunge, wait quietly and reward the first look back, then add distance; cites shnookal2025 with its limit', async () => {
+  const c = CARDS.find((x) => x.id === 'c-wait-look');
+  assert.ok(c, 'c-wait-look card exists');
+  assert.equal(c.lesson, 'threshold');
+  assert.match(c.context, /lunge/i);
+  assert.match(c.context, /tight lead/i);
+  assert.match(c.context, /does not (turn|look)/i, 'she is not hearing her name yet');
+  const { askFor } = await import('../learn-content.js');
+  assert.match(askFor(c), /\bdo\b.*\?$/i, 'an action question');
+  const right = c.choices[c.answer];
+  assert.match(right, /wait/i);
+  assert.match(right, /looks? (back|round) at you|turns? (her head )?(back|round) to you/i);
+  assert.match(right, /yes/i, 'marks the look');
+  assert.match(right, /distance|further|away from the road/i);
+  assert.doesNotMatch(right, /repeat|pull|tell (her|him) off|sit/i);
+  assert.ok(c.choices.some((x, i) => i !== c.answer && /repeat/i.test(x)), 'a distractor keeps repeating cues');
+  assert.ok(c.choices.some((x, i) => i !== c.answer && /pull/i.test(x)), 'a distractor pulls her round');
+  assert.ok(c.choices.some((x, i) => i !== c.answer && /tell (her|him) off/i.test(x)), 'a distractor tells her off');
+  assert.deepEqual(c.evidence, ['shnookal2025-exploring-trainer-insights-and-understanding-of-on-lead', 'avsab2021-position-statement-on-humane-dog-training']);
+  assert.ok(c.sources.includes(SRC.shnookal2025) && c.sources.includes(SRC.avsabHumane) && c.sources.includes(SRC.latEastBay));
+  assert.ok(SOURCE_NAMES[SRC.shnookal2025], 'shnookal2025 has a readable source name');
+  // What the interview study actually says, with its limit.
+  assert.match(c.explain, /ten (professional )?trainers|10 trainers/i);
+  assert.match(c.explain, /counterconditioning/i);
+  assert.match(c.explain, /(remains |is )?unclear|not (a trial|measured)/i, 'states the study did not test what works');
+  assert.doesNotMatch(c.explain, /proven|always|guarantee|cure|stress score|happy|fearful|afraid/i);
+  assert.ok(Array.isArray(c.examples) && c.examples.length >= 2);
+  for (const e of c.examples) assert.match(e.url, /^https:\/\/www\.youtube\.com\/watch\?v=I5HEz-lfQ7I&t=\d+s$/, e.url);
+  assert.ok(c.examples.some((e) => /lung|jump/i.test(e.label) && /looks? (round|back)|turns/i.test(e.label)), 'an example: the lunge, then the first look back');
+  assert.ok(c.examples.some((e) => /wag/i.test(e.label) && /cat/i.test(e.label)), 'an example: a wagging tail at a cat, and a quicker look back');
+  assert.ok(c.examples.every((e) => /approximate|edited/i.test(e.label) || !/\bs\b|seconds/.test(e.label)), 'times from an edited clip are flagged approximate');
+  for (const e of c.examples) assert.doesNotMatch(e.label, /scared|afraid|fearful|stress|nervous|anxious|happy/i, 'visible facts only');
+});
+
 test('every card example is a timestamped https link with a label', () => {
   for (const c of CARDS.filter((x) => x.examples)) {
     for (const e of c.examples) {
