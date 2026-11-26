@@ -513,7 +513,7 @@ test('each card asks a question that fits its answer: action cards ask what to d
   const { askFor, DEFAULT_ASK } = await import('../learn-content.js');
   assert.match(DEFAULT_ASK, /telling you\?$/);
   // These cards' right answers are a next step for the owner, not a reading of a signal.
-  const action = ['c-sound', 'c-door-knock', 'c-one-step', 'c-visitor-touch', 'c-sniff', 'c-route', 'c-make-space'];
+  const action = ['c-sound', 'c-door-knock', 'c-one-step', 'c-visitor-touch', 'c-sniff', 'c-route', 'c-make-space', 'c-see-first'];
   for (const id of action) {
     const c = CARDS.find((x) => x.id === id);
     assert.ok(c, id);
@@ -566,6 +566,45 @@ test('c-stretch-reach card: a long stretch to take food from a stranger, back fe
     assert.match(e.url, /^https:\/\/www\.youtube\.com\/watch\?v=NVJE2NpUVaQ&t=\d+s$/);
     assert.match(e.label, /\(\d+:\d\d( to \d+:\d\d)?/);
   }
+});
+
+test('c-see-first card: start the treats once he has seen the person, not before; the order rule is stated as a trainer rule, not a tested finding', async () => {
+  const c = CARDS.find((x) => x.id === 'c-see-first');
+  assert.ok(c, 'c-see-first card exists');
+  assert.equal(c.lesson, 'threshold');
+  assert.equal(c.art.prop, 'person', 'stranger-directed: the trigger is a person');
+  assert.match(c.context, /not (yet )?seen/i, 'he has not noticed the person yet');
+  const { askFor, DEFAULT_ASK } = await import('../learn-content.js');
+  assert.notEqual(askFor(c), DEFAULT_ASK, 'an action card');
+  assert.match(askFor(c), /\b(do|next|when)\b.*\?$/i);
+  const right = c.choices[c.answer];
+  assert.match(right, /(has )?seen/i);
+  assert.match(right, /then/i, 'food comes after the look');
+  assert.match(right, /further|distance/i, 'if he cannot eat, add distance');
+  assert.doesNotMatch(right, /before he sees|quiet the whole/i);
+  assert.ok(c.choices.some((x, i) => i !== c.answer && /before he (sees|has seen)/i.test(x)), 'a distractor: feed before he sees the person');
+  assert.ok(c.choices.some((x, i) => i !== c.answer && /quiet/i.test(x)), 'a distractor: food only if he stays quiet');
+  assert.ok(c.choices.some((x, i) => i !== c.answer && /nose/i.test(x) && /cannot see|can\u2019t see|can't see/i.test(x)), 'a distractor: block his view with a treat');
+  assert.deepEqual(c.evidence, ['shnookal2025-exploring-trainer-insights-and-understanding-of-on-lead', 'riemer2023-therapy-and-prevention-of-noise-fears-in-dogs', 'avsab2021-position-statement-on-humane-dog-training']);
+  for (const s of [SRC.shnookal2025, SRC.riemer2023, SRC.latEastBay, SRC.avsabHumane]) assert.ok(c.sources.includes(s), s);
+  assert.match(c.explain, /order/i);
+  assert.match(c.explain, /trainer/i);
+  assert.match(c.explain, /no study|not (been )?tested/i, 'the order rule is not a trial result');
+  assert.match(c.explain, /ten trainers/i);
+  assert.match(c.explain, /unclear/i);
+  assert.match(c.explain, /some support/i, 'riemer2023: some support for counterconditioning, noise fears');
+  assert.match(c.explain, /nois/i, 'states the review was about noise fears');
+  assert.match(c.explain, /reward-based/i);
+  assert.match(c.explain, /consultant/i);
+  assert.doesNotMatch(c.explain, /proven|always|guarantee|cure|stress score|happy|fearful|afraid|is dominant/i);
+  assert.ok(Array.isArray(c.examples) && c.examples.length >= 2);
+  for (const e of c.examples) {
+    assert.match(e.url, /^https:\/\/www\.youtube\.com\/watch\?v=V3rAm-qoV7A&t=\d+s$/, e.url);
+    assert.match(e.label, /\(\d+:\d\d( to \d+:\d\d)?/);
+    assert.doesNotMatch(e.label, /scared|afraid|fearful|stress|nervous|anxious|happy/i, 'visible facts only');
+  }
+  assert.ok(c.examples.some((e) => /person|jogger/i.test(e.label)), 'an example with a person passing');
+  assert.ok(c.examples.some((e) => /estimate|not readable/i.test(e.label)), 'distances from frames are flagged as estimates');
 });
 
 test('all registered sources are used and named', () => {
