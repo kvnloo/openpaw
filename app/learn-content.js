@@ -56,6 +56,8 @@ export const SRC = {
   farago2017: 'https://doi.org/10.1098/rsos.170134',
   butler2011: 'https://doi.org/10.1016/j.applanim.2010.11.001',
   shnookal2025: 'https://doi.org/10.1007/s44338-025-00119-1',
+  amat2024: 'https://doi.org/10.1016/j.cvsm.2023.08.008',
+  mikkola2021: 'https://doi.org/10.1038/s41598-021-88793-5',
 };
 
 // Human-readable names for the source list.
@@ -101,6 +103,8 @@ export const SOURCE_NAMES = {
   [SRC.farago2017]: 'Farag\u00f3 et al. 2017, Dog growls express various contextual and affective content for human listeners (R Soc Open Sci)',
   [SRC.butler2011]: 'Butler, Sargisson & Elliffe 2011, Systematic desensitization for separation-related problem behaviour (Appl Anim Behav Sci)',
   [SRC.shnookal2025]: 'Shnookal, Clay, Howell & Bennett 2025, Trainer insights on on-lead dog-directed aggressive behaviour (Discover Animals)',
+  [SRC.amat2024]: 'Amat, Le Brech & Manteca 2024, The relationship between aggression and physical disease in dogs (Vet Clin North Am Small Anim Pract)',
+  [SRC.mikkola2021]: 'Mikkola et al. 2021, Aggressive behaviour toward people in 9,270 Finnish purebred dogs (Sci Rep)',
 };
 
 export const LESSONS = [
@@ -531,6 +535,18 @@ export const CARDS = [
       { url: 'https://www.youtube.com/watch?v=mY-pXoYOUjs&t=681s', label: 'A trainer working with a dog who barks at people: start about 25 feet away, then 23, then 20; if at 17 feet he will not sit, go back to 20 and practise there, at the dog\u2019s pace (11:20 to 11:39, DGP Dog Behavior Videos)' },
       { url: 'https://www.youtube.com/watch?v=mY-pXoYOUjs&t=545s', label: 'The same trainer: if the dog won\u2019t take the treat, that is a sign he is uncomfortable (9:05)' },
       { url: 'https://www.youtube.com/watch?v=mY-pXoYOUjs&t=789s', label: 'Ending on an easy step: a helper appears for about a second, then turns and walks away (13:09 to 13:20)' },
+    ] },
+  { id: 'c-bite-first', lesson: 'pain', art: { posture: 'stiff', ears: 'forward', eye: 'hard', mouth: 'closed', tail: 'high', prop: 'person' },
+    context: 'Your adopted dog barks and lunges at people outside the family, and last week he bit a neighbour\u2019s child. A friend calls him dominant and says he needs to be shown who is boss, with a lead correction every time he looks at someone.',
+    ask: 'What do you do?',
+    choices: ['Give him a lead correction every time he looks at a person', 'Hold him down until he goes still and quiet', 'Keep him away from visitors and children for now, book a vet check, and find a qualified behaviour professional who uses reward-based methods', 'Invite people over every day so he gets used to them'], answer: 2,
+    explain: 'A bite on a person needs professional help, and keeping people at a distance from him keeps everyone safe while you get it. A vet check comes first: a clinical review describes how a medical problem can start aggression or make it worse, for example pain. In an owner survey of 9,270 dogs in Finland, dogs reported as often fearful were more likely to be reported as aggressive toward people, along with other factors such as age, sex and size; it is owner report at one point in time, so it cannot show cause. \u201cDominant\u201d is a label, not something you can see: write down what you do see (who, how far away, what he did, what happened just before) for your vet and consultant. In a study of 92 dogs at seven training schools, dogs from schools that used mostly aversive methods showed more stress-related behaviours and larger cortisol rises after training than dogs from reward-based schools; owners chose the school and dogs were not randomised. AVSAB recommends reward-based methods only; it lists choke chains, lead jerks and forced \u201cdominance downs\u201d as techniques to avoid, advises against trainers who explain behaviour with dominance ideas, and says aggression needs a plan with management, behaviour change and sometimes medication, after a vet has looked for medical causes.',
+    sources: [SRC.amat2024, SRC.mikkola2021, SRC.vieiradecastro2020, SRC.avsabHumane],
+    evidence: ['amat2024-the-relationship-between-aggression-and-physical-disease-in', 'mikkola2021-aggressive-behaviour-is-affected-by-demographic-environmental-and', 'vieiradecastro2020-does-training-method-matter-evidence-for-the-negative', 'avsab2021-position-statement-on-humane-dog-training'],
+    examples: [
+      { url: 'https://www.youtube.com/watch?v=7s7C4yKRphk&t=15s', label: 'The owners describe an adopted German Shepherd who acts aggressively to everyone outside the family of four and has bitten a neighbour\u2019s child, breaking the skin (0:15 to 1:01, TV episode)' },
+      { url: 'https://www.youtube.com/watch?v=7s7C4yKRphk&t=196s', label: 'The presenter explains the case as a \u201cdominant\u201d dog; no vet check is mentioned in the episode (3:16 to 3:58; dominance framing is not supported by the evidence the project follows)' },
+      { url: 'https://www.youtube.com/watch?v=7s7C4yKRphk&t=299s', label: 'On a walk the narration says he is corrected straight away for looking at another dog; frames show him walking on a chain slip collar, tail high (4:59 to 5:08; lead corrections are aversive, not recommended by AVSAB)' },
     ] },
 ];
 
