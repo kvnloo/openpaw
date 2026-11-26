@@ -459,6 +459,47 @@ test('c-bite-first card: after a bite on a person, keep people away, vet check, 
   for (const e of c.examples) assert.doesNotMatch(e.label, /scared|afraid|fearful|stress|nervous|anxious|happy|submissive/i, 'visible facts only');
 });
 
+test('c-make-space card: people coming on a narrow path means make distance early, not hold him in a sit; cites the trainer study with its scope', async () => {
+  const c = CARDS.find((x) => x.id === 'c-make-space');
+  assert.ok(c, 'c-make-space card exists');
+  assert.equal(c.lesson, 'threshold');
+  assert.equal(c.art.prop, 'person', 'stranger-directed: the trigger is people');
+  assert.match(c.context, /people/i);
+  assert.match(c.context, /narrow path/i);
+  assert.match(c.context, /cyclists?/i);
+  const { askFor } = await import('../learn-content.js');
+  assert.match(askFor(c), /\bdo\b.*\?$/i, 'an action question');
+  const right = c.choices[c.answer];
+  assert.match(right, /early/i, 'before he reacts');
+  assert.match(right, /turn and walk|walk the other way/i);
+  assert.match(right, /off the path/i);
+  assert.match(right, /further|distance/i);
+  assert.match(right, /sniff/i, 'recovery once they have gone');
+  assert.doesNotMatch(right, /hold|sit|\bno\b|pick/i);
+  assert.ok(c.choices.some((x, i) => i !== c.answer && /sit/i.test(x) && /\bno\b/i.test(x)), 'a distractor: hold him in a sit and say no');
+  assert.ok(c.choices.some((x, i) => i !== c.answer && /straight/i.test(x)), 'a distractor: walk straight at them');
+  assert.ok(c.choices.some((x, i) => i !== c.answer && /pick him up/i.test(x)), 'a distractor: pick him up facing them');
+  assert.deepEqual(c.evidence, ['shnookal2025-exploring-trainer-insights-and-understanding-of-on-lead', 'avsab2021-position-statement-on-humane-dog-training']);
+  assert.ok(c.sources.includes(SRC.shnookal2025) && c.sources.includes(SRC.avsabHumane));
+  // shnookal2025 abstract: ten trainers; all discussed management, enrichment or relationship building;
+  // restraint by the lead among the causes named; controlled exposure applied differently; effectiveness unclear.
+  assert.match(c.explain, /ten trainers/i);
+  assert.match(c.explain, /management/i);
+  assert.match(c.explain, /restraint by the lead/i);
+  assert.match(c.explain, /other dogs/i, 'the study was about dogs reacting to dogs');
+  assert.match(c.explain, /not people/i, 'states the scope gap for a person-directed case');
+  assert.match(c.explain, /unclear/i);
+  assert.match(c.explain, /reward-based/i);
+  assert.match(c.explain, /consultant/i);
+  assert.doesNotMatch(c.explain, /proven|always|guarantee|cure|stress score|happy|fearful|afraid|is dominant/i);
+  assert.ok(Array.isArray(c.examples) && c.examples.length >= 2);
+  for (const e of c.examples) assert.match(e.url, /^https:\/\/www\.youtube\.com\/watch\?v=SVfr7vUSIZc&t=\d+s$/, e.url);
+  assert.ok(c.examples.some((e) => /off the path|grass bank|verge/i.test(e.label)), 'an example: leaving the path');
+  assert.ok(c.examples.some((e) => /cyclists?/i.test(e.label) && /tight lead/i.test(e.label) && /sit/i.test(e.label)), 'an example: held in a sit, then up at the end of a tight lead');
+  assert.ok(c.examples.some((e) => /estimate|not readable/i.test(e.label)), 'distances from frames are flagged as estimates');
+  for (const e of c.examples) assert.doesNotMatch(e.label, /scared|afraid|fearful|stress|nervous|anxious|happy/i, 'visible facts only');
+});
+
 test('every card example is a timestamped https link with a label', () => {
   for (const c of CARDS.filter((x) => x.examples)) {
     for (const e of c.examples) {
@@ -472,7 +513,7 @@ test('each card asks a question that fits its answer: action cards ask what to d
   const { askFor, DEFAULT_ASK } = await import('../learn-content.js');
   assert.match(DEFAULT_ASK, /telling you\?$/);
   // These cards' right answers are a next step for the owner, not a reading of a signal.
-  const action = ['c-sound', 'c-door-knock', 'c-one-step', 'c-visitor-touch', 'c-sniff', 'c-route'];
+  const action = ['c-sound', 'c-door-knock', 'c-one-step', 'c-visitor-touch', 'c-sniff', 'c-route', 'c-make-space'];
   for (const id of action) {
     const c = CARDS.find((x) => x.id === id);
     assert.ok(c, id);

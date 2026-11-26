@@ -548,6 +548,18 @@ export const CARDS = [
       { url: 'https://www.youtube.com/watch?v=7s7C4yKRphk&t=196s', label: 'The presenter explains the case as a \u201cdominant\u201d dog; no vet check is mentioned in the episode (3:16 to 3:58; dominance framing is not supported by the evidence the project follows)' },
       { url: 'https://www.youtube.com/watch?v=7s7C4yKRphk&t=299s', label: 'On a walk the narration says he is corrected straight away for looking at another dog; frames show him walking on a chain slip collar, tail high (4:59 to 5:08; lead corrections are aversive, not recommended by AVSAB)' },
     ] },
+  { id: 'c-make-space', lesson: 'threshold', art: { posture: 'stiff', ears: 'forward', eye: 'hard', mouth: 'closed', tail: 'high', prop: 'person' },
+    context: 'Your dog barks and lunges at people on walks. On a narrow path, a group of walkers and two cyclists are coming your way. He has seen them and is standing still, looking at them.',
+    ask: 'What do you do?',
+    choices: ['Hold him in a sit at the edge of the path and say \u201cno\u201d each time he looks at them', 'Keep walking straight towards them so he learns to cope', 'Make space early: turn and walk the other way, or step well off the path, so he is further from them as they pass; once they have gone, walk on and let him sniff', 'Pick him up and hold him facing them so he can see them up close'], answer: 2,
+    explain: 'Distance is the simplest tool you have on a walk. Moving away early, before he barks, keeps the people further from him, and turning away means he is no longer facing them. Holding him in a sit right beside the path keeps him close and takes away his choice to move away, and saying \u201cno\u201d each time he looks does not change how close they are. In interviews with ten trainers about dogs that react to other dogs on the lead, all ten discussed environmental management, enrichment or relationship building, and restraint by the lead was among the causes they named. All recommended controlled exposure, applied in different ways, and which approach works best for owners remains unclear: this is what trainers do, not a trial, and it was about dogs, not people. AVSAB recommends reward-based methods and says aggression needs a plan that includes management. A sniff once they have gone is the start of recovery, not the end. Ask your behaviour consultant how much space your dog needs.',
+    sources: [SRC.shnookal2025, SRC.avsabHumane],
+    evidence: ['shnookal2025-exploring-trainer-insights-and-understanding-of-on-lead', 'avsab2021-position-statement-on-humane-dog-training'],
+    examples: [
+      { url: 'https://www.youtube.com/watch?v=SVfr7vUSIZc&t=736s', label: 'Before a pair of walkers comes past, the handler leaves the path and crouches with both dogs a few metres up the grass bank (12:16 to 12:35; the walkers are small in the frame, so their distance is not readable; uncut owner walk, Cheeky Sausage\u2019s)' },
+      { url: 'https://www.youtube.com/watch?v=SVfr7vUSIZc&t=836s', label: 'Later, held in a sit on the grass close to the path while two cyclists ride past (about 10 to 15 m, our estimate), he stands up at the end of a tight lead; about 2 seconds after they pass the walk goes on and he trots ahead (13:56 to 14:03)' },
+      { url: 'https://www.youtube.com/watch?v=SVfr7vUSIZc&t=129s', label: 'First encounter: two people walk past a few metres away on the path (our estimate); he turns towards them (2:09 to 2:13), then is moved onto the verge; the owner calls it a total blow out, which our 1 frame per second view cannot show' },
+    ] },
 ];
 
 // The quiz question. Reading cards use the default; cards whose right answer is a next step
