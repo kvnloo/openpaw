@@ -533,6 +533,41 @@ test('each card asks a question that fits its answer: action cards ask what to d
   assert.doesNotMatch(src, /<p class="k">What is this dog most likely telling you\?<\/p>/);
 });
 
+test('c-stretch-reach card: a long stretch to take food from a stranger, back feet planted, reads as wanting the food but not the closeness', async () => {
+  const c = CARDS.find((x) => x.id === 'c-stretch-reach');
+  assert.ok(c, 'c-stretch-reach card exists');
+  assert.equal(c.lesson, 'consent');
+  assert.equal(c.art.prop, 'person', 'stranger-directed: the trigger is a person');
+  assert.match(c.context, /stretch/i);
+  assert.match(c.context, /back (feet|legs)/i, 'weight stays back');
+  assert.match(c.context, /bend/i, 'the person bends over him');
+  assert.match(c.context, /pet/i, 'the person wants to pet next');
+  const { askFor, DEFAULT_ASK } = await import('../learn-content.js');
+  assert.equal(askFor(c), DEFAULT_ASK, 'a reading card');
+  const right = c.choices[c.answer];
+  assert.match(right, /food/i);
+  assert.match(right, /not (yet )?sure|unsure|not ready/i);
+  assert.match(right, /close/i);
+  assert.ok(c.choices.some((x, i) => i !== c.answer && /relaxed|likes him|fine/i.test(x)), 'a distractor: he is fine with him now');
+  assert.ok(c.choices.some((x, i) => i !== c.answer && /steal|sneak/i.test(x)), 'a distractor: he is being sneaky');
+  assert.ok(c.choices.some((x, i) => i !== c.answer && /play/i.test(x)), 'a distractor: an invitation to play');
+  assert.deepEqual(c.evidence, ['pedretti2023-appeasement-function-of-displacement-behaviours-dogs-behavioural-displays', 'avsab2021-position-statement-on-humane-dog-training']);
+  assert.ok(c.sources.includes(SRC.pedretti2023) && c.sources.includes(SRC.avsabHumane));
+  // pedretti2023 full text (PMC10066101): 26/53 "reactive" to a slow, bent-over, staring approach vs 11/53 to a friendly one.
+  assert.match(c.explain, /26 of 53/);
+  assert.match(c.explain, /11 of 53/);
+  assert.match(c.explain, /bent/i);
+  assert.match(c.explain, /trainer/i, 'the stretch reading is a trainer reading, stated as such');
+  assert.match(c.explain, /not a (measured|tested)/i);
+  assert.match(c.explain, /straighten|stand up/i, 'what the person can change');
+  assert.match(c.explain, /toss/i);
+  assert.ok(Array.isArray(c.examples) && c.examples.length >= 2);
+  for (const e of c.examples) {
+    assert.match(e.url, /^https:\/\/www\.youtube\.com\/watch\?v=NVJE2NpUVaQ&t=\d+s$/);
+    assert.match(e.label, /\(\d+:\d\d( to \d+:\d\d)?/);
+  }
+});
+
 test('all registered sources are used and named', () => {
   const used = new Set([...LESSONS.flatMap((l) => l.sources), ...CARDS.flatMap((c) => c.sources)]);
   for (const u of Object.values(SRC)) assert.ok(used.has(u), `unused source ${u}`);
