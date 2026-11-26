@@ -320,6 +320,37 @@ test('c-greet-away card: a dog turning away mid-greeting is let go and rewarded,
   assert.match(card, /n_dogs: 24/);
 });
 
+test('c-noise-find card: after a sudden noise, food straight away (a find it) is the next step, not withholding it; cites the noise-fear evidence', async () => {
+  const c = CARDS.find((x) => x.id === 'c-noise-find');
+  assert.ok(c, 'c-noise-find card exists');
+  assert.equal(c.lesson, 'threshold');
+  assert.match(c.context, /sudden (noise|clatter|bang)/i);
+  assert.match(c.context, /head (comes )?up/i);
+  assert.match(c.context, /still/i);
+  const { askFor } = await import('../learn-content.js');
+  assert.match(askFor(c), /\bdo\b.*\?$/i, 'an action question');
+  const right = c.choices[c.answer];
+  assert.match(right, /find it/i);
+  assert.match(right, /scatter|toss/i);
+  assert.match(right, /(will not|won.t|does not) (take|eat)/i, 'the right answer says what to do if he will not eat');
+  assert.ok(c.choices.some((x, i) => i !== c.answer && /reward (his|her) fear/i.test(x)), 'a distractor withholds food so as not to reward fear');
+  assert.ok(c.choices.some((x, i) => i !== c.answer && /sit and stay/i.test(x)), 'a distractor holds him in a sit');
+  assert.ok(c.choices.some((x, i) => i !== c.answer && /toward|over to/i.test(x)), 'a distractor walks him to the noise');
+  assert.deepEqual(c.evidence, ['riemer2023-therapy-and-prevention-of-noise-fears-in-dogs', 'riemer2020-effectiveness-of-treatments-for-firework-fears-in-dogs', 'avsab2021-position-statement-on-humane-dog-training']);
+  assert.ok(c.sources.includes(SRC.riemer2023) && c.sources.includes(SRC.avsabHumane));
+  // What the review and the survey actually say, with their limits.
+  assert.match(c.explain, /food or play during noise/i);
+  assert.match(c.explain, /sudden noises/i);
+  assert.match(c.explain, /owner reports?, not a trial/i);
+  assert.match(c.explain, /not what he feels|does not tell you what/i, 'no feeling read off a head-up pause');
+  assert.doesNotMatch(c.explain, /serotonin|dopamine|cortisol|heart rate|proven|always|guarantee/i, 'no physiology claims the sources do not make');
+  assert.ok(Array.isArray(c.examples) && c.examples.length >= 2);
+  for (const e of c.examples) assert.match(e.url, /^https:\/\/www\.youtube\.com\/watch\?v=GH7nSv1Pt08&t=\d+s$/, e.url);
+  assert.ok(c.examples.some((e) => /still/i.test(e.label) && /nose (down|to the floor)/i.test(e.label)), 'an example: still and head up, then nose down for the scatter');
+  assert.ok(c.examples.some((e) => /recall|comes when called/i.test(e.label)), 'an example: he answers a cue afterwards');
+  for (const e of c.examples) assert.doesNotMatch(e.label, /scared|afraid|fearful|stress|nervous|anxious/i, 'visible facts only');
+});
+
 test('every card example is a timestamped https link with a label', () => {
   for (const c of CARDS.filter((x) => x.examples)) {
     for (const e of c.examples) {
