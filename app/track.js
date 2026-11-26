@@ -3,7 +3,7 @@
 import * as S from './store.js';
 import { TEMPLATES, findPatterns, demoHistory, metricFor, slug, ENGINE_VERSION } from './patterns.js';
 import { packGroups } from './tile-pack.js';
-import { todayRows } from './today-list.js';
+import { todayRows, dayLabel } from './today-list.js';
 import { tabStep } from './tab-keys.js';
 
 const $ = (s, r = document) => r.querySelector(s);
@@ -108,6 +108,7 @@ function describe(e) {
 
 function renderTimeline() {
   const xs = todays().filter((e) => e.provenance && e.provenance.origin !== 'sensor');
+  $('#todayDate').textContent = dayLabel();
   $('#todayCount').textContent = xs.length ? `${xs.length} logged` : '';
   const { shown, more } = todayRows(xs.length, showAllToday);
   $('#timeline').innerHTML = xs.length ? xs.slice(0, shown).map((e) => {
