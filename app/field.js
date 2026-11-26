@@ -9,6 +9,7 @@ import * as S from './store.js';
 import { UUIDS, decodeRecord, decodeStatus, recordToEvents, makeClock } from './openpaw-ble.js';
 import { episodesFrom, consultRows, ownerRows, vetRows } from './episodes.js';
 import { reportHtml } from './episode-report.js';
+import { deriveMovement } from './episode-movement.js';
 import { SESSION_SIGNS, sessionAdvice, sessionCheckPayload } from './session-check.js';
 
 const $ = (id) => document.getElementById(id);
@@ -138,7 +139,7 @@ function render() {
 // Last episode in the Owner / Behavior-consultant / Vet lens shapes (app/episodes.js), from everything on record.
 const LENS = {
   owner: ['Owner view', (eps) => ownerRows(eps[eps.length - 1], eps[eps.length - 2] || null)],
-  consult: ['Consultant view', (eps) => consultRows(eps[eps.length - 1], eps[eps.length - 2] || null)],
+  consult: ['Consultant view', (eps, events) => consultRows(eps[eps.length - 1], eps[eps.length - 2] || null, deriveMovement(S.liveEvents(events)))],
   vet: ['Vet view', (eps) => vetRows(eps)],
 };
 let lens = 'consult';
@@ -150,7 +151,8 @@ for (const b of document.querySelectorAll('#epLens [data-lens]')) {
   });
 }
 async function renderEpisode() {
-  const eps = episodesFrom(await S.allEvents());
+  const events = await S.allEvents();
+  const eps = episodesFrom(events);
   const box = $('epRows');
   if (!eps.length) return;
   const last = eps[eps.length - 1];
@@ -158,7 +160,7 @@ async function renderEpisode() {
   const [label, rowsOf] = LENS[lens];
   $('epLabel').textContent = `${label} · ${new Date(last.start).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}${open ? ' · open' : ''}`;
   box.innerHTML = '';
-  for (const [k, v] of rowsOf(eps)) {
+  for (const [k, v] of rowsOf(eps, events)) {
     const row = document.createElement('div');
     const dt = document.createElement('dt'); dt.className = 'micro'; dt.textContent = k;
     const dd = document.createElement('dd'); dd.textContent = v;

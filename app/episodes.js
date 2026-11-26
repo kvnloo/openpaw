@@ -6,6 +6,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 import { liveEvents } from './store.js';
+import { movementText } from './episode-movement.js';
 
 const FIELD = new Set(['trigger.seen', 'behavior.reacted', 'behavior.calm', 'intervention.reward', 'intervention.distance', 'body_language.tags', 'session.check']);
 const BAND_LABEL = { '<10': '<10 ft', '10-20': '10–20 ft', '20-40': '20–40 ft', '40+': '40+ ft' };
@@ -80,15 +81,19 @@ function precursorText(ep) {
 }
 
 // Rows for the Behavior consultant lens (same labels as site/site.js, "Stacked" replaced by measured minutes).
-export function consultRows(ep, previous) {
+// movement: optional deriveMovement(events) list (app/episode-movement.js); adds a "Collar movement"
+// row when this episode has collar epochs after its trigger, kept apart from the owner's Recovery row.
+export function consultRows(ep, previous, movement = []) {
   const t = ep.trigger;
   const what = t.cls ? cap(t.cls) : 'Not recorded';
   const dist = t.band ? BAND_LABEL[t.band] || `${t.band} ft` : 'distance not recorded';
+  const mv = movement.find((d) => d.episode_id === ep.id);
   return [
     ['Trigger', `${what}, ${dist}`],
     ['Precursors', precursorText(ep)],
     ['Intervention', ep.interventions.length ? cap(ep.interventions.map((x) => `${x.type} at ${x.afterS}\u00a0s`).join(', ')) : 'None marked'],
     ['Recovery', ep.timeToCalmS != null ? `${fmtDur(ep.timeToCalmS)} to Calm again (owner-marked)` : 'Not observed (no Calm again mark)'],
+    ...(mv ? [['Collar movement', movementText(mv)]] : []),
     ['Since previous', previous && ep.sincePreviousMin != null ? `${ep.sincePreviousMin} min after the previous episode` : 'No earlier episode on record'],
   ];
 }
