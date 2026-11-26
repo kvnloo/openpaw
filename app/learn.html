@@ -93,7 +93,7 @@ main { max-width: 1120px; margin: 0 auto; padding: 28px 20px 80px; }
 /* lesson */
 .lesson { max-width: 900px; }
 .figs { display: grid; gap: 16px; margin: 28px 0 24px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); }
-.fig { --bg: var(--bg2); position: relative; margin: 0; padding: 14px 14px 12px; border: 1px solid var(--line2); border-radius: 10px; background: var(--bg2); }
+.fig { --bg: var(--bg2); position: relative; margin: 0; padding: 14px 14px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg2); }
 .fig.wide { grid-column: 1 / -1; }
 .fig svg.dog { width: 100%; height: auto; display: block; }
 .fig figcaption { margin-top: 8px; font-size: 13px; color: var(--mute); }
@@ -127,7 +127,7 @@ svg.stack { width: 100%; height: auto; max-height: 280px; }
 .ptxt.gold { fill: var(--gold); }
 
 /* practice */
-.stats { display: flex; gap: 28px; align-items: center; flex-wrap: wrap; padding: 18px; border: 1px solid var(--line2); border-radius: 10px; background: var(--bg2); max-width: 640px; }
+.stats { display: flex; gap: 28px; align-items: center; flex-wrap: wrap; padding: 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg2); max-width: 640px; }
 .ring { width: 120px; height: 120px; flex: 0 0 auto; }
 .stats dl { margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 28px; }
 .stats dt { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--mute); }
@@ -176,7 +176,7 @@ textarea { resize: vertical; }
 .needs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
 .needs label { display: grid; gap: 4px; } .needs em { font-style: normal; font-size: 12px; color: var(--dim); font-family: var(--mono); }
 
-.dogcard { position: relative; border: 1px solid var(--line2); border-radius: 10px; padding: 22px; background: radial-gradient(120% 120% at 100% 0%, rgba(215,185,134,.07), transparent 60%), var(--bg2); }
+.dogcard { position: relative; border: 1px solid var(--line2); border-radius: 12px; padding: 22px; background: radial-gradient(120% 120% at 100% 0%, rgba(215,185,134,.07), transparent 60%), var(--bg2); }
 .dogcard header { margin-bottom: 14px; } .dogcard h2 { margin: 2px 0 2px; }
 .dc-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 18px; }
 .dc-grid .full { grid-column: 1 / -1; }
@@ -184,7 +184,7 @@ textarea { resize: vertical; }
 .dc-grid li::marker { color: var(--gold); }
 .dogcard footer { margin-top: 16px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 11.5px; }
 
-.consent { margin-top: 26px; padding: 18px; border: 1px solid var(--line2); border-radius: 10px; }
+.consent { margin-top: 26px; padding: 18px; border: 1px solid var(--line); border-radius: 12px; }
 .consent h3 { margin-bottom: 6px; } .consent p { margin: 0 0 10px; }
 .consent label { display: grid; gap: 4px; color: var(--mute); }
 .timer { --p: 0; position: relative; margin: 16px auto 4px; width: 132px; height: 132px; border-radius: 50%; display: grid; place-content: center; text-align: center;
