@@ -170,7 +170,8 @@ async function renderEpisode() {
 
 // One-page report for a vet or consultant: fill the print-only block, then the browser's Print (or Save as PDF).
 $('btnReport').addEventListener('click', async () => {
-  $('epReport').innerHTML = reportHtml(episodesFrom(await S.allEvents()));
+  const events = await S.allEvents();
+  $('epReport').innerHTML = reportHtml(episodesFrom(events), { movement: deriveMovement(S.liveEvents(events)) });
   window.print();
 });
 

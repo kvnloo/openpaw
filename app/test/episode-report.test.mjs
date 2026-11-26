@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { episodesFrom, ownerRows, consultRows, vetRows } from '../episodes.js';
 import { reportHtml } from '../episode-report.js';
+import { deriveMovement } from '../episode-movement.js';
 
 let n = 0;
 const ev = (ts, metric, kind, episode, value = null, extra = {}) => ({
@@ -63,6 +64,40 @@ test('report states its source, scope and evidence count, and labels nothing as 
   assert.match(t, /not a diagnosis/);
   assert.match(t, /Based on 10 owner-marked events/); // a 5 + b 2 + c 3; ep:old is outside the window
   for (const bad of [/stack/i, /stress/i, /anxious|fear|happy|calm dog/i, /score/i]) assert.doesNotMatch(t, bad);
+});
+
+// Import adapter (f): the printed Consultant section carries the same "Collar movement" row as Field,
+// and the footer stops calling the whole page owner-marked once a collar measurement is on it.
+const epochs = [];
+for (let s = -1800; s <= 120; s += 5) {
+  const ts = new Date(Date.parse('2026-11-22T08:00:00.000Z') + s * 1000).toISOString();
+  const mg = s >= 5 && s <= 20 ? 640 : 90 + (Math.abs(s) % 3) * 10;
+  const e = ev(ts, 'movement.vedba_mean', 'measurement', null, mg);
+  e.provenance = { ...e.provenance, origin: 'simulated', source_id: 'sim-collar' };
+  epochs.push(e);
+}
+const movement = deriveMovement([...walk, ...epochs]);
+
+test('report Consultant section has the Field "Collar movement" row when the collar logged the episode', () => {
+  const [, , b, c] = eps;
+  assert.equal(movement.filter((d) => d.episode_id === 'ep:c').length, 1);
+  const withMv = reportHtml(eps, { ...opts, movement });
+  const row = consultRows(c, b, movement).find(([k]) => k === 'Collar movement');
+  assert.ok(row, 'fixture should give ep:c a movement row');
+  assert.match(row[1], /^Simulated · band /);
+  const consult = withMv.slice(withMv.indexOf('Consultant view'), withMv.indexOf('Vet view'));
+  assert.ok(consult.includes(`<dt>Collar movement</dt><dd>${esc(row[1])}</dd>`), consult);
+  assert.match(text(withMv), /Collar movement is measured by the collar \(VeDBA\), not marked by the owner/);
+});
+
+test('report without collar data has no movement row and no collar footer line', () => {
+  assert.doesNotMatch(html, /Collar movement/);
+  assert.doesNotMatch(text(html), /measured by the collar/);
+});
+
+test('field print button passes collar movement into the report', () => {
+  const js = readFileSync(new URL('../field.js', import.meta.url), 'utf8');
+  assert.match(js, /reportHtml\(.*\{\s*movement:\s*deriveMovement\(S\.liveEvents\(/);
 });
 
 test('no episodes -> a plain empty report, not a blank page', () => {
