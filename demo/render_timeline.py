@@ -140,6 +140,12 @@ def collar_section(events):
             back = "unknown without a band"
         else:
             back = f'not observed in {bb["followed_up_s"]} s of follow-up'
+            end = bb.get("ended_by") or {}
+            if end.get("reason") == "next episode":
+                back = (f'<span class="incomplete">Incomplete</span>: {back}; the '
+                        f'{link(end["event_id"], "next episode began " + str(end["after_trigger_s"]) + " s after the trigger")}')
+            elif end.get("reason") == "end of data":
+                back += " (data ended)"
         cards.append(f'''<article class="collar-episode">
       <span class="eyebrow">{escape(trig['timestamp'][:10])} · {link(trig['event_id'], trig['timestamp'][11:19] + ' UTC trigger mark')} · {escape(d['provenance']['origin'])}</span>
       <strong>Episode {escape(str(d['episode_id']))}</strong>
@@ -147,7 +153,8 @@ def collar_section(events):
         <dt>Peak</dt><dd>{link(pk['event_id'], str(pk['value_mg']) + ' mg')} at +{pk['after_trigger_s']} s</dd>
         <dt>Back in band</dt><dd>{back}</dd></dl>
     </article>''')
-        for eid in [trig["event_id"], b["first_event_id"], b["last_event_id"], pk["event_id"], bb["event_id"]]:
+        for eid in [trig["event_id"], b["first_event_id"], b["last_event_id"], pk["event_id"], bb["event_id"],
+                    (bb.get("ended_by") or {}).get("event_id")]:
             if eid and eid not in shown:
                 shown.append(eid)
     sources = "".join(collar_event_card(by_id[i]) for i in sorted(shown, key=lambda i: by_id[i]["timestamp"]))
@@ -159,7 +166,7 @@ def collar_section(events):
 
 
 CSS = r"""
-.collar-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(340px,100%),1fr));gap:12px;margin:0 0 18px}.collar-episode{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:8px;min-width:0}.collar-episode strong{font-size:17px;letter-spacing:-.02em}.collar-episode dl{margin:4px 0 0;display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:13px}.collar-episode dt{color:var(--muted)}.collar-episode dd{margin:0;min-width:0;overflow-wrap:anywhere}.collar-episode a,.collar-episode .eyebrow a{color:var(--accent);text-decoration:underline;text-underline-offset:2px}.collar-sources h3{margin:18px 0 4px}.collar-event{border-bottom:1px solid #223036}.collar-event summary{display:flex;align-items:center;gap:13px;padding:11px 10px 11px 0;cursor:pointer;list-style:none}.collar-event summary::-webkit-details-marker{display:none}.collar-event time{font-variant-numeric:tabular-nums;color:var(--muted);font-size:12px;min-width:58px}.collar-event .event-info{padding-left:71px}#collar{margin-top:46px;scroll-margin-top:22px}.collar-event{scroll-margin-top:18px}@media(max-width:620px){.collar-episode dl{grid-template-columns:1fr}.collar-event .event-info{padding-left:0}}
+.collar-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(340px,100%),1fr));gap:12px;margin:0 0 18px}.collar-episode{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:8px;min-width:0}.collar-episode strong{font-size:17px;letter-spacing:-.02em}.collar-episode dl{margin:4px 0 0;display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:13px}.collar-episode dt{color:var(--muted)}.collar-episode dd{margin:0;min-width:0;overflow-wrap:anywhere}.collar-episode .incomplete{font-weight:650;color:var(--fg)}.collar-episode a,.collar-episode .eyebrow a{color:var(--accent);text-decoration:underline;text-underline-offset:2px}.collar-sources h3{margin:18px 0 4px}.collar-event{border-bottom:1px solid #223036}.collar-event summary{display:flex;align-items:center;gap:13px;padding:11px 10px 11px 0;cursor:pointer;list-style:none}.collar-event summary::-webkit-details-marker{display:none}.collar-event time{font-variant-numeric:tabular-nums;color:var(--muted);font-size:12px;min-width:58px}.collar-event .event-info{padding-left:71px}#collar{margin-top:46px;scroll-margin-top:22px}.collar-event{scroll-margin-top:18px}@media(max-width:620px){.collar-episode dl{grid-template-columns:1fr}.collar-event .event-info{padding-left:0}}
 :root{color-scheme:dark;--bg:#0a1115;--panel:#111c21;--panel2:#16252a;--line:#2b393d;--fg:#e6eee8;--muted:#9eb0a9;--accent:#b4e3a8;--warm:#facb83;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:15px}
 *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--fg);line-height:1.45}
 button,select,textarea{font:inherit}a{color:inherit;text-decoration:none}button{cursor:pointer}

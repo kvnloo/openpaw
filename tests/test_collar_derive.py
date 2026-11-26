@@ -119,6 +119,23 @@ class DeriveTests(unittest.TestCase):
         out = {d['episode_id']: d['payload'] for d in self.m.derive(evs)}
         self.assertEqual(out['ep-1']['back_in_band']['followed_up_s'], 295)  # last epoch before ep-2
 
+    def test_a_follow_up_cut_short_by_the_next_episode_is_marked_incomplete(self):
+        evs = walk(tail_mg=200, after_tail=120)
+        evs.append(mark('trigger.seen', T0 + timedelta(seconds=300), ep='ep-2', eid='owner:trigger-2'))
+        out = {d['episode_id']: d for d in self.m.derive(evs)}
+        b = out['ep-1']['payload']['back_in_band']
+        self.assertEqual(b['status'], 'not observed')
+        self.assertEqual(b['ended_by'], {'reason': 'next episode', 'episode_id': 'ep-2',
+                                         'after_trigger_s': 300, 'event_id': 'owner:trigger-2'})
+        self.assertIn('owner:trigger-2', out['ep-1']['provenance']['evidence_event_ids'])
+        self.assertIn('cut short: next episode ep-2 began 300 s after the trigger', self.m.line(out['ep-1']))
+        self.assertEqual(out['ep-2']['payload']['back_in_band']['ended_by'], {'reason': 'end of data'})
+
+    def test_a_follow_up_that_ran_out_of_data_says_so_and_an_observed_one_has_no_end_marker(self):
+        self.assertEqual(self.one(walk(after_tail=5))['payload']['back_in_band']['ended_by'], {'reason': 'end of data'})
+        self.assertIn('data ended', self.m.line(self.one(walk(after_tail=5))))
+        self.assertIsNone(self.one(walk())['payload']['back_in_band']['ended_by'])
+
     def test_under_a_minute_of_baseline_gives_unknown_not_a_band(self):
         d = self.one(walk(baseline_epochs=10))['payload']
         self.assertEqual(d['baseline']['status'], 'unknown')

@@ -177,6 +177,25 @@ class CollarTimelineTests(unittest.TestCase):
         for word in ('stress', 'calm', 'anxious', 'fear', 'recovered', 'recovery', 'arousal'):
             self.assertNotIn(word, s)
 
+    def test_an_episode_cut_short_by_the_next_one_is_marked_incomplete_and_links_that_trigger(self):
+        from datetime import timedelta
+        spec = importlib.util.spec_from_file_location('collar_derive_fixture2', ROOT / 'tests' / 'test_collar_derive.py')
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        evs = mod.walk(tail_mg=200, after_tail=120)
+        evs.append(mod.mark('trigger.seen', mod.T0 + timedelta(seconds=300), ep='ep-2', eid='owner:trigger-2'))
+        for e in evs:
+            e['provenance']['origin'] = 'simulated'
+        s = renderer.collar_section(evs)[1]
+        first = s[s.index('Episode ep-1'):]
+        first = first[:first.index('</article>')]
+        self.assertIn('Incomplete', first)
+        self.assertIn('href="#ev-owner:trigger-2"', first)
+        self.assertIn('next episode began 300 s after the trigger', first)
+        self.assertIn('id="ev-owner:trigger-2"', s)
+        last = s[s.index('Episode ep-2'):]
+        self.assertIn('data ended', last[:last.index('</article>')])
+
     def test_a_null_unit_is_not_printed_as_none(self):
         # app/store.js ownerEvent writes "unit": null on Field marks (seen in rounds/build-derive-c)
         evs = _collar_walk()
