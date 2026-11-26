@@ -1,0 +1,32 @@
+name: web-tests
+
+# Runs the landing-page and web-app tests on pull requests, so a PR that only
+# touches site/** is checked before merge (pages.yml runs them again on main).
+on:
+  pull_request:
+    paths:
+      - 'site/**'
+      - 'app/**'
+      - '.github/workflows/**'
+      - 'tests/test_ci_paths.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  node-tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Landing page and app tests
+        run: node --test app/test/*.test.mjs site/test/*.test.mjs
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Every Pages test folder runs on its own PRs
+        run: python -m unittest discover -s tests -p 'test_ci_paths.py' -v
