@@ -270,6 +270,7 @@
           <div class="row" style="margin-top:0">
             <button id="btnSync" class="btn" disabled>Download backlog</button>
             <button id="btnExport" class="btn" disabled>Export OpenPaw JSONL</button>
+            <button id="btnPage" class="btn" disabled>Save as a page</button>
             <button id="btnClear" class="btn">Clear stored data</button>
           </div>
           <p class="note">Everything stays in this browser until you export it. The export is the open OpenPaw v0.1 format: every derived number points back to its raw record.</p>
@@ -307,6 +308,7 @@ async function refreshStats() {
   const n = await countEvents();
   $('stats').textContent = `${n.toLocaleString()} events stored in this browser`;
   $('btnExport').disabled = n === 0;
+  $('btnPage').disabled = n === 0;
 }
 refreshStats();
 
@@ -508,6 +510,17 @@ $('btnExport').onclick = async () => {
   a.download = `openpaw-${dogId()}-${new Date().toISOString().slice(0, 10)}.jsonl`;
   a.click();
   log(`exported ${evs.length} events`);
+};
+// Same page as `demo/render_timeline.py --own-export`, built here: no terminal, nothing uploaded.
+$('btnPage').onclick = async () => {
+  const { ownPageHtml, ownPageName } = await import('./own-page.js');
+  const evs = (await allEvents()).sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([ownPageHtml(evs)], { type: 'text/html' }));
+  a.download = ownPageName(dogId());
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  log(`saved ${a.download}: open it from your downloads (it stays on this computer)`);
 };
 $('btnClear').onclick = async () => {
   if (!confirm('Delete all OpenPaw data stored in this browser? Export first if you want a copy.')) return;

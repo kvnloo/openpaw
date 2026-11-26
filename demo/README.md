@@ -23,7 +23,7 @@ A "Collar episodes" section then shows, per Field episode, what `tools/collar_de
 
 ### Your own export
 
-To see your **own** collar export (the JSONL the app downloads) the same way, on a separate page with no fictional week:
+To see your **own** collar export the same way, on a separate page with no fictional week, press **Save as a page** under *Device & data* on the collar page: the browser builds the page and downloads it (no terminal, nothing uploaded). It is the same page this command writes from the JSONL the app downloads (`app/test/own-page.test.mjs` checks the two match byte for byte):
 
 ```sh
 python demo/render_timeline.py --own-export ~/Downloads/openpaw-<dog>-<date>.jsonl --output ~/Desktop/my-collar.html
