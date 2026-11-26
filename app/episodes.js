@@ -7,6 +7,7 @@
 
 import { liveEvents } from './store.js';
 import { movementText } from './episode-movement.js';
+import { refusalText } from './walk-refusal.js';
 
 const FIELD = new Set(['trigger.seen', 'behavior.reacted', 'behavior.calm', 'intervention.reward', 'intervention.distance', 'body_language.tags', 'session.check']);
 const BAND_LABEL = { '<10': '<10 ft', '10-20': '10–20 ft', '20-40': '20–40 ft', '40+': '40+ ft' };
@@ -129,10 +130,13 @@ export function ownerRows(ep, previous) {
 
 // Rows for the Veterinarian lens: the 7 days up to the latest episode, owner marks only
 // (collar rest and heart-rate rows join once real collar data exists).
-export function vetRows(eps) {
+// refusals: optional events; their "Won't walk on" marks (app/walk-refusal.js) in the same 7 days add a row.
+export function vetRows(eps, refusals = null) {
   if (!eps.length) return [];
   const lastStart = ms(eps[eps.length - 1].start);
-  const win = eps.filter((e) => ms(e.start) > lastStart - 7 * 86400000);
+  const inWin = (ts) => ms(ts) > lastStart - 7 * 86400000 && ms(ts) <= lastStart;
+  const win = eps.filter((e) => inWin(e.start));
+  const refusalRow = refusals ? [['Won\u2019t walk on', refusalText(liveEvents(refusals).filter((e) => e.timestamp && inWin(e.timestamp)))]] : [];
   const gaps = win.slice(1).map((e) => e.sincePreviousMin).filter((g) => g != null);
   const calm = win.map((e) => e.timeToCalmS).filter((s) => s != null).sort((x, y) => x - y);
   const mid = calm.length / 2;
@@ -145,6 +149,7 @@ export function vetRows(eps) {
     ['Shortest gap', gaps.length ? `${Math.min(...gaps)} min between two episodes` : 'Only one episode in the window'],
     ['Time to Calm again', median != null ? `median ${fmtDur(median)} · ${calm.length} of ${win.length} marked` : `Not marked (0 of ${win.length})`],
     ['Body tags', tagList.length ? tagList.join(', ') : 'None marked'],
+    ...refusalRow,
     ['Raw export', 'JSONL from the collar page'],
   ];
 }
