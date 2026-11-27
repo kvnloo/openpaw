@@ -8,6 +8,7 @@
 import { liveEvents } from './store.js';
 import { movementText } from './episode-movement.js';
 import { refusalText } from './walk-refusal.js';
+import { stoodUpText, STOOD_UP_NOTE } from './stood-up.js';
 
 const FIELD = new Set(['trigger.seen', 'behavior.reacted', 'behavior.calm', 'intervention.reward', 'intervention.distance', 'body_language.tags', 'session.check']);
 const BAND_LABEL = { '<10': '<10 ft', '10-20': '10–20 ft', '20-40': '20–40 ft', '40+': '40+ ft' };
@@ -73,25 +74,28 @@ export function episodesFrom(events) {
 
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
-function precursorText(ep) {
+function precursorText(ep, stood = null) {
   const parts = [];
   if (ep.precursors.length) parts.push(`${ep.precursors.join(', ')} (owner tags)`);
   if (ep.recalledPrecursors && ep.recalledPrecursors.length) parts.push(`${ep.recalledPrecursors.join(', ')} (owner tags, recalled after the reaction)`);
   if (ep.sessionSigns && ep.sessionSigns.length) parts.push(`${ep.sessionSigns.join(', ')} (session check)`);
+  if (stood) parts.push(stoodUpText(stood));
   return parts.length ? parts.join('; ') : 'None marked';
 }
 
 // Rows for the Behavior consultant lens (same labels as site/site.js, "Stacked" replaced by measured minutes).
 // movement: optional deriveMovement(events) list (app/episode-movement.js); adds a "Collar movement"
 // row when this episode has collar epochs after its trigger, kept apart from the owner's Recovery row.
-export function consultRows(ep, previous, movement = []) {
+// stoodUp: optional stoodUpFrom(events) list (app/stood-up.js); adds a collar "left/stayed Still"
+// part to Precursors. Field passes [] when the owner hides it.
+export function consultRows(ep, previous, movement = [], stoodUp = []) {
   const t = ep.trigger;
   const what = t.cls ? cap(t.cls) : 'Not recorded';
   const dist = t.band ? BAND_LABEL[t.band] || `${t.band} ft` : 'distance not recorded';
   const mv = movement.find((d) => d.episode_id === ep.id);
   return [
     ['Trigger', `${what}, ${dist}`],
-    ['Precursors', precursorText(ep)],
+    ['Precursors', precursorText(ep, stoodUp.find((d) => d.episode_id === ep.id) || null)],
     ['Intervention', ep.interventions.length ? cap(ep.interventions.map((x) => `${x.type} at ${x.afterS}\u00a0s`).join(', ')) : 'None marked'],
     ['Recovery', ep.timeToCalmS != null ? `${fmtDur(ep.timeToCalmS)} to Calm again (owner-marked)` : 'Not observed (no Calm again mark)'],
     ...(mv ? [['Collar movement', movementText(mv)]] : []),
@@ -106,7 +110,9 @@ export function lensCaption(rows) {
   const whose = collar
     ? 'Your own marks, plus one row measured by the collar (Collar movement, VeDBA), not marked by you,'
     : 'Your own marks,';
-  return `${whose} laid out the way an owner, a behavior consultant or a vet reads them; the vet view covers the 7 days up to this episode. Minutes since the previous episode are shown as-is: there is no validated rule for “trigger stacking”.`;
+  const pre = (rows.find(([k]) => k === 'Precursors') || [])[1] || '';
+  const stood = /Still .*\(collar/.test(pre) ? ` ${STOOD_UP_NOTE}` : '';
+  return `${whose} laid out the way an owner, a behavior consultant or a vet reads them; the vet view covers the 7 days up to this episode. Minutes since the previous episode are shown as-is: there is no validated rule for “trigger stacking”.${stood}`;
 }
 
 // Gap in words for the owner: minutes under 90, hours under 48 h, then days.

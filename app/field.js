@@ -10,6 +10,7 @@ import { UUIDS, decodeRecord, decodeStatus, recordToEvents, makeClock } from './
 import { episodesFrom, consultRows, ownerRows, vetRows, lensCaption } from './episodes.js';
 import { reportHtml } from './episode-report.js';
 import { deriveMovement } from './episode-movement.js';
+import { stoodUpFrom } from './stood-up.js';
 import { SESSION_SIGNS, sessionAdvice, sessionCheckPayload } from './session-check.js';
 import { refusalPayload, refusalText } from './walk-refusal.js';
 
@@ -139,9 +140,19 @@ function render() {
 }
 
 // Last episode in the Owner / Behavior-consultant / Vet lens shapes (app/episodes.js), from everything on record.
+// The collar's "left Still / stayed Still" Precursors line (app/stood-up.js): on unless the owner hid it
+// (remembered on this device only).
+const STOOD_KEY = 'openpaw.field.stoodUp';
+const optStoodUp = $('optStoodUp');
+try { optStoodUp.checked = localStorage.getItem(STOOD_KEY) !== 'hidden'; } catch { /* private mode: stays on */ }
+optStoodUp.addEventListener('change', () => {
+  try { localStorage.setItem(STOOD_KEY, optStoodUp.checked ? 'shown' : 'hidden'); } catch { /* not remembered */ }
+  renderEpisode();
+});
+const stoodUp = (events) => (optStoodUp.checked ? stoodUpFrom(S.liveEvents(events)) : []);
 const LENS = {
   owner: ['Owner view', (eps) => ownerRows(eps[eps.length - 1], eps[eps.length - 2] || null)],
-  consult: ['Consultant view', (eps, events) => consultRows(eps[eps.length - 1], eps[eps.length - 2] || null, deriveMovement(S.liveEvents(events)))],
+  consult: ['Consultant view', (eps, events) => consultRows(eps[eps.length - 1], eps[eps.length - 2] || null, deriveMovement(S.liveEvents(events)), stoodUp(events))],
   vet: ['Vet view', (eps, events) => vetRows(eps, events)],
 };
 let lens = 'consult';
@@ -156,6 +167,8 @@ async function renderEpisode() {
   const events = await S.allEvents();
   $('refuseSummary').textContent = refusalText(events);
   const eps = episodesFrom(events);
+  // The switch only matters once collar epochs are on record; without a collar it stays out of the way.
+  optStoodUp.closest('label').hidden = !events.some((e) => e.payload && e.payload.metric === 'movement.vedba_mean');
   const box = $('epRows');
   if (!eps.length) return;
   $('epFull').hidden = false;
@@ -178,7 +191,7 @@ async function renderEpisode() {
 // One-page report for a vet or consultant: fill the print-only block, then the browser's Print (or Save as PDF).
 $('btnReport').addEventListener('click', async () => {
   const events = await S.allEvents();
-  $('epReport').innerHTML = reportHtml(episodesFrom(events), { movement: deriveMovement(S.liveEvents(events)) });
+  $('epReport').innerHTML = reportHtml(episodesFrom(events), { movement: deriveMovement(S.liveEvents(events)), stoodUp: stoodUp(events) });
   window.print();
 });
 
