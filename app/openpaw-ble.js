@@ -12,7 +12,8 @@ export const UUIDS = {
   control: uuid(4),
   status: uuid(5),
 };
-export const FLAGS = { HR_VALID: 1, CHARGING: 2, CLIPPED: 4, GAP: 8, LOWRATE: 16 };  // LOWRATE: still mode, 10 Hz
+// LOWRATE: still mode, 10 Hz. NOSAMPLE: the IMU was not read this epoch (no movement or posture values).
+export const FLAGS = { HR_VALID: 1, CHARGING: 2, CLIPPED: 4, GAP: 8, LOWRATE: 16, NOSAMPLE: 32 };
 export const BOARDS = { 1: 'xiao-nrf52840-sense', 2: 't1000-e' };
 export const ALGORITHM_VERSION = 'openpaw-collar-core/1';
 
@@ -48,22 +49,25 @@ export function decodeRecord(bytes, offset = 0) {
   }
   if (version !== 1) throw new Error(`unsupported record version ${version}`);
   const flags = v.getUint8(offset + 1);
+  const noSample = Boolean(flags & FLAGS.NOSAMPLE);
+  const m = (x) => (noSample ? null : x);  // a no-sample epoch has no movement or posture values
   return {
     version,
     flags,
     seq: v.getUint32(offset + 2, true),
     uptime_s: v.getUint32(offset + 6, true),
-    vedba_mean_mg: v.getUint16(offset + 10, true),
-    vedba_max_mg: v.getUint16(offset + 12, true),
-    active_frac: v.getUint8(offset + 14),
-    pitch_deg: v.getInt8(offset + 15),
-    roll_deg: v.getInt8(offset + 16) * 2,
-    bursts: v.getUint8(offset + 17),
+    vedba_mean_mg: m(v.getUint16(offset + 10, true)),
+    vedba_max_mg: m(v.getUint16(offset + 12, true)),
+    active_frac: m(v.getUint8(offset + 14)),
+    pitch_deg: m(v.getInt8(offset + 15)),
+    roll_deg: m(v.getInt8(offset + 16) * 2),
+    bursts: m(v.getUint8(offset + 17)),
     hr_bpm: v.getUint8(offset + 18),
     battery_pct: v.getUint8(offset + 19),
     clipped: Boolean(flags & FLAGS.CLIPPED),
     gap: Boolean(flags & FLAGS.GAP),
     low_rate: Boolean(flags & FLAGS.LOWRATE),
+    no_sample: noSample,
   };
 }
 
@@ -226,11 +230,17 @@ export function recordToEvents(rec, { dogId, deviceId, clock, epochS = 5, origin
       confidence: null,
       device_seq: rec.seq,
       device_uptime_s: rec.uptime_s,
-      quality: { clipped: rec.clipped, gap: rec.gap, low_rate: Boolean(rec.low_rate) },
+      quality: { clipped: rec.clipped, gap: rec.gap, low_rate: Boolean(rec.low_rate), no_sample: Boolean(rec.no_sample) },
       ...(firmwareVersion ? { firmware_version: firmwareVersion } : {}),
     },
     payload: { metric, value, unit, window_s: epochS, method: extra.method || null, ...extra.payload },
   });
+  if (rec.no_sample) {
+    // Not a measurement of the dog: only "the collar did not read its sensor this epoch".
+    const ev = [base('device.no_sample', 1, 'count', { method: 'IMU not read this epoch (record flag 0x20)' })];
+    if (rec.battery_pct !== 255) ev.push(base('device.battery', rec.battery_pct, 'percent'));
+    return ev;
+  }
   const ev = [
     base('movement.vedba_mean', rec.vedba_mean_mg, 'mg', { method: 'vectorial dynamic body acceleration, EMA gravity tau 2 s' }),
     base('movement.vedba_max', rec.vedba_max_mg, 'mg'),

@@ -132,6 +132,42 @@ class CheckExportTests(unittest.TestCase):
         self.assertEqual(by_name(self.report(csv_text(rows)))['battery']['latest_pct'], 87)
 
 
+def no_sample(seq, batt=255):
+    """openpaw_nosample_epoch as the serial CSV prints it: flag 0x20, zero movement, pitch -128, roll -256."""
+    return [seq, seq * 5, 0x20, 0, 0, 0, -128, -256, 0, 0, batt]
+
+
+class NoSampleTests(unittest.TestCase):
+    """A no-sample epoch (IMU not read) is accounted for but never treated as a measured still epoch."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.m = load()
+
+    def rows(self):
+        # healthy rows with 2 min of no-sample epochs inside the still period
+        return [no_sample(i) if 40 <= i < 64 else r for i, r in enumerate(healthy_rows())]
+
+    def test_no_sample_epochs_are_not_missing_and_not_still(self):
+        r = self.m.check_text(csv_text(self.rows()), '.csv')
+        c = by_name(r)
+        self.assertEqual(r['epochs'], 240)
+        self.assertEqual(c['spacing']['missing_epochs'], 0)
+        self.assertEqual(c['still_vs_moving']['still']['epochs'], 96)
+        self.assertEqual(c['still_vs_moving']['still']['vedba_mean_range'], [8, 12])
+        self.assertEqual(c['posture']['status'], 'pass', c['posture'])
+        self.assertEqual(c['quality']['no_sample'], 24)
+        self.assertIn('24 no-sample', c['quality']['detail'])
+        self.assertEqual(r['verdict'], 'healthy')
+
+    def test_jsonl_no_sample_epochs_match_csv(self):
+        a = self.m.check_text(csv_text(self.rows()), '.csv')
+        b = self.m.check_text(jsonl_text(self.rows()), '.jsonl')
+        self.assertEqual(b['epochs'], 240)
+        for name in ('spacing', 'quality', 'still_vs_moving', 'bursts', 'posture', 'battery'):
+            self.assertEqual(by_name(a)[name], by_name(b)[name], name)
+
+
 def jsonl_text(rows, origin='sensor'):
     """Mirror app/openpaw-ble.js recordToEvents for synthetic CSV rows."""
     out = []
@@ -142,9 +178,15 @@ def jsonl_text(rows, origin='sensor'):
                 'timestamp': '2026-01-01T00:00:00.000Z', 'episode_id': None, 'event_type': 'measurement',
                 'provenance': {'origin': origin, 'source_id': 'dev', 'algorithm_version': 'openpaw-collar-core/1',
                                'confidence': None, 'device_seq': seq, 'device_uptime_s': up,
-                               'quality': {'clipped': bool(flags & 4), 'gap': bool(flags & 8)}},
+                               'quality': {'clipped': bool(flags & 4), 'gap': bool(flags & 8),
+                                           'no_sample': bool(flags & 0x20)}},
                 'payload': {'metric': metric, 'value': value, 'unit': unit, 'window_s': 5, 'method': None},
             }
+        if flags & 0x20:
+            out.append(ev('device.no_sample', 1, 'count'))
+            if batt != 255:
+                out.append(ev('device.battery', batt, 'percent'))
+            continue
         out += [ev('movement.vedba_mean', vm, 'mg'), ev('movement.vedba_max', vx, 'mg'),
                 ev('movement.active_fraction', round(af / 255, 3), 'ratio'), ev('movement.bursts', bursts, 'count'),
                 ev('posture.pitch', pitch, 'deg'), ev('posture.roll', roll, 'deg')]

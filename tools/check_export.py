@@ -18,7 +18,7 @@ from statistics import median
 import sys
 
 CSV_HEADER = 'seq,uptime_s,flags,vedba_mean_mg,vedba_max_mg,active_frac,pitch_deg,roll_deg,bursts,hr_bpm,battery_pct'
-FLAG_CLIPPED, FLAG_GAP = 4, 8
+FLAG_CLIPPED, FLAG_GAP, FLAG_NOSAMPLE = 4, 8, 0x20  # NOSAMPLE: IMU not read this epoch (openpaw_core.h)
 ACTIVE_MG = 120          # firmware active threshold (openpaw_core.h)
 MOVING_FRACTION = 0.25   # epoch counts as "moving" above this active fraction
 MIN_PERIOD_EPOCHS = 12   # one minute of 5 s epochs
@@ -31,9 +31,15 @@ class NotOpenPaw(ValueError):
     pass
 
 
-def _epoch(seq, up, clipped, gap, vm, vx, af, pitch, roll, bursts, batt):
+def _epoch(seq, up, clipped, gap, vm, vx, af, pitch, roll, bursts, batt, no_sample=False):
     return {'seq': seq, 'uptime_s': up, 'clipped': clipped, 'gap': gap, 'vedba_mean': vm, 'vedba_max': vx,
-            'active_frac': af, 'pitch': pitch, 'roll': roll, 'bursts': bursts, 'battery': batt}
+            'active_frac': af, 'pitch': pitch, 'roll': roll, 'bursts': bursts, 'battery': batt,
+            'no_sample': no_sample}
+
+
+def _measured(eps):
+    """Epochs with movement values: a no-sample epoch counts for spacing only."""
+    return [e for e in eps if not e['no_sample']]
 
 
 def _restarted(prev, e):
@@ -66,8 +72,12 @@ def parse_csv(text):
             skipped += 1
             continue
         seq, up, flags, vm, vx, af, pitch, roll, bursts, _hr, batt = v
-        e = _epoch(seq, up, bool(flags & FLAG_CLIPPED), bool(flags & FLAG_GAP), vm, vx, round(af / 255, 3),
-                   pitch, roll, bursts, None if batt == 255 else batt)
+        batt = None if batt == 255 else batt
+        if flags & FLAG_NOSAMPLE:  # no movement or posture values (pitch/roll hold the -128 sentinel)
+            e = _epoch(seq, up, False, False, None, None, None, None, None, None, batt, no_sample=True)
+        else:
+            e = _epoch(seq, up, bool(flags & FLAG_CLIPPED), bool(flags & FLAG_GAP), vm, vx, round(af / 255, 3),
+                       pitch, roll, bursts, batt)
         if last_seq is not None and _restarted(last_seq, e):
             segment += 1
         last_seq = e
@@ -80,7 +90,8 @@ def parse_csv(text):
 
 METRICS = {'movement.vedba_mean': 'vedba_mean', 'movement.vedba_max': 'vedba_max',
            'movement.active_fraction': 'active_frac', 'movement.bursts': 'bursts',
-           'posture.pitch': 'pitch', 'posture.roll': 'roll', 'device.battery': 'battery'}
+           'posture.pitch': 'pitch', 'posture.roll': 'roll', 'device.battery': 'battery',
+           'device.no_sample': 'no_sample'}
 
 
 def parse_jsonl(text):
@@ -109,7 +120,7 @@ def parse_jsonl(text):
         q = prov.get('quality') or {}
         e = by_key.setdefault(key, _epoch(seq, prov.get('device_uptime_s'), bool(q.get('clipped')),
                                           bool(q.get('gap')), None, None, None, None, None, None, None))
-        e[field] = pay.get('value')
+        e[field] = bool(pay.get('value')) if field == 'no_sample' else pay.get('value')
         if pay.get('window_s'):
             epoch_s = pay['window_s'] if field == 'vedba_mean' else epoch_s
     if not by_key and skipped:
@@ -178,7 +189,8 @@ def _is_moving(e):
 
 
 def check_quality(data):
-    ep = data['epochs']
+    no_sample = sum(e['no_sample'] for e in data['epochs'])
+    ep = _measured(data['epochs'])
     n = len(ep) or 1
     clipped = sum(e['clipped'] for e in ep)
     gap = sum(e['gap'] for e in ep)
@@ -191,7 +203,10 @@ def check_quality(data):
     if clipped / n > 0.10:
         bits.append(f'{clipped / n:.0%} of epochs clipped')
     detail = '; '.join(bits) if bits else f'{clipped} clipped, {gap} gap-flagged of {len(ep)} epochs'
-    return _check('quality', 'warn' if bits else 'pass', detail, clipped=clipped, gap=gap, clipped_still=clipped_still)
+    if no_sample:
+        detail += f'; {no_sample} no-sample epochs (sensor not read, left out of the checks below)'
+    return _check('quality', 'warn' if bits else 'pass', detail, clipped=clipped, gap=gap, clipped_still=clipped_still,
+                  no_sample=no_sample)
 
 
 def _period(eps):
@@ -204,8 +219,9 @@ def _period(eps):
 
 
 def check_still_vs_moving(data):
-    still = [e for e in data['epochs'] if not _is_moving(e)]
-    moving = [e for e in data['epochs'] if _is_moving(e)]
+    ep = _measured(data['epochs'])
+    still = [e for e in ep if not _is_moving(e)]
+    moving = [e for e in ep if _is_moving(e)]
     s, m = _period(still), _period(moving)
     if m['epochs'] < MIN_PERIOD_EPOCHS:
         status, detail = 'warn', ('no moving period found: carry it while walking for 10 minutes; '
@@ -222,8 +238,9 @@ def check_still_vs_moving(data):
 
 
 def check_bursts(data):
-    total = sum(e['bursts'] or 0 for e in data['epochs'])
-    still = sum(e['bursts'] or 0 for e in data['epochs'] if not _is_moving(e))
+    ep = _measured(data['epochs'])
+    total = sum(e['bursts'] or 0 for e in ep)
+    still = sum(e['bursts'] or 0 for e in ep if not _is_moving(e))
     if still:
         return _check('bursts', 'warn', f'{still} bursts (>1.5 g) during still epochs', total_bursts=total,
                       still_bursts=still)
@@ -231,7 +248,8 @@ def check_bursts(data):
 
 
 def check_posture(data):
-    still = [e for e in data['epochs'] if not _is_moving(e) and e['pitch'] is not None and e['roll'] is not None]
+    still = [e for e in _measured(data['epochs'])
+             if not _is_moving(e) and e['pitch'] is not None and e['roll'] is not None]
     if not still:
         return _check('posture', 'pass', 'no still epochs to compare', pitch_median=None, roll_median=None,
                       max_jump_deg=None)
