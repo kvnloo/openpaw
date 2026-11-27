@@ -94,6 +94,15 @@
   .empty { color:var(--dim); padding:10px 0; font-size:14px; }
   .tl-list li.empty { display:block; }
   .more-log { margin-top:8px; }
+  /* day ruler in the Today card: the local day 00-24, elapsed part brighter, a gold now mark, one tick per entry logged today (app/today-list.js dayRuler) */
+  .ruler { position:relative; height:30px; margin:12px 0 4px; }
+  .ruler .ax, .ruler .el { position:absolute; left:0; top:8px; height:1px; background:var(--line2); }
+  .ruler .ax { right:0; } .ruler .el { background:var(--mute); }
+  .ruler .hr { position:absolute; top:4px; width:1px; height:9px; background:var(--line2); }
+  .ruler .lb { position:absolute; top:17px; font:500 10px/1 var(--mono); color:var(--dim); letter-spacing:.04em; transform:translateX(-50%); }
+  .ruler .lb.l0 { transform:none; } .ruler .lb.l4 { transform:translateX(-100%); }
+  .ruler .mk { position:absolute; top:2px; width:2px; height:13px; margin-left:-1px; border-radius:1px; background:var(--ink); }
+  .ruler .now { position:absolute; top:5px; width:7px; height:7px; margin-left:-3.5px; border-radius:50%; background:var(--gold); }
 
   /* sheet */
   .scrim { position:fixed; inset:0; background:rgba(0,0,0,.55); opacity:0; pointer-events:none; transition:opacity .25s; z-index:20; }
@@ -178,6 +187,7 @@
     <div class="needs" id="needs" aria-label="Daily needs from your dog's profile"></div>
     <div class="card"><span class="br tl"></span><span class="br bR"></span>
       <div class="micro" style="display:flex;justify-content:space-between"><span id="todayDate"></span><span id="todayCount"></span></div>
+      <div class="ruler" id="dayRuler" aria-hidden="true"></div>
       <ul class="tl-list" id="timeline"></ul>
       <button class="x more-log" id="todayMore" hidden></button>
     </div>
