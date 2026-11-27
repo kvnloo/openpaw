@@ -814,6 +814,49 @@ test('c-moving card: a dog calm near a still helper barks when she walks; her mo
   assert.match(card, /^limitations: .*once/m, 'the card records one approach of each kind');
 });
 
+test('c-look-back card: a calm look at a far dog and a quick turn back means this distance works; reward the turn back; long staring means add distance; cites the LAT handout and trainer interviews with their limits', async () => {
+  const c = CARDS.find((x) => x.id === 'c-look-back');
+  assert.ok(c, 'c-look-back card exists');
+  assert.equal(c.lesson, 'threshold');
+  assert.equal(c.art.prop, 'dog', 'the trigger is a dog');
+  assert.match(c.context, /far|across/i, 'the trigger is far away');
+  assert.match(c.context, /loose/i, 'a loose lead');
+  assert.match(c.context, /turns? (her head )?back/i, 'she turns back by herself');
+  const { askFor, DEFAULT_ASK } = await import('../learn-content.js');
+  assert.notEqual(askFor(c), DEFAULT_ASK, 'an action card');
+  assert.match(askFor(c), /\?$/);
+  const right = c.choices[c.answer];
+  assert.match(right, /yes|mark/i, 'mark the turn back');
+  assert.match(right, /treat|food/i);
+  assert.match(right, /stare|staring/i, 'what to watch for next');
+  assert.match(right, /distance/i, 'add distance when looks get longer');
+  assert.ok(c.choices.some((x, i) => i !== c.answer && /closer/i.test(x)), 'a distractor: go closer because she is calm');
+  assert.ok(c.choices.some((x, i) => i !== c.answer && /ignore|leave it/i.test(x)), 'a distractor: make her ignore the dog');
+  assert.ok(c.choices.some((x, i) => i !== c.answer && /jerk|pop|correct/i.test(x)), 'a distractor: a lead correction');
+  assert.deepEqual(c.evidence, ['shnookal2025-exploring-trainer-insights-and-understanding-of-on-lead', 'avsab2021-position-statement-on-humane-dog-training']);
+  assert.ok(c.sources.includes(SRC.latEastBay) && c.sources.includes(SRC.shnookal2025) && c.sources.includes(SRC.avsabHumane));
+  // East Bay SPCA LAT handout (2024, CC BY-NC 4.0, PDF read): threshold is controlled by distance, duration
+  // ("How long has your dog been able to stare at the trigger? Tension can build up to a blowout.") and
+  // intensity; "If your dog does not turn back to you quickly, they're probably too close"; deliver the treat
+  // so the dog is no longer looking at the trigger; sessions of 5-10 treats then a 1-2 minute break.
+  assert.match(c.explain, /how long/i, 'duration of staring is a threshold factor');
+  assert.match(c.explain, /turn back .*quickly|quickly .*turn back/i, 'the handout rule');
+  assert.match(c.explain, /too close/i);
+  assert.match(c.explain, /ten (professional )?trainers/i);
+  assert.match(c.explain, /not a trial|no trial/i);
+  assert.match(c.explain, /AVSAB/);
+  assert.match(c.explain, /reward-based/i);
+  assert.match(c.explain, /consultant/i);
+  assert.doesNotMatch(c.explain, /proven|always works|guarantee|cure|stress score|is happy|is dominant/i);
+  assert.ok(Array.isArray(c.examples) && c.examples.length >= 2);
+  for (const e of c.examples) {
+    assert.match(e.url, /^https:\/\/www\.youtube\.com\/watch\?v=[\w-]{11}&t=\d+s$/, e.url);
+    assert.match(e.label, /\(\d+:\d\d( to \d+:\d\d)?/);
+    assert.doesNotMatch(e.label, /scared|afraid|fearful|stress|nervous|anxious|happy/i, 'visible facts only');
+  }
+  assert.ok(c.examples.some((e) => /out of shot/i.test(e.label)), 'says when the trigger is not on camera');
+});
+
 test('all registered sources are used and named', () => {
   const used = new Set([...LESSONS.flatMap((l) => l.sources), ...CARDS.flatMap((c) => c.sources)]);
   for (const u of Object.values(SRC)) assert.ok(used.has(u), `unused source ${u}`);
