@@ -43,7 +43,8 @@ closed with the `GAP` flag.
 | LSM6DS3TR-C (XIAO) | Accelerometer only, 52 Hz low-power | 25 µA | [D] ST AN5130 Table 7 |
 | LSM6DS3TR-C (XIAO) | Accelerometer only, 12.5 Hz low-power | 9 µA | [D] ST datasheet `LA_IddLM`; AN5130 Table 7 |
 | LSM6DS3TR-C (XIAO) | Power-down | 3 µA | [D] ST datasheet `IddPD` |
-| QMA6100P (T1000-E) | Master clock 51.2 kHz (what the firmware sets), any ODR | 38 µA | [D] QST datasheet Rev F, "Power current" |
+| QMA6100P (T1000-E) | Master clock 51.2 kHz (Active mode), any ODR | 38 µA | [D] QST datasheet Rev F, table 2 "Power current" |
+| QMA6100P (T1000-E) | Master clock 12.8 kHz (Still mode, if the rate check passes), any ODR | 10 µA | [D] QST datasheet Rev F, table 2 "Power current" |
 
 ## Estimated average current, not connected
 
@@ -89,8 +90,22 @@ History of the XIAO totals (Active DC/DC / Active LDO / Still DC/DC / Still LDO)
 On the T1000-E (FIFO, 400 kHz) the CPU line is about the XIAO's, ~26 / ~50 / ~7 / ~13 µA, and
 with the QMA6100P's 38 µA the totals are **~75 / ~100 / ~55 / ~60 µA** [E]. Polled at 50 Hz
 (firmware before the QMA6100P FIFO change) they were ~115 / ~175 / ~60 / ~75 µA: the FIFO saves
-~40 µA in Active mode (DC/DC). In Still mode the saving is small, because the QMA6100P's 38 µA
-does not depend on its sample rate.
+~40 µA in Active mode (DC/DC). In Still mode the FIFO saves little, because the QMA6100P's
+current depends on its master clock, not its sample rate.
+
+**QMA6100P master clock in Still mode (T1000-E).** The datasheet lists 38 / 19 / 10 / 6 µA at
+a master clock (MCLK, register 11h) of 51.2 / 25.6 / 12.8 / 6.4 kHz, for any sample rate. Since
+this change, Still mode sets MCLK to 12.8 kHz, so the sensor's share drops from 38 to 10 µA and
+the T1000-E Still totals from ~55 / ~60 µA to **~27 / ~32 µA** (DC/DC / LDO) [E]. The
+datasheet's sample-rate table (section 9.11) is printed only "when MCLK is 51.2 kHz", and none
+of the public drivers we read runs another clock (Seeed's T1000-E examples, QST's Linux driver,
+ALIENTEK's examples). So the firmware *assumes* the rate scales with the clock (code 5, 50 Hz at
+51.2 kHz, gives 12.5 Hz at 12.8 kHz) and checks it. It counts FIFO frames over the first 4 s of
+each Still period (`openpaw_rate_check_*` in `openpaw_core.h`, host-tested). If the rate is
+more than 25% away from 12.5 Hz, or no frames arrive, the collar prints `qma_clock=fallback` on
+the serial port and uses 51.2 kHz with code 7 (12.5 Hz) until the next reboot. Up to 4 s of
+samples taken before a fallback can be dated at the wrong spacing. Whether a lower clock changes
+the sensor's noise is not stated in the datasheet. Not yet run on hardware.
 
 Advertising every 1 s (the first 10 min after a phone leaves) costs about twice the parked
 figure, ~15 µA [E]. Parking saves ~7 µA, which matters most in Still mode (~28% of the
@@ -100,8 +115,8 @@ interval are `OPENPAW_ADV_PARK_MS` and `OPENPAW_ADV_PARKED` in `openpaw_core.h`
 (`openpaw_adv_step`, host-tested). A connection restores the 100 ms / 1 s pair, so the
 next disconnect starts with the fast 30 s again.
 
-On the T1000-E, the QMA6100P adds 38 µA in both modes instead of the LSM6DS3TR-C
-figures. The board's LoRa radio, GNSS and other sensors are never switched on by this
+On the T1000-E, the QMA6100P adds 38 µA in Active mode and 10 µA in Still mode (38 µA after a
+rate-check fallback) instead of the LSM6DS3TR-C figures. The board's LoRa radio, GNSS and other sensors are never switched on by this
 firmware, but their off-state leakage is not in the table.
 
 A dog that lies still most of the day spends most of its time in Still mode, where
@@ -134,9 +149,9 @@ The intervals stay inside the BLE Core rule that the supervision timeout (4 s) i
   activity/inactivity, and QMA6100P `ANY_MOT_INT`. The CPU could then sleep until the dog moves,
   instead of draining the FIFO while the dog lies still. That needs the interrupt pin wiring checked
   on real boards.
-- **QMA6100P master clock.** Its current depends on MCLK, not the ODR (38 µA at 51.2 kHz down to
-  6 µA at 6.4 kHz, datasheet Rev F table 2). Whether a lower MCLK keeps 50 Hz data clean is not
-  checked.
+- **QMA6100P master clock in Active mode.** Still mode already runs at 12.8 kHz (above).
+  Active mode stays at 51.2 kHz; 25.6 kHz would save another ~19 µA if 50 Hz data stays clean
+  there. Check the Still-mode rate on a real board first.
 
 ## Sources
 
@@ -152,6 +167,12 @@ The intervals stay inside the BLE Core rule that the supervision timeout (4 s) i
   maps anything above 250 kHz to 400 kHz; busy-wait transfers, 64-byte buffer).
 - QST, *QMA6100P datasheet Rev F*, section 7.8 "FIFO_INT" and registers 0Bh INT_STATUS_2,
   0Eh FIFO_STATUS, 10h ODR, 3Eh FIFO_CFG0, 3Fh FIFO_DATA (same PDF as below).
+- QST, *QMA6100P datasheet Rev F*, table 2 "Power current" (current per master clock), 9.11
+  ODR 10h (rate table given for MCLK 51.2 kHz) and 9.12 PM 11h (MCLK[3:0]: 4 = 51.2 kHz,
+  6 = 12.8 kHz). Drivers read for other clock settings: Seeed
+  `Seeed-Tracker-T1000-E-for-LoRaWAN-dev-board` `t1000_e/peripherals/src/qma6100p.c` and
+  `inc/qma6100p_defs.h` (MCLK enum, only 51.2 kHz used); QST's Linux input driver as vendored in
+  `tjh-l/HCD3100-8y` `.../gsensor/qma6100p/qma6100p.c` (`qma6100p_set_mode` always 51.2 kHz).
 - QST, *QMA6100P datasheet Rev F*, electrical characteristics, I²C section and table 9 "I2C Timings"
   (fSCL max 400 kHz; fast mode needs external pull-ups)
   (https://qstcorp.com/upload/pdf/202602/13-52-20%20QMA6100P%20Datasheet%20Rev%20F.pdf).
