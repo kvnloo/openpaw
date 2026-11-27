@@ -71,7 +71,9 @@
   .warnbox { border-color:rgba(232,163,95,.45); color:var(--mute); font-size:14px; margin-bottom:14px; }
 
   /* now */
-  .now { display:grid; grid-template-columns:210px 1fr; gap:22px; align-items:center; }
+  /* the card can be taller than its content (it shares a row with the rhythm dial): chips sit on the bottom edge, the gauge block is centred above them */
+  #now { display:flex; flex-direction:column; }
+  .now { flex:1; display:grid; grid-template-columns:210px 1fr; gap:22px; align-items:center; }
   .gauge { width:210px; height:187px; overflow:visible; }
   .gauge text { font:500 8.5px/1 var(--mono); fill:var(--dim); }
   .gauge text.gv { font:600 34px/1 var(--serif); fill:var(--ink); font-variation-settings:"opsz" 72; }
