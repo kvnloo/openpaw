@@ -3,7 +3,7 @@
 import * as S from './store.js';
 import { TEMPLATES, findPatterns, demoHistory, metricFor, slug, ENGINE_VERSION, APP_PERMS, DEFAULT_MAX_Q } from './patterns.js';
 import { packGroups } from './tile-pack.js';
-import { todayRows, dayLabel } from './today-list.js';
+import { todayRows, dayLabel, dayRuler } from './today-list.js';
 import { tabStep } from './tab-keys.js';
 
 const $ = (s, r = document) => r.querySelector(s);
@@ -107,10 +107,23 @@ function describe(e) {
   return [m.replace(/[._]/g, ' '), typeof p.value === 'object' ? '' : fmt(p.value)];
 }
 
+// Day ruler (aria-hidden; the list below is the accessible record). Redrawn each minute so the
+// now mark stays true while the page is open; the list itself is not re-rendered.
+function renderRuler(xs) {
+  const r = dayRuler(xs.map((e) => new Date(e.timestamp).getTime()));
+  const pc = (f) => `${(f * 100).toFixed(2)}%`;
+  $('#dayRuler').innerHTML = `<span class="ax"></span><span class="el" style="width:${pc(r.now)}"></span>`
+    + [0, 1, 2, 3, 4].map((i) => `<span class="hr" style="left:${pc(i / 4)}"></span><span class="lb l${i}" style="left:${pc(i / 4)}">${String(i * 6).padStart(2, '0')}</span>`).join('')
+    + r.marks.map((f) => `<span class="mk" style="left:${pc(f)}"></span>`).join('')
+    + `<span class="now" style="left:${pc(r.now)}"></span>`;
+}
+setInterval(() => renderRuler(todays().filter((e) => e.provenance && e.provenance.origin !== 'sensor')), 60000);
+
 function renderTimeline() {
   const xs = todays().filter((e) => e.provenance && e.provenance.origin !== 'sensor');
   $('#todayDate').textContent = dayLabel();
   $('#todayCount').textContent = xs.length ? `${xs.length} logged` : '';
+  renderRuler(xs);
   const { shown, more } = todayRows(xs.length, showAllToday);
   $('#timeline').innerHTML = xs.length ? xs.slice(0, shown).map((e) => {
     const [a, b] = describe(e);
