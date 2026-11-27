@@ -159,11 +159,30 @@ function rankResidual(y, c) {
 // Two-sided permutation p-value for Spearman's rho (deterministic seed).
 // yRanked: y is already a rank residual (partial test), use it as is.
 export function permutationP(x, y, rho, { perms = 999, seed = 7, yRanked = false } = {}) {
-  const rx = ranks(x), ry = (yRanked ? y : ranks(y)).slice(), r = rng(seed);
-  let hits = 0;
+  const rx = ranks(x), ry = (yRanked ? y : ranks(y)).slice(), n = ry.length;
+  // Plain ranks are multiples of 0.5, so their centred sums are exact in doubles: the mean and the
+  // sums of squares don't change under shuffling and only the cross term needs the loop. A rank
+  // residual (yRanked) is not exact, so it keeps the full Pearson to stay bit-identical.
+  let da = null, saa = 0, sbb = 0, mb = 0;
+  if (!yRanked) {
+    let ma = 0;
+    for (let i = 0; i < n; i++) { ma += rx[i]; mb += ry[i]; }
+    ma /= n; mb /= n;
+    da = rx.map((v) => v - ma);
+    for (let i = 0; i < n; i++) { saa += da[i] * da[i]; sbb += (ry[i] - mb) * (ry[i] - mb); }
+  }
+  const den = Math.sqrt(saa * sbb), cut = Math.abs(rho) - 1e-12;
+  // rng(seed)'s LCG, inlined: the same draws in the same order, without a closure call per swap.
+  let s = seed >>> 0 || 1, hits = 0;
   for (let p = 0; p < perms; p++) {
-    for (let i = ry.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [ry[i], ry[j]] = [ry[j], ry[i]]; }
-    if (Math.abs(pearson(rx, ry)) >= Math.abs(rho) - 1e-12) hits++;
+    for (let i = n - 1; i > 0; i--) {
+      s = (Math.imul(s, 1664525) + 1013904223) >>> 0;
+      const j = Math.floor((s / 4294967296) * (i + 1)), t = ry[i]; ry[i] = ry[j]; ry[j] = t;
+    }
+    let r;
+    if (yRanked) r = pearson(rx, ry);
+    else { let sab = 0; for (let i = 0; i < n; i++) sab += da[i] * (ry[i] - mb); r = saa && sbb ? sab / den : 0; }
+    if (Math.abs(r) >= cut) hits++;
   }
   return (hits + 1) / (perms + 1);
 }
