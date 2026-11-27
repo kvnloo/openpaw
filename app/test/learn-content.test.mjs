@@ -704,6 +704,60 @@ test('c-toss-away card: a dog who will not come close to eat gets the food tosse
   assert.match(card, /^n_dogs: 441$/m, 'n filled in from the full text');
 });
 
+test('c-gear card: a dog who pulls and lunges at people gets a front-clip harness plus distance, not a prong collar; cites the 23-dog equipment study with its numbers, its downside and its limits', async () => {
+  const c = CARDS.find((x) => x.id === 'c-gear');
+  assert.ok(c, 'c-gear card exists');
+  assert.equal(c.lesson, 'threshold', 'a walk-time reactivity card');
+  assert.equal(c.art.prop, 'person', 'stranger-directed: the trigger is a person');
+  assert.match(c.context, /people|person/i);
+  assert.match(c.context, /pull/i);
+  assert.match(c.context, /prong/i, 'the common advice the card answers');
+  const { askFor, DEFAULT_ASK } = await import('../learn-content.js');
+  assert.notEqual(askFor(c), DEFAULT_ASK, 'an action card');
+  assert.match(askFor(c), /\b(do|try|first)\b.*\?$/i);
+  const right = c.choices[c.answer];
+  assert.match(right, /front[- ]clip harness/i);
+  assert.match(right, /distance/i, 'gear does not replace distance');
+  assert.match(right, /food|treat/i, 'the under-threshold check: he can still eat');
+  assert.ok(c.choices.some((x, i) => i !== c.answer && /prong/i.test(x)), 'a distractor: the prong collar');
+  assert.ok(c.choices.some((x, i) => i !== c.answer && /jerk|sharp|yank/i.test(x)), 'a distractor: lead corrections');
+  const slug = 'johnson2024-comparing-efficacy-in-reducing-pulling-and-welfare-impacts';
+  assert.deepEqual(c.evidence, [slug, 'avsab2021-position-statement-on-humane-dog-training']);
+  assert.ok(c.sources.includes(SRC.johnson2024) && c.sources.includes(SRC.avsabHumane));
+  assert.equal(SRC.johnson2024, 'https://doi.org/10.7717/peerj.18131');
+  // Johnson & Wynne 2024 (PeerJ) full text: 23 shelter dogs, 13-42 kg, 5-min walks on martingale,
+  // front-connection harness, Starmark and prong; impulse higher on the martingale than all three others,
+  // no other differences; lip licking higher on the harness than the martingale; fixed order for every
+  // dog; a novel walker who added no lead tension; only 3 of 15 coded behaviours common enough to test.
+  assert.match(c.explain, /\b23\b/);
+  assert.match(c.explain, /13 to 42 kg/);
+  assert.match(c.explain, /5[- ]minute/i);
+  assert.match(c.explain, /martingale/i);
+  assert.match(c.explain, /no different|did not differ/i, 'harness vs prong: no difference in pulling');
+  assert.match(c.explain, /lick/i, 'states the harness downside it found');
+  assert.match(c.explain, /same order/i, 'states the order confound');
+  assert.match(c.explain, /stranger|new person|not the owner/i, 'states who walked them');
+  assert.match(c.explain, /distance/i);
+  assert.match(c.explain, /AVSAB/);
+  assert.match(c.explain, /reward-based/i);
+  assert.match(c.explain, /consultant/i);
+  assert.doesNotMatch(c.explain, /proven|always works|guarantee|cure|stress score|is happy|is dominant/i);
+  assert.ok(Array.isArray(c.examples) && c.examples.length >= 2);
+  for (const e of c.examples) {
+    assert.match(e.url, /^https:\/\/www\.youtube\.com\/watch\?v=[\w-]{11}&t=\d+s$/, e.url);
+    assert.match(e.label, /\(\d+:\d\d( to \d+:\d\d)?/);
+    assert.doesNotMatch(e.label, /scared|afraid|fearful|stress|nervous|anxious|happy/i, 'visible facts only');
+  }
+  assert.ok(c.examples.some((e) => /harness/i.test(e.label)), 'an example with a harness');
+  assert.ok(c.examples.some((e) => /not recommended/i.test(e.label) && /AVSAB/.test(e.label)), 'aversive gear on camera is flagged, not taught');
+  const { readFileSync } = await import('node:fs');
+  const card = readFileSync(new URL(`../../docs/evidence/cards/${slug}.md`, import.meta.url), 'utf8');
+  assert.match(card, /^doi: "10\.7717\/peerj\.18131"$/m);
+  assert.match(card, /^n_dogs: 23$/m);
+  assert.match(card, /^main_finding: .*lip licking/m, 'the card records the harness downside');
+  assert.match(card, /^limitations: .*same order/m, 'the card records the order confound');
+});
+
 test('all registered sources are used and named', () => {
   const used = new Set([...LESSONS.flatMap((l) => l.sources), ...CARDS.flatMap((c) => c.sources)]);
   for (const u of Object.values(SRC)) assert.ok(used.has(u), `unused source ${u}`);

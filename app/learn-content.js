@@ -60,6 +60,7 @@ export const SRC = {
   mikkola2021: 'https://doi.org/10.1038/s41598-021-88793-5',
   arhant2020: 'https://doi.org/10.1016/j.jveb.2020.07.006',
   collins2022: 'https://doi.org/10.1016/j.applanim.2022.105689',
+  johnson2024: 'https://doi.org/10.7717/peerj.18131',
 };
 
 // Human-readable names for the source list.
@@ -109,6 +110,7 @@ export const SOURCE_NAMES = {
   [SRC.mikkola2021]: 'Mikkola et al. 2021, Aggressive behaviour toward people in 9,270 Finnish purebred dogs (Sci Rep)',
   [SRC.arhant2020]: 'Arhant et al. 2020, Owner reports on the use of muzzles and their effects on dogs: an online survey (J Vet Behav)',
   [SRC.collins2022]: 'Collins et al. 2022, Behavioral rehabilitation of extremely fearful dogs: an ASPCA treatment protocol (Appl Anim Behav Sci)',
+  [SRC.johnson2024]: 'Johnson & Wynne 2024, Comparing efficacy in reducing pulling and welfare impacts of four types of leash walking equipment (PeerJ)',
 };
 
 export const LESSONS = [
@@ -611,6 +613,18 @@ export const CARDS = [
       { url: 'https://www.youtube.com/watch?v=35rjr6UOGFM&t=16s', label: 'Once she has gone, the dog comes out and walks down the run towards the gate (0:16 to 0:19)' },
       { url: 'https://www.youtube.com/watch?v=35rjr6UOGFM&t=43s', label: 'Her arm reaches in at the gate for another toss (0:43 to 0:44; the treat is not visible); the dog then stands near the gate with his head turned to the side (0:45 to 0:59)' },
       { url: 'https://www.youtube.com/watch?v=35rjr6UOGFM&t=90s', label: 'Nose down at the floor near the gate (1:30 to 1:33), head up towards the camera (1:34 to 1:36), then he turns and walks back down the run (1:37); the uploader writes that he raises his nose to gather information and then moves away; the raised nose is not readable in our 3 frames per second view' },
+    ] },
+  { id: 'c-gear', lesson: 'threshold', art: { posture: 'stiff', ears: 'forward', eye: 'hard', mouth: 'closed', tail: 'high', prop: 'person', marks: [['body', 'Leaning forward towards the person']] },
+    context: 'Your large dog barks and lunges at people on walks. On his flat collar he pulls hard towards them, and you can barely hold him. A friend says a prong collar would stop the pulling.',
+    ask: 'What do you try first?',
+    choices: ['Get the prong collar: if he cannot pull, he will stop reacting too', 'Keep the flat collar and give a sharp jerk on the lead each time he lunges', 'Hold the lead short and tight at his neck whenever someone comes into view', 'Try a well-fitted front-clip harness so you can hold him more easily, and keep working at a distance where he can still take food'], answer: 3,
+    explain: 'Gear can change how hard he pulls; it does not change how close the people are. In a study at two US shelters, 23 medium to large dogs (13 to 42 kg) were each walked for 5 minutes on four kinds of gear while a sensor on the lead measured how hard they pulled. They pulled less on a front-clip harness than on a martingale (a collar that tightens a little, standing in for a flat collar), and pulling on the harness was no different from a prong collar. The harness had one downside: dogs licked their lips more on it than on the martingale. Only 3 of 15 recorded behaviours happened often enough to compare, so the walks were too short to show which gear dogs prefer. Every dog wore the gear in the same order, the walker was a stranger to the dogs, and she added no pull of her own on the lead, unlike many walks with owners. Less pulling is not less reacting: distance still comes first, and if he cannot take food you are too close. A prong collar works by pressing metal points against the neck when he pulls, and AVSAB asks trainers to avoid prong and choke collars and lead jerks; it recommends reward-based methods. Your trainer or behaviour consultant can help you choose and fit a harness.',
+    sources: [SRC.johnson2024, SRC.avsabHumane],
+    evidence: ['johnson2024-comparing-efficacy-in-reducing-pulling-and-welfare-impacts', 'avsab2021-position-statement-on-humane-dog-training'],
+    examples: [
+      { url: 'https://www.youtube.com/watch?v=z85LFeypIMM&t=299s', label: 'The trainer says she used an anti-pull harness while this dog learned to walk on a loose lead, and a flat collar later (4:59 to 5:08, trainer\u2019s narration; the fit is not visible; an unedited session filmed by a force-free trainer)' },
+      { url: 'https://www.youtube.com/watch?v=Kf48BFJahuI&t=937s', label: 'On a head collar, the lead tight and the dog pulling forward with his tail curled high while a postman passes on the far side of the road (15:37 to 15:45; the postman is out of frame; the owner says he reacted; unedited owner walk, Rescue Dog Momma UK)' },
+      { url: 'https://www.youtube.com/watch?v=7s7C4yKRphk&t=299s', label: 'A German Shepherd on a chain slip collar; the narration says he is corrected straight away for looking at another dog (4:59 to 5:08; lead corrections and choke chains are not recommended by AVSAB; TV episode)' },
     ] },
 ];
 
