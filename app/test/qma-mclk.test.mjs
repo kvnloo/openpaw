@@ -28,6 +28,14 @@ test('a failed rate check falls back to 51.2 kHz for the rest of the boot and sa
   assert.match(t1000, /Serial\.println\("qma_clock=fallback"\)/);
 });
 
+test('/verify-collar explains the qma_clock=fallback serial line as a note, not a failure', () => {
+  const verify = readFileSync(new URL('../../.claude/commands/verify-collar.md', import.meta.url), 'utf8');
+  const line = verify.split('\n').find((l) => l.includes('qma_clock=fallback')) || '';
+  assert.ok(line, 'verify-collar.md mentions qma_clock=fallback');
+  assert.match(line, /note, not a fail/);
+  assert.match(line, /not yet run on hardware/);
+});
+
 test('docs/POWER.md budgets the 12.8 kHz Still clock, its assumption and the fallback', () => {
   assert.match(power, /12\.8 kHz \(Still mode, if the rate check passes\)[^\n]*10 µA/);
   assert.match(power, /~27 \/ ~32 µA/);
