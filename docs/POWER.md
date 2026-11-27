@@ -147,8 +147,28 @@ The intervals stay inside the BLE Core rule that the supervision timeout (4 s) i
 
 - **Wake on motion.** Both accelerometers can raise an interrupt on motion: LSM6DS3TR-C wake-up and
   activity/inactivity, and QMA6100P `ANY_MOT_INT`. The CPU could then sleep until the dog moves,
-  instead of draining the FIFO while the dog lies still. That needs the interrupt pin wiring checked
-  on real boards.
+  instead of draining the FIFO while the dog lies still. What we know so far:
+  - *Wiring, from Seeed's own sources (not checked on a real board).* XIAO nRF52840 Sense:
+    `PIN_LSM6DS3TR_C_INT1` (pin 18), which the core's `variant.cpp` maps to P0.11 ("6D_INT1").
+    T1000-E: `PIN_ACC_INTERRUPT` (pin 34) = P1.02 ("Accelerator Interrupt"); Meshtastic's T1000-E
+    variant agrees (`QMA_6100P_INT_PIN`, 32 + 2).
+  - *The obvious code costs more than it saves.* The core's `attachInterrupt()` (`WInterrupts.c`,
+    core 1.1.13) uses a GPIOTE IN channel. The nRF52840 PS v1.5 (§5.2.1.1) lists System ON sleep
+    with a GPIOTE input in event mode at **17.37 µA** (`ION_RAMON_GPIOTE`) and with the GPIOTE PORT
+    event at **2.36 µA** (`ION_RAMON_GPIOTEPORT`) [D]. About 15 µA extra is more than the whole
+    Still-mode CPU line above (~7 µA, DC/DC). The low-power route is the PORT event (GPIO SENSE on
+    the pin), but the core's own `GPIOTE_IRQHandler` only handles IN channels, so it would need a
+    core change; reading the pin level with `digitalRead()` on a timer avoids GPIOTE altogether,
+    because the LSM6DS3TR-C can latch the interrupt (`TAP_CFG` 58h bit 0 `LIR`, cleared by
+    reading `WAKE_UP_SRC` 1Bh; ST `lsm6ds3tr-c_reg.h`). The sketch has a test that fails if
+    `attachInterrupt` appears (`app/test/wake-motion.test.mjs`).
+  - *Longer FIFO drains alone save little.* Draining every 10 s instead of every 1 s moves the
+    same bytes over I²C; only the 4-byte status read and the addressing per drain go away, about
+    0.15 ms awake per second, so roughly 0.5 µA [E]. The real saving is not reading samples at
+    all while the dog lies still (CPU line ~7 → ~0 µA, and the sensor could drop below its
+    12.5 Hz 9 µA). That changes what a Still epoch is: there would be no samples to compute it
+    from, so it needs its own record design (flagged, never mistaken for a measured epoch) before
+    any firmware change.
 - **QMA6100P master clock in Active mode.** Still mode already runs at 12.8 kHz (above).
   Active mode stays at 51.2 kHz; 25.6 kHz would save another ~19 µA if 50 Hz data stays clean
   there. Check the Still-mode rate on a real board first.
