@@ -5,6 +5,8 @@ OpenPaw follows the AVSAB reward-based position; observational work found more c
 
 A kennel pilot reported less barking after counterconditioning, and a small shelter comparison found short-term reductions in dog-directed aggression after rehabilitation. [Zurlinden 2022](../cards/zurlinden2022-impact-of-classical-counterconditioning-quiet-kennel-exercise-on.md) [Orihel & Fraser 2008](../cards/orihel2008-a-note-on-the-effectiveness-of-behavioural-rehabilitation.md)
 
+In an owner survey of 1,862 dogs, introducing a muzzle with food over several weeks went with less pawing at it and less avoidance when it was fastened than habituation without food; it is owner report at one point in time, not a trial. [Arhant 2020](../cards/arhant2020-owner-reports-on-the-use-of-muzzles-and-their-effects.md)
+
 ## What is contested
 A controlled field comparison also found more tension and yawning during electronic-collar training than during reward-based training, without a clear owner-reported efficacy advantage. [Cooper 2014](../cards/cooper2014-the-welfare-consequences-and-efficacy-of-training-pet.md)
 

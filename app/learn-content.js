@@ -58,6 +58,7 @@ export const SRC = {
   shnookal2025: 'https://doi.org/10.1007/s44338-025-00119-1',
   amat2024: 'https://doi.org/10.1016/j.cvsm.2023.08.008',
   mikkola2021: 'https://doi.org/10.1038/s41598-021-88793-5',
+  arhant2020: 'https://doi.org/10.1016/j.jveb.2020.07.006',
 };
 
 // Human-readable names for the source list.
@@ -105,6 +106,7 @@ export const SOURCE_NAMES = {
   [SRC.shnookal2025]: 'Shnookal, Clay, Howell & Bennett 2025, Trainer insights on on-lead dog-directed aggressive behaviour (Discover Animals)',
   [SRC.amat2024]: 'Amat, Le Brech & Manteca 2024, The relationship between aggression and physical disease in dogs (Vet Clin North Am Small Anim Pract)',
   [SRC.mikkola2021]: 'Mikkola et al. 2021, Aggressive behaviour toward people in 9,270 Finnish purebred dogs (Sci Rep)',
+  [SRC.arhant2020]: 'Arhant et al. 2020, Owner reports on the use of muzzles and their effects on dogs: an online survey (J Vet Behav)',
 };
 
 export const LESSONS = [
@@ -581,6 +583,19 @@ export const CARDS = [
       { url: 'https://www.youtube.com/watch?v=V3rAm-qoV7A&t=88s', label: 'The trainer\u2019s rule, said about other dogs: your dog has to see the dog first, then you give the treat; otherwise she learns \u201cthere\u2019s a treat, there must be a dog coming\u201d (1:28 to 1:58, real walk filmed by the handler, Diamond Dog Training)' },
       { url: 'https://www.youtube.com/watch?v=V3rAm-qoV7A&t=322s', label: 'A jogger runs past in the road beside the pavement, a few metres away (our estimate); she turns her head towards the road, then looks back up at the handler, who says \u201cgood girl\u201d; no bark in the captions (5:22 to 5:29)' },
       { url: 'https://www.youtube.com/watch?v=V3rAm-qoV7A&t=512s', label: 'Off the pavement on a raised lawn, a person walks two dogs along the far side of the street (about 15 to 25 m, our estimate); the handler says she has not seen them, so no food yet, then \u201cthere she saw them\u201d and tosses a treat; her nose goes down to the grass (8:32 to 8:50)' },
+    ] },
+  { id: 'c-muzzle', lesson: 'consent', art: { posture: 'loose', ears: 'neutral', eye: 'soft', mouth: 'closed', tail: 'mid', prop: 'hand', marks: [['mouth', 'Nose going to the hand by himself']] },
+    context: 'Your dog barks and lunges at people on walks. Your vet suggests a basket muzzle on walks for now, for safety. It arrived today, and he has never worn one.',
+    ask: 'How do you start?',
+    choices: ['Buckle it on and go for a walk straight away, so he gets used to it quickly', 'Hold it out with food inside and let him put his own nose in to eat; over days or weeks build up to the straps, then short wear with food, then walks; if he paws at it or rubs his face, go back a step', 'Put it on whenever he barks at someone, so he links barking with the muzzle', 'Now that he cannot bite, walk him closer to people so he gets used to them'], answer: 1,
+    explain: 'How a dog first meets a muzzle matters. In an online survey, owners reported on 1,862 dogs; the first time the dog wore a muzzle, 65% of owners saw him try to paw it off. Dogs introduced only by having it fastened on for short spells, without food, stayed calm less often and pawed at it more; dogs trained with tasty food over several weeks pawed at it less, and owners who used food reported less turning away and more dogs putting their own nose in. It is what owners reported at one point in time, not a trial, so it cannot show cause. Fit matters too: 12.9% of owners reported rubbed fur, skin marks or other physical effects, and the authors describe a good fit as one that lets the dog pant, drink and take treats, with space in front of the nose. A muzzle stops a bite, not the reaction: keep the same distance from people you would without it. Putting it on as a consequence for barking links it to the bad moment instead of to food. AVSAB recommends reward-based methods. Your vet or behaviour consultant can help you choose and fit one and plan the steps.',
+    sources: [SRC.arhant2020, SRC.avsabHumane],
+    evidence: ['arhant2020-owner-reports-on-the-use-of-muzzles-and-their-effects', 'avsab2021-position-statement-on-humane-dog-training'],
+    examples: [
+      { url: 'https://www.youtube.com/watch?v=WSOaL5rfBp8&t=121s', label: 'Step one with a German Shepherd: he puts his front paws on the sofa and takes food from inside the muzzle the trainer holds out; it is not strapped on (2:01 to 2:12, a trainer\u2019s step-by-step video)' },
+      { url: 'https://www.youtube.com/watch?v=WSOaL5rfBp8&t=370s', label: 'No food in the muzzle now: he puts his nose in, pulls it straight out, and the food comes from the other hand; the trainer builds from \u201ca split second\u201d to 10 or 20 seconds (6:10 to 6:16)' },
+      { url: 'https://www.youtube.com/watch?v=WSOaL5rfBp8&t=739s', label: 'The trainer suggests that if a dog keeps pawing at the muzzle you end the session and let him go hungry until the next meal (12:19 to 12:57); withholding meals is not part of this card and not recommended here: stay on the earlier step longer, the other option he gives (12:13 and 13:01), or go back a step (18:21)' },
+      { url: 'https://www.youtube.com/watch?v=WSOaL5rfBp8&t=873s', label: 'Strapped on outdoors: he takes food from the trainer\u2019s hand, then walks beside him on a slack lead, no paw at the muzzle in our 1 frame per second view (14:33 to 14:40)' },
     ] },
 ];
 
