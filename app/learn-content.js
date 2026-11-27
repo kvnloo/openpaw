@@ -59,6 +59,7 @@ export const SRC = {
   amat2024: 'https://doi.org/10.1016/j.cvsm.2023.08.008',
   mikkola2021: 'https://doi.org/10.1038/s41598-021-88793-5',
   arhant2020: 'https://doi.org/10.1016/j.jveb.2020.07.006',
+  collins2022: 'https://doi.org/10.1016/j.applanim.2022.105689',
 };
 
 // Human-readable names for the source list.
@@ -107,6 +108,7 @@ export const SOURCE_NAMES = {
   [SRC.amat2024]: 'Amat, Le Brech & Manteca 2024, The relationship between aggression and physical disease in dogs (Vet Clin North Am Small Anim Pract)',
   [SRC.mikkola2021]: 'Mikkola et al. 2021, Aggressive behaviour toward people in 9,270 Finnish purebred dogs (Sci Rep)',
   [SRC.arhant2020]: 'Arhant et al. 2020, Owner reports on the use of muzzles and their effects on dogs: an online survey (J Vet Behav)',
+  [SRC.collins2022]: 'Collins et al. 2022, Behavioral rehabilitation of extremely fearful dogs: an ASPCA treatment protocol (Appl Anim Behav Sci)',
 };
 
 export const LESSONS = [
@@ -596,6 +598,19 @@ export const CARDS = [
       { url: 'https://www.youtube.com/watch?v=WSOaL5rfBp8&t=370s', label: 'No food in the muzzle now: he puts his nose in, pulls it straight out, and the food comes from the other hand; the trainer builds from \u201ca split second\u201d to 10 or 20 seconds (6:10 to 6:16)' },
       { url: 'https://www.youtube.com/watch?v=WSOaL5rfBp8&t=739s', label: 'The trainer suggests that if a dog keeps pawing at the muzzle you end the session and let him go hungry until the next meal (12:19 to 12:57); withholding meals is not part of this card and not recommended here: stay on the earlier step longer, the other option he gives (12:13 and 13:01), or go back a step (18:21)' },
       { url: 'https://www.youtube.com/watch?v=WSOaL5rfBp8&t=873s', label: 'Strapped on outdoors: he takes food from the trainer\u2019s hand, then walks beside him on a slack lead, no paw at the muzzle in our 1 frame per second view (14:33 to 14:40)' },
+    ] },
+  { id: 'c-toss-away', lesson: 'consent', art: { posture: 'turn', ears: 'back', eye: 'whale', mouth: 'closed', tail: 'low', prop: 'person', marks: [['body', 'Keeps his distance from the person']] },
+    context: 'A rescue dog has been with you for a week. When a visitor comes, he stays at the far side of the room. She holds out a treat and calls him, and he won\u2019t come. After she leaves, he eats the treats she dropped.',
+    ask: 'What helps him most next time?',
+    choices: ['Have her hold the treat out and stay still until he comes to her', 'Pick him up and carry him over to her, so he learns she is safe', 'Skip his breakfast that day, so he is hungry enough to come in for the treat', 'She tosses a treat near him and then steps back or looks away, so he can eat without coming closer; keep it short (a few tosses), toss a little closer only once he eats easily, and let him choose when to come in'], answer: 3,
+    explain: 'Eating once the person has gone, but not while she is there, often means the distance is still too small for him. Tossing the food and then stepping back makes the distance for him, so he does not have to come closer to eat; some trainers call this \u201ctreat and retreat\u201d. That is a trainer method; we know of no trial of it on its own. In an ASPCA programme for 441 very fearful shelter dogs, staff used small steps paired with food and play, in 15-minute sessions five days a week. 86% of the dogs reached the programme\u2019s standard for adoption, after an average of 78 sessions over about 96 days. Dogs who started sessions on day 5 had improved more by their second check than dogs who had only the shelter routine so far, so time alone was not the whole story. It was one programme with no untreated control group, and most dogs also had medication prescribed by a veterinary behaviourist, so it cannot say which part helped. How the person moves matters too: in a study of 53 dogs on lead, 26 of 53 barked or lunged at a person who walked up slowly, bent over and staring, against 11 of 53 at a friendly approach. Holding the food out asks him to come closer than he is ready to, and carrying him takes the choice away. AVSAB recommends reward-based methods. Your vet or behaviour consultant can help you plan the steps.',
+    sources: [SRC.collins2022, SRC.pedretti2023, SRC.avsabHumane],
+    evidence: ['collins2022-behavioral-rehabilitation-of-extremely-fearful-dogs-report-on', 'pedretti2023-appeasement-function-of-displacement-behaviours-dogs-behavioural-displays', 'avsab2021-position-statement-on-humane-dog-training'],
+    examples: [
+      { url: 'https://www.youtube.com/watch?v=35rjr6UOGFM&t=5s', label: 'In a shelter kennel run, a person in a blue jacket walks in and straight back out; the dog, at the far end before she came in, is out of view while she is inside (0:05 to 0:15; the uploader\u2019s description says she tosses the treat and then gives him distance)' },
+      { url: 'https://www.youtube.com/watch?v=35rjr6UOGFM&t=16s', label: 'Once she has gone, the dog comes out and walks down the run towards the gate (0:16 to 0:19)' },
+      { url: 'https://www.youtube.com/watch?v=35rjr6UOGFM&t=43s', label: 'Her arm reaches in at the gate for another toss (0:43 to 0:44; the treat is not visible); the dog then stands near the gate with his head turned to the side (0:45 to 0:59)' },
+      { url: 'https://www.youtube.com/watch?v=35rjr6UOGFM&t=90s', label: 'Nose down at the floor near the gate (1:30 to 1:33), head up towards the camera (1:34 to 1:36), then he turns and walks back down the run (1:37); the uploader writes that he raises his nose to gather information and then moves away; the raised nose is not readable in our 3 frames per second view' },
     ] },
 ];
 

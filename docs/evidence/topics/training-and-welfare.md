@@ -7,6 +7,8 @@ A kennel pilot reported less barking after counterconditioning, and a small shel
 
 In an owner survey of 1,862 dogs, introducing a muzzle with food over several weeks went with less pawing at it and less avoidance when it was fastened than habituation without food; it is owner report at one point in time, not a trial. [Arhant 2020](../cards/arhant2020-owner-reports-on-the-use-of-muzzles-and-their-effects.md)
 
+In an ASPCA program for 441 extremely fearful shelter dogs, desensitization and counterconditioning in 15-minute sessions five days a week graduated 86% after a mean 78 sessions over 96 days, and dogs who started treatment at once had improved more by the second evaluation than dogs whose start was delayed; it had no untreated control and most dogs also received medication, so the parts cannot be separated. [Collins 2022](../cards/collins2022-behavioral-rehabilitation-of-extremely-fearful-dogs-report-on.md)
+
 ## What is contested
 A controlled field comparison also found more tension and yawning during electronic-collar training than during reward-based training, without a clear owner-reported efficacy advantage. [Cooper 2014](../cards/cooper2014-the-welfare-consequences-and-efficacy-of-training-pet.md)
 
