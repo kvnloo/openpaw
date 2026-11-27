@@ -758,6 +758,62 @@ test('c-gear card: a dog who pulls and lunges at people gets a front-clip harnes
   assert.match(card, /^limitations: .*same order/m, 'the card records the order confound');
 });
 
+test('c-moving card: a dog calm near a still helper barks when she walks; her moving becomes its own small step; cites the 53-dog approach study with its numbers and limits', async () => {
+  const c = CARDS.find((x) => x.id === 'c-moving');
+  assert.ok(c, 'c-moving card exists');
+  assert.equal(c.lesson, 'threshold');
+  assert.equal(c.art.prop, 'person', 'the trigger is a person');
+  assert.match(c.context, /still/i, 'calm while she stands still');
+  assert.match(c.context, /walk/i, 'the reaction starts when she moves');
+  assert.match(c.context, /bark/i);
+  const { askFor, DEFAULT_ASK } = await import('../learn-content.js');
+  assert.notEqual(askFor(c), DEFAULT_ASK, 'an action card');
+  assert.match(askFor(c), /\?$/);
+  const right = c.choices[c.answer];
+  assert.match(right, /own (small )?step/i, 'movement is its own step');
+  assert.match(right, /feet|one step/i, 'the smallest movement first');
+  assert.match(right, /eat|food|treat/i, 'the under-threshold check: he can still eat');
+  assert.match(right, /distance/i, 'add distance when he stops eating');
+  assert.match(right, /side-on|away from him/i, 'how she moves, not only when');
+  assert.ok(c.choices.some((x, i) => i !== c.answer && /until he gets used/i.test(x)), 'a distractor: flooding');
+  assert.ok(c.choices.some((x, i) => i !== c.answer && /walk up|hand him/i.test(x)), 'a distractor: she approaches with food');
+  assert.ok(c.choices.some((x, i) => i !== c.answer && /\bno\b/i.test(x)), 'a distractor: a verbal correction');
+  const ped = 'pedretti2023-appeasement-function-of-displacement-behaviours-dogs-behavioural-displays';
+  assert.deepEqual(c.evidence, [ped, 'collins2022-behavioral-rehabilitation-of-extremely-fearful-dogs-report-on', 'avsab2021-position-statement-on-humane-dog-training']);
+  assert.ok(c.sources.includes(SRC.pedretti2023) && c.sources.includes(SRC.collins2022) && c.sources.includes(SRC.avsabHumane));
+  // Pedretti et al. 2023 (Anim Cogn, PMC10066101) full text: 53 medium to large pet dogs on lead held by
+  // the owner, open field areas; an unfamiliar experimenter walked for 10 s, then stood still 3 m away for
+  // 20 s; threatening (slow, bent, staring, angry face) 26/53 barked and lunged, neutral (normal speed,
+  // upright, relaxed, smiling, soft look then gaze averted) 11/53; order counterbalanced; 9 in both.
+  assert.match(c.explain, /\b53\b/);
+  assert.match(c.explain, /26 of (the )?53/);
+  assert.match(c.explain, /11 of 53/);
+  assert.match(c.explain, /3 m/);
+  assert.match(c.explain, /once/i, 'one approach of each kind per dog');
+  assert.match(c.explain, /trainer method/i, 'movement-as-a-step is labelled a trainer method');
+  assert.match(c.explain, /no trial/i);
+  assert.match(c.explain, /441/);
+  assert.match(c.explain, /no untreated control/i);
+  assert.match(c.explain, /flooding/i);
+  assert.match(c.explain, /safe at all times/i, 'AVSAB words on systematic desensitization');
+  assert.match(c.explain, /AVSAB/);
+  assert.match(c.explain, /reward-based/i);
+  assert.match(c.explain, /consultant/i);
+  assert.doesNotMatch(c.explain, /proven|always works|guarantee|cure|stress score|is happy|is dominant/i);
+  assert.ok(Array.isArray(c.examples) && c.examples.length >= 2);
+  for (const e of c.examples) {
+    assert.match(e.url, /^https:\/\/www\.youtube\.com\/watch\?v=[\w-]{11}&t=\d+s$/, e.url);
+    assert.match(e.label, /\(\d+:\d\d( to \d+:\d\d)?/);
+    assert.doesNotMatch(e.label, /scared|afraid|fearful|stress|nervous|anxious|happy/i, 'visible facts only');
+  }
+  assert.ok(c.examples.some((e) => /not part of this card/i.test(e.label)), 'leaving the dog alone on camera is flagged, not taught');
+  const { readFileSync } = await import('node:fs');
+  const card = readFileSync(new URL(`../../docs/evidence/cards/${ped}.md`, import.meta.url), 'utf8');
+  assert.match(card, /^population: .*on lead/m, 'the card records who was tested');
+  assert.match(card, /^main_finding: .*26 of 53.*11 of 53/m, 'the card records the barking and lunging counts');
+  assert.match(card, /^limitations: .*once/m, 'the card records one approach of each kind');
+});
+
 test('all registered sources are used and named', () => {
   const used = new Set([...LESSONS.flatMap((l) => l.sources), ...CARDS.flatMap((c) => c.sources)]);
   for (const u of Object.values(SRC)) assert.ok(used.has(u), `unused source ${u}`);
