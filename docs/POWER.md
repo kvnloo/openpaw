@@ -167,8 +167,17 @@ The intervals stay inside the BLE Core rule that the supervision timeout (4 s) i
     0.15 ms awake per second, so roughly 0.5 µA [E]. The real saving is not reading samples at
     all while the dog lies still (CPU line ~7 → ~0 µA, and the sensor could drop below its
     12.5 Hz 9 µA). That changes what a Still epoch is: there would be no samples to compute it
-    from, so it needs its own record design (flagged, never mistaken for a measured epoch) before
-    any firmware change.
+    from.
+  - *The no-sample record (designed and host-tested; no firmware writes it yet).*
+    `openpaw_nosample_epoch()` in `openpaw_core.h` closes an epoch without samples: record flag
+    `0x20` (`NOSAMPLE`), movement fields 0, and pitch/roll set to -128, a value no real posture
+    has, so a reader that ignores the flag still sees an impossible posture rather than "lying
+    flat". It refuses to run inside a half-filled epoch, keeps `seq` counting and keeps Still
+    mode. The app exports no movement or posture events for it, only `device.no_sample` (and the
+    battery), with `provenance.quality.no_sample`; the live views skip it; `tools/check_export.py`
+    counts it for spacing and leaves it out of the still/moving, burst and posture checks. It
+    records only "the sensor was not read", never "the dog was still". Next: sensor-only Still
+    mode, reading the latched INT1 level with `digitalRead()` on a timer.
 - **QMA6100P master clock in Active mode.** Still mode already runs at 12.8 kHz (above).
   Active mode stays at 51.2 kHz; 25.6 kHz would save another ~19 µA if 50 Hz data stays clean
   there. Check the Still-mode rate on a real board first.

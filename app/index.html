@@ -349,6 +349,7 @@ document.querySelectorAll('#range button').forEach((b) => b.onclick = () => {
 
 // live record -> epoch, without waiting for a store round-trip
 function show(rec) {
+  if (rec.no_sample) return;  // the collar did not read its sensor: nothing to draw
   if (demo) { demo = null; $('btnDemo').setAttribute('aria-pressed', 'false'); }
   epochs.push({ t: collar && collar.clock ? Date.parse(collar.clock(rec.uptime_s)) : Date.now(), vedba: rec.vedba_mean_mg, max: rec.vedba_max_mg, active: rec.active_frac / 255,
     bursts: rec.bursts, pitch: rec.pitch_deg, roll: rec.roll_deg, hr: rec.hr_bpm || null, batt: rec.battery_pct === 255 ? null : rec.battery_pct, clipped: rec.clipped, origin: 'sensor', w: collar?.epochS || 5 });

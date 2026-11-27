@@ -499,8 +499,10 @@ function drawSpark() {
   g.fillStyle = '#e8a35f'; pts.forEach((p, i) => { if (p.b) g.fillRect(x(i) - 1.5, 2, 3, H - 4); });
 }
 async function onRecord(rec, deviceId, clock, origin) {
-  $('vVal').textContent = rec.vedba_mean_mg;
-  spark.push({ v: rec.vedba_mean_mg, b: rec.bursts > 0 }); drawSpark();
+  if (!rec.no_sample) {  // no-sample epoch: the collar did not read its sensor, so no live value
+    $('vVal').textContent = rec.vedba_mean_mg;
+    spark.push({ v: rec.vedba_mean_mg, b: rec.bursts > 0 }); drawSpark();
+  }
   const evs = recordToEvents(rec, { dogId: dog, deviceId, clock, epochS: 5, origin });
   await S.putEvents(evs);
   if (rec.bursts > 0) {

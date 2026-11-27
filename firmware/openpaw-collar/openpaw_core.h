@@ -31,6 +31,7 @@ extern "C" {
 #define OPENPAW_FLAG_CLIPPED 0x04   // a sample hit the sensor's full-scale range
 #define OPENPAW_FLAG_GAP 0x08       // fewer samples than expected (sensor stall)
 #define OPENPAW_FLAG_LOWRATE 0x10   // epoch sampled at OPENPAW_HZ_LOW (still mode), not the full rate
+#define OPENPAW_FLAG_NOSAMPLE 0x20  // IMU not read this epoch (openpaw_nosample_epoch): no movement or posture values
 
 typedef struct {
   float sample_hz;          // nominal IMU rate, e.g. 50
@@ -215,6 +216,33 @@ static inline float openpaw_power_step(openpaw_power_t *p, const openpaw_record_
   if (connected || !still) p->still_epochs = 0;
   else if (p->still_epochs < OPENPAW_STILL_EPOCHS) p->still_epochs++;
   return p->still_epochs >= OPENPAW_STILL_EPOCHS ? OPENPAW_HZ_LOW : 50.0f;
+}
+
+// ---- No-sample Still epoch (record design for a later sensor-only Still mode; nothing
+// calls it yet). When the IMU's motion interrupt has stayed quiet for a whole epoch the
+// CPU may skip reading it, so there is no movement or posture to report. The record says
+// so with OPENPAW_FLAG_NOSAMPLE; movement fields are 0 and pitch/roll carry
+// OPENPAW_NOSAMPLE_POSTURE (-128: outside -90..90 pitch and, x2, outside -180..180 roll),
+// so even a reader that ignores the flag sees an impossible posture, never "lying flat".
+// The app exports no movement or posture events for it (app/openpaw-ble.js) and
+// tools/check_export.py keeps it out of the still/moving checks. It is not a measurement
+// of stillness: only "the motion interrupt did not fire" (its threshold is not set yet).
+#define OPENPAW_NOSAMPLE_POSTURE (-128)
+
+// Returns 1 and fills *out; returns 0 (nothing written) inside a half-filled epoch, so one
+// record never mixes real samples with no-sample time.
+static inline int openpaw_nosample_epoch(openpaw_state_t *s, uint32_t uptime_s, uint8_t battery_pct,
+                                         openpaw_record_t *out) {
+  if (s->n != 0) return 0;
+  memset(out, 0, sizeof(*out));
+  out->version = OPENPAW_RECORD_VERSION;
+  out->flags = OPENPAW_FLAG_NOSAMPLE;
+  out->seq = s->seq++;
+  out->uptime_s = uptime_s;
+  out->pitch_deg = OPENPAW_NOSAMPLE_POSTURE;
+  out->roll_half_deg = OPENPAW_NOSAMPLE_POSTURE;
+  out->battery_pct = battery_pct;
+  return 1;
 }
 
 // ---- Connection interval (power). The phone gets a 15 ms interval while it is

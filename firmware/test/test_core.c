@@ -218,6 +218,31 @@ int main(int argc, char **argv) {
   openpaw_record_t back = run_epoch(&s6, gen_rest, &t6);
   CHECK(!(back.flags & OPENPAW_FLAG_LOWRATE) && back.seq == low.seq + 1, "50 Hz again, seq continues");
 
+  // 12b. no-sample Still epoch: in a later sensor-only Still mode the CPU skips reading the
+  // IMU while the motion interrupt stays quiet. That epoch must never look measured: flag
+  // NOSAMPLE, and pitch/roll carry -128, outside every real posture, so a flag-blind
+  // reader sees an impossible value instead of "lying flat".
+  CHECK(OPENPAW_FLAG_NOSAMPLE == 0x20, "NOSAMPLE flag is 0x20");
+  openpaw_record_t ns; memset(&ns, 0xAB, sizeof ns);
+  uint32_t seq_before = s6.seq;
+  CHECK(openpaw_nosample_epoch(&s6, 4242, 61, &ns) == 1, "no-sample epoch closes between epochs");
+  CHECK(ns.version == OPENPAW_RECORD_VERSION && ns.seq == seq_before && s6.seq == seq_before + 1, "seq counts on");
+  CHECK(ns.flags == OPENPAW_FLAG_NOSAMPLE, "only NOSAMPLE set (no LOWRATE: nothing was sampled), got 0x%02x", ns.flags);
+  CHECK(ns.uptime_s == 4242 && ns.battery_pct == 61 && ns.hr_bpm == 0, "uptime + battery kept, no hr");
+  CHECK(ns.vedba_mean_mg == 0 && ns.vedba_max_mg == 0 && ns.active_frac == 0 && ns.bursts == 0, "no movement values");
+  CHECK(ns.pitch_deg == OPENPAW_NOSAMPLE_POSTURE && ns.roll_half_deg == OPENPAW_NOSAMPLE_POSTURE &&
+            OPENPAW_NOSAMPLE_POSTURE == -128, "posture sentinel -128");
+  uint8_t nsb[OPENPAW_RECORD_SIZE]; openpaw_encode(&ns, nsb);
+  CHECK(nsb[1] == 0x20 && (int8_t)nsb[15] == -128 && (int8_t)nsb[16] == -128, "sentinel survives encoding");
+  openpaw_power_init(&pw);
+  for (int i = 0; i < OPENPAW_STILL_EPOCHS; i++) openpaw_power_step(&pw, &still_r, 0);
+  CHECK(openpaw_power_step(&pw, &ns, 0) == OPENPAW_HZ_LOW, "a no-sample epoch keeps Still mode");
+  openpaw_state_t s7; openpaw_init(&s7, cfg);
+  openpaw_record_t r7; memset(&r7, 0, sizeof r7);
+  openpaw_push(&s7, 0, 0, 1000, 1, 0, 50, 0, &r7);
+  CHECK(openpaw_nosample_epoch(&s7, 5, 50, &r7) == 0 && s7.seq == 0 && s7.n == 1,
+        "refused inside a half-filled epoch: never mixes samples and no-sample");
+
   // 13. connection interval: 15 ms while a backlog download runs (fast sync), then a
   // slow 200 ms interval with peripheral latency once the link has been idle for
   // OPENPAW_LINK_IDLE_MS, so a phone left connected does not cost >100 uA (docs/POWER.md).

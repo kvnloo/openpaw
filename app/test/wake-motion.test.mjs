@@ -37,6 +37,16 @@ test('POWER.md says why longer FIFO drains alone save little (same bytes on the 
   assert.match(todo, /same (number of )?bytes/i);
 });
 
+test('POWER.md documents the no-sample Still record (flag 0x20, -128 posture) and that nothing writes it yet', () => {
+  assert.match(todo, /openpaw_nosample_epoch/);
+  assert.match(todo, /`0x20`/);
+  assert.match(todo, /-128/);
+  assert.match(todo, /device\.no_sample/);
+  assert.match(todo, /no firmware writes it yet/i);
+  assert.doesNotMatch(todo, /needs its own record design \(flagged, never mistaken for a measured epoch\) before/);
+  assert.doesNotMatch(ino, /openpaw_nosample_epoch\s*\(/, 'the sketch does not write no-sample records yet');
+});
+
 test('the sketch does not use attachInterrupt (GPIOTE IN channel = +15 µA asleep)', () => {
   assert.doesNotMatch(ino, /attachInterrupt\s*\(/,
     'an IMU interrupt must use the low-power PORT event (GPIO SENSE), see docs/POWER.md "Wake on motion"');
