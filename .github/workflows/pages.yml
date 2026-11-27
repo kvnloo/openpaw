@@ -3,7 +3,7 @@ name: pages
 on:
   push:
     branches: [main]
-    paths: ['app/**', 'site/**', '.github/workflows/pages.yml']
+    paths: ['app/**', 'site/**', 'tools/stage-pages.sh', '.github/workflows/pages.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -25,18 +25,7 @@ jobs:
           node-version: '22'
       - run: node --test app/test/*.test.mjs site/test/*.test.mjs
       - name: Stage site (landing at root, app under /app, no tests)
-        run: |
-          mkdir -p _site/app
-          cp -R site/. _site/
-          rm -rf _site/test
-          cp app/*.html app/*.js _site/app/
-          # app pages reference ../site/fonts (works in the repo checkout); publish the same path
-          mkdir -p _site/site && cp -R site/fonts _site/site/fonts
-          touch _site/.nojekyll
-          # every local href/src in the landing page must exist in the staged site
-          grep -oE '(href|src)="[^"#:]+"' _site/index.html | sed -E 's/.*="([^"]+)"/\1/' | while read -r f; do
-            [ -e "_site/${f%/}" ] || [ -e "_site/${f}index.html" ] || { echo "missing: $f"; exit 1; }
-          done
+        run: bash tools/stage-pages.sh _site
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v5
         with:
