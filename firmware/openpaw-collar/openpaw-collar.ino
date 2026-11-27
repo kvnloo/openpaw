@@ -29,6 +29,7 @@
 #include <bluefruit.h>
 #include "openpaw_core.h"
 #include "openpaw_flog.h"
+#include "openpaw_iflash.h"
 
 #define OPENPAW_FW_VERSION "0.4.0"
 #define OPENPAW_PROTO 2  // 2: set-time (0x20) + time anchors in the log
@@ -357,16 +358,60 @@ static uint8_t g_ring_store[RING_RECORDS * OPENPAW_RECORD_SIZE];
 static openpaw_ring_t g_ring;
 static openpaw_flog_t g_flog;
 static bool g_use_flog = false;
+static bool g_log_internal = false;  // g_flog lives on the nRF52840's own flash (openpaw_iflash.h)
 static uint32_t g_boot_seq = 0;
 
-// One log interface over the flash log or the RAM ring.
+// ---------------------------------------------------------------- internal-flash log
+// When no external chip answers, the same flash log goes on the nRF52840's own flash:
+// up to IFLASH_LOG_BYTES of whole pages ending at IFLASH_TOP, never over the program image
+// (__etext + .data load image). XIAO: the linker's FLASH end (0xED000, where InternalFS/bonds
+// start). T1000-E: Seeed's boards.txt caps sketches at 679,936 B from 0x27000 = 0xCD000 (128 KB
+// less than the XIAO; the reason isn't documented), so the log stays below that too.
+#define IFLASH_LOG_BYTES (256u * 1024u)  // 10,710 records = 14.9 h at 5 s epochs
+extern "C" uint32_t __etext[], __data_start__[], __data_end__[], __flash_arduino_end[];
+#if BOARD_T1000E
+#define IFLASH_TOP 0xCD000u
+#else
+#define IFLASH_TOP ((uint32_t)(uintptr_t)__flash_arduino_end)
+#endif
+static int ifl_write_words(void *hw, uint32_t addr, const uint32_t *src, uint32_t nwords) {
+  (void)hw;
+  const uint32_t err = sd_flash_write((uint32_t *)addr, src, nwords);  // runs at once while the SoftDevice is off
+  return err == NRF_SUCCESS ? 0 : err == NRF_ERROR_BUSY ? OPENPAW_IFLASH_BUSY : -1;
+}
+static int ifl_erase_page(void *hw, uint32_t page) {
+  (void)hw;
+  const uint32_t err = sd_flash_page_erase(page);
+  return err == NRF_SUCCESS ? 0 : err == NRF_ERROR_BUSY ? OPENPAW_IFLASH_BUSY : -1;
+}
+static const uint8_t *ifl_at(void *hw, uint32_t addr) { (void)hw; return (const uint8_t *)(uintptr_t)addr; }
+static void ifl_wait_1ms(void *hw) { (void)hw; delay(1); }
+// Event-free waits (read-back) because Bluefruit hands flash events to InternalFS. Caveat:
+// our completions also release InternalFS's counting semaphore; OpenPaw never bonds, so
+// InternalFS only writes inside Bluefruit.begin(), before the first log write.
+static openpaw_iflash_t g_ifl = {ifl_write_words, ifl_erase_page, ifl_at, ifl_wait_1ms, nullptr, 50, 400, 0, 0, {{0}}, 0};
+
+static const char *log_kind_name() {
+  return g_log_internal ? "internal" : g_use_flog ? "flash" : "ram";
+}
+
+// One log interface over the flash log (external chip or internal flash) or the RAM ring.
 static void log_begin() {
+  uint32_t gen;
   if (g_flash.kind == OPENPAW_STORE_QSPI) {
     flash_bus_begin();
     openpaw_flash_io_t io = {fl_read, fl_prog, fl_erase, nullptr, 0, g_flash.size_bytes};
-    uint32_t gen;
     // the header read-back catches a write-protected or flaky chip: then stay on RAM
     g_use_flog = openpaw_flog_mount(&g_flog, io) == 0 && openpaw__hdr(&g_flog, g_flog.head, &gen);
+  } else {
+    const uint32_t image_end = (uint32_t)(uintptr_t)__etext + (uint32_t)((uintptr_t)__data_end__ - (uintptr_t)__data_start__);
+    uint32_t base, size;
+    const uint32_t top = IFLASH_TOP < (uint32_t)(uintptr_t)__flash_arduino_end ? IFLASH_TOP : (uint32_t)(uintptr_t)__flash_arduino_end;
+    if (openpaw_iflash_plan(image_end, top, IFLASH_LOG_BYTES, &base, &size) == 0) {
+      openpaw_flash_io_t io = openpaw_iflash_io(&g_ifl, base, size);
+      g_use_flog = openpaw_flog_mount(&g_flog, io) == 0 && openpaw__hdr(&g_flog, g_flog.head, &gen);
+      g_log_internal = g_use_flog;
+    }
   }
   if (g_use_flog) g_core.seq = g_flog.next_seq;  // seq keeps counting across reboots
   g_boot_seq = g_core.seq;
@@ -571,7 +616,7 @@ void setup() {
   if (ok) { led(true); delay(600); led(false); }
   else for (int i = 0; i < 5; i++) { led(true); delay(80); led(false); delay(80); }
   Serial.printf("openpaw fw=%s board=%d imu=%s storage=%s log=%s stored=%lu next_seq=%lu\n", OPENPAW_FW_VERSION,
-                BOARD_ID, ok ? "ok" : "MISSING", g_flash_line, g_use_flog ? "flash" : "ram",
+                BOARD_ID, ok ? "ok" : "MISSING", g_flash_line, log_kind_name(),
                 (unsigned long)log_count(), (unsigned long)g_core.seq);
   Serial.println("seq,uptime_s,flags,vedba_mean_mg,vedba_max_mg,active_frac,pitch_deg,roll_deg,bursts,hr_bpm,battery_pct");
 }

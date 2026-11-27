@@ -29,6 +29,10 @@ jobs:
         run: |
           cc -std=c99 -O1 -Wall -Wextra -Werror -o /tmp/test_flog firmware/test/test_flog.c -lm
           /tmp/test_flog
+      - name: Host tests for the internal-flash backend (word writes, queued SoftDevice jobs)
+        run: |
+          cc -std=c99 -O1 -Wall -Wextra -Werror -o /tmp/test_iflash firmware/test/test_iflash.c -lm
+          /tmp/test_iflash
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
