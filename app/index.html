@@ -153,8 +153,8 @@
   /* device + data */
   .dev { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
   .kv { display:grid; grid-template-columns:auto 1fr; gap:8px 14px; font-size:14px; margin:0; }
-  .kv dt { font:500 11px/1.6 var(--mono); letter-spacing:.07em; text-transform:uppercase; color:var(--dim); } .kv dd { margin:0; color:var(--ink); }
-  input[type=text] { width:100%; max-width:220px; background:var(--bg); border:1px solid var(--line2); border-radius:8px; padding:7px 10px; font:500 14px/1.2 var(--sans); color:var(--ink); }
+  .kv dt { font:500 11px/1.6 var(--mono); letter-spacing:.07em; text-transform:uppercase; color:var(--dim); } .kv dd { margin:0; color:var(--ink); } .kv dt:has(+ dd > input) { align-self:center; }
+  input[type=text] { width:100%; max-width:220px; background:var(--bg); border:1px solid var(--line2); border-radius:9px; padding:11px 12px; font:500 16px/1.2 var(--sans); color:var(--ink); }
   .row { display:flex; gap:8px; flex-wrap:wrap; margin-top:14px; }
   details { margin-top:14px; } summary { cursor:pointer; color:var(--mute); font:500 11px/1.4 var(--mono); letter-spacing:.08em; text-transform:uppercase; }
   .log { font:12px/1.5 var(--mono); color:var(--dim); max-height:150px; overflow:auto; white-space:pre-wrap; margin-top:8px; }
