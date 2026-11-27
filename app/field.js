@@ -13,6 +13,7 @@ import { deriveMovement } from './episode-movement.js';
 import { stoodUpFrom } from './stood-up.js';
 import { SESSION_SIGNS, sessionAdvice, sessionCheckPayload } from './session-check.js';
 import { refusalPayload, refusalText } from './walk-refusal.js';
+import { contextExtra } from './context-tag.js';
 
 const $ = (id) => document.getElementById(id);
 const SOURCE = 'openpaw-field';
@@ -265,6 +266,7 @@ export async function mark(act, opts = {}) {
     extra.distance_band_ft = opts.band ? BANDS[opts.band] : null;
     extra.distance_method = opts.band ? 'owner estimate' : null;
     extra.trigger_class = opts.cls || null;
+    Object.assign(extra, opts.context || {});
   }
   if (act === 'reaction' && ep && ep.reactionAt == null) ep.reactionAt = now;
   if (act === 'reaction') value = true;
@@ -314,6 +316,7 @@ let pendingClass = null;
 function openDistance() {
   pendingClass = null;
   document.querySelectorAll('#trigClass .chip').forEach((c) => c.setAttribute('aria-pressed', 'false'));
+  $('optOtherDog').checked = false;
   $('distSheet').hidden = false;
   buzz(15);
   $('distChips').querySelector('[data-band="20-40"]').focus({ preventScroll: true });
@@ -327,9 +330,10 @@ $('trigClass').addEventListener('click', (ev) => {
 });
 $('distChips').addEventListener('click', (ev) => {
   const b = ev.target.closest('button[data-band]'); if (!b) return;
-  closeDistance(); mark('trigger', { band: b.dataset.band, cls: pendingClass });
+  const context = contextExtra($('optOtherDog').checked);
+  closeDistance(); mark('trigger', { band: b.dataset.band, cls: pendingClass, context });
 });
-$('distSkip').onclick = () => { closeDistance(); mark('trigger', { band: null, cls: pendingClass }); };
+$('distSkip').onclick = () => { const context = contextExtra($('optOtherDog').checked); closeDistance(); mark('trigger', { band: null, cls: pendingClass, context }); };
 $('distCancel').onclick = closeDistance;
 $('distSheet').addEventListener('click', (ev) => { if (ev.target === $('distSheet')) closeDistance(); });
 

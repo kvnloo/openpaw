@@ -9,6 +9,7 @@ import { liveEvents } from './store.js';
 import { movementText } from './episode-movement.js';
 import { refusalText } from './walk-refusal.js';
 import { stoodUpText, STOOD_UP_NOTE } from './stood-up.js';
+import { contextOf, contextText } from './context-tag.js';
 
 const FIELD = new Set(['trigger.seen', 'behavior.reacted', 'behavior.calm', 'intervention.reward', 'intervention.distance', 'body_language.tags', 'session.check']);
 const BAND_LABEL = { '<10': '<10 ft', '10-20': '10–20 ft', '20-40': '20–40 ft', '40+': '40+ ft' };
@@ -53,6 +54,7 @@ export function episodesFrom(events) {
     eps.push({
       id, start, end: calm ? calm.timestamp : null,
       trigger: { cls: trig ? trig.payload.trigger_class || null : null, band: trig ? trig.payload.value || null : null },
+      context: trig ? contextOf(trig.payload) : [],
       precursors,
       recalledPrecursors,
       sessionSigns,
@@ -93,8 +95,10 @@ export function consultRows(ep, previous, movement = [], stoodUp = []) {
   const what = t.cls ? cap(t.cls) : 'Not recorded';
   const dist = t.band ? BAND_LABEL[t.band] || `${t.band} ft` : 'distance not recorded';
   const mv = movement.find((d) => d.episode_id === ep.id);
+  const ctx = contextText(ep.context);
   return [
     ['Trigger', `${what}, ${dist}`],
+    ...(ctx ? [['Context', ctx]] : []),
     ['Precursors', precursorText(ep, stoodUp.find((d) => d.episode_id === ep.id) || null)],
     ['Intervention', ep.interventions.length ? cap(ep.interventions.map((x) => `${x.type} at ${x.afterS}\u00a0s`).join(', ')) : 'None marked'],
     ['Recovery', ep.timeToCalmS != null ? `${fmtDur(ep.timeToCalmS)} to Calm again (owner-marked)` : 'Not observed (no Calm again mark)'],
