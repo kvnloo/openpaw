@@ -49,8 +49,12 @@ export function epochsFromEvents(events) {
   return [...by.values()].filter((r) => r.vedba !== null && Number.isFinite(r.t)).sort((a, b) => a.t - b.t);
 }
 
+const DAY_MS = 864e5;
 const localDay = (t, tz) => new Date(t - tz * 60000).toISOString().slice(0, 10);
-const minuteOfDay = (t, tz) => { const d = new Date(t - tz * 60000); return d.getUTCHours() * 60 + d.getUTCMinutes(); };
+// Same day and minute as the Date versions (Date truncates fractional ms), without building a Date
+// per epoch: the collar page re-buckets every stored epoch on each live record.
+const dayNum = (t, tz) => Math.floor(Math.trunc(t - tz * 60000) / DAY_MS);
+const minuteOfDay = (t, tz) => { const x = Math.trunc(t - tz * 60000) % DAY_MS; return Math.floor((x < 0 ? x + DAY_MS : x) / 60000) + 0; };
 const quantile = (xs, q) => { if (!xs.length) return null; const s = xs.slice().sort((a, b) => a - b); const i = (s.length - 1) * q, lo = Math.floor(i); return s[lo] + (s[Math.min(s.length - 1, lo + 1)] - s[lo]) * (i - lo); };
 
 // Personal reference: resting = median of the quietest 30% of epochs; typical active = p95.
@@ -65,9 +69,9 @@ export function baseline(epochs, { now = Date.now(), days = 7 } = {}) {
 export function dayBudget(epochs, { tz = 0, now = Date.now(), days = 7 } = {}) {
   const out = [];
   for (let i = days - 1; i >= 0; i--) out.push({ day: localDay(now - i * 864e5, tz), minutes: LEVELS.map(() => 0), bursts: 0, covered: 0 });
-  const idx = new Map(out.map((d, i) => [d.day, i]));
+  const idx = new Map(out.map((d, i) => [dayNum(now - (days - 1 - i) * DAY_MS, tz), i]));
   for (const e of epochs) {
-    const i = idx.get(localDay(e.t, tz)); if (i === undefined) continue;
+    const i = idx.get(dayNum(e.t, tz)); if (i === undefined) continue;
     const m = e.w / 60;
     out[i].minutes[levelOf(e.vedba)] += m; out[i].bursts += e.bursts || 0; out[i].covered += m;
   }
@@ -77,13 +81,13 @@ export function dayBudget(epochs, { tz = 0, now = Date.now(), days = 7 } = {}) {
 // Mean VeDBA per time-of-day bin: `typical` over the previous `days` days, `today` for the current day.
 export function circadian(epochs, { tz = 0, now = Date.now(), days = 7, binMin = 30 } = {}) {
   const n = Math.round(1440 / binMin);
-  const today = localDay(now, tz);
+  const today = dayNum(now, tz);
   const sum = new Array(n).fill(0), cnt = new Array(n).fill(0), tSum = new Array(n).fill(0), tCnt = new Array(n).fill(0);
   const past = new Set();
   for (const e of epochs) {
     if (e.t < now - (days + 1) * 864e5 || e.t > now) continue;
     const b = Math.min(n - 1, Math.floor(minuteOfDay(e.t, tz) / binMin));
-    const d = localDay(e.t, tz);
+    const d = dayNum(e.t, tz);
     if (d === today) { tSum[b] += e.vedba; tCnt[b]++; } else { sum[b] += e.vedba; cnt[b]++; past.add(d); }
   }
   return {
