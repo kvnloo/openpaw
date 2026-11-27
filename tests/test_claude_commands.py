@@ -137,6 +137,17 @@ class VerifyCollarTests(unittest.TestCase):
             with self.subTest(key=key):
                 self.assertIn(f'{key}=', boot_line)
 
+    def test_boot_line_log_values_match_firmware(self):
+        # every value the firmware can print for log= is named in the boot line the guide shows
+        firmware = FIRMWARE.read_text(encoding='utf-8')
+        names = re.search(r'static const char \*log_kind_name\(\) \{(.*?)\n\}', firmware, re.S)
+        self.assertIsNotNone(names, 'firmware has no log_kind_name()')
+        values = sorted(set(re.findall(r'"(\w+)"', names.group(1))))
+        self.assertEqual(values, ['flash', 'internal', 'ram'])
+        boot_line = re.search(r'The first line is `(openpaw [^`]+)`', read('verify-collar.md')).group(1)
+        self.assertIn('log=' + '|'.join(['flash', 'internal', 'ram']), boot_line)
+        self.assertIn('`log=internal`', read('verify-collar.md'))
+
     def test_docs_do_not_call_t1000e_battery_unknown_once_firmware_reads_it(self):
         firmware = FIRMWARE.read_text(encoding='utf-8')
         if 'openpaw_vbat_mv(raw, 4, 12, 3000, 2000, 1000)' not in firmware:
