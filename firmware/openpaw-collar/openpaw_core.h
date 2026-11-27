@@ -352,6 +352,16 @@ static inline uint8_t openpaw_qma_odr(float hz) {
   return hz <= 12.5f ? 0x07 : 0x05;  // the two rates the collar uses: 12.5 Hz still, 50 Hz full
 }
 
+typedef struct { uint8_t pm, odr; uint16_t ua; } openpaw_qma_clock_t;
+static inline openpaw_qma_clock_t openpaw_qma_clock(int low, int slow_ok) {
+  (void)low; (void)slow_ok; openpaw_qma_clock_t c = {0, 0, 0}; return c;  // STUB
+}
+typedef struct { float hz; uint32_t frames, ms; int verdict; } openpaw_rate_check_t;
+static inline void openpaw_rate_check_start(openpaw_rate_check_t *r, float hz) { (void)r; (void)hz; }
+static inline int openpaw_rate_check_feed(openpaw_rate_check_t *r, uint32_t frames, uint32_t dt_ms) {
+  (void)r; (void)frames; (void)dt_ms; return 0;  // STUB
+}
+
 // st = INT_STATUS_2..FIFO_STATUS read in one burst from 0Bh (0Bh, 0Ch, 0Dh, 0Eh).
 static inline openpaw_fifo_plan_t openpaw_qma_fifo_plan(const uint8_t st[4]) {
   openpaw_fifo_plan_t p;
