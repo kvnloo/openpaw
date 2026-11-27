@@ -14,6 +14,8 @@ If `tools/check_export.py` exists (run it only if it exists: `python3 tools/chec
 
 `active_frac` is 0..255 (255 = the whole epoch). `flags` bits: 1 heart rate valid, 2 charging, 4 clipped, 8 gap. `battery_pct` 255 means unknown.
 
+A T1000-E (firmware after 0.4.0) may print `qma_clock=fallback` once between data lines: its accelerometer's slower power-saving clock in Still mode did not give 12.5 samples a second, so the collar went back to the normal clock until the next restart. The data stays valid; only battery use while still is higher (docs/POWER.md). Report it as a note, not a fail, and suggest mentioning it in an issue, because this code is compiled and host-tested but not yet run on hardware.
+
 **JSONL export** (one OpenPaw event per line, `event_type: measurement`). Each 5 s epoch produces events with these `payload.metric` values:
 `movement.vedba_mean` (mg), `movement.vedba_max` (mg), `movement.active_fraction` (ratio 0..1), `movement.bursts` (count), `posture.pitch` (deg), `posture.roll` (deg), plus `physiology.heart_rate` (bpm) when present, `device.battery` (percent) when known, and `physiology.rr_intervals` (ms) from a chest strap. `provenance.device_seq` and `provenance.device_uptime_s` identify the epoch; `provenance.quality` holds `clipped` and `gap`.
 

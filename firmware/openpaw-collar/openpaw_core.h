@@ -352,6 +352,46 @@ static inline uint8_t openpaw_qma_odr(float hz) {
   return hz <= 12.5f ? 0x07 : 0x05;  // the two rates the collar uses: 12.5 Hz still, 50 Hz full
 }
 
+// ---- QMA6100P master clock (power, T1000-E). Datasheet Rev F table 2: current depends on
+// MCLK, not the ODR: 38 / 19 / 10 / 6 uA at 51.2 / 25.6 / 12.8 / 6.4 kHz. 9.12 PM 11h:
+// bit 7 MODE (active), MCLK[3:0] 4 = 51.2 kHz, 6 = 12.8 kHz. 9.11's ODR table is given only
+// "when MCLK is 51.2 kHz"; no public driver runs another MCLK. Still mode assumes the rate
+// scales with MCLK (ODR code 5 = 50 Hz at 51.2 kHz -> 12.5 Hz at 12.8 kHz) and checks it:
+// openpaw_rate_check_* counts FIFO frames, and a wrong rate sends the board back to
+// 51.2 kHz + ODR code 7 (slow_ok = 0) for the rest of the boot. Not yet run on hardware.
+#define OPENPAW_QMA_PM_51K2 0x84u
+#define OPENPAW_QMA_PM_12K8 0x86u
+#define OPENPAW_RATE_CHECK_MS 4000u   // judge after this much FIFO time
+#define OPENPAW_RATE_CHECK_TOL 0.25f  // allowed relative error (internal oscillator)
+
+typedef struct { uint8_t pm, odr; uint16_t ua; } openpaw_qma_clock_t;
+
+static inline openpaw_qma_clock_t openpaw_qma_clock(int low, int slow_ok) {
+  openpaw_qma_clock_t c;
+  if (low && slow_ok) { c.pm = OPENPAW_QMA_PM_12K8; c.odr = 0x05; c.ua = 10; }
+  else { c.pm = OPENPAW_QMA_PM_51K2; c.odr = openpaw_qma_odr(low ? 12.5f : 50.0f); c.ua = 38; }
+  return c;
+}
+
+typedef struct { float hz; uint32_t frames, ms; int verdict; } openpaw_rate_check_t;
+
+static inline void openpaw_rate_check_start(openpaw_rate_check_t *r, float hz) {
+  r->hz = hz; r->frames = 0; r->ms = 0; r->verdict = 0;
+}
+
+// Feed the frames one FIFO read returned and the ms since the previous read. Returns 0 while
+// fewer than OPENPAW_RATE_CHECK_MS have been seen, then 1 (rate ok) or -1 (fall back); the
+// verdict is sticky until the next start.
+static inline int openpaw_rate_check_feed(openpaw_rate_check_t *r, uint32_t frames, uint32_t dt_ms) {
+  if (r->verdict) return r->verdict;
+  r->frames += frames; r->ms += dt_ms;
+  if (r->ms < OPENPAW_RATE_CHECK_MS) return 0;
+  float hz = (float)r->frames * 1000.0f / (float)r->ms;
+  float err = (hz - r->hz) / r->hz;
+  r->verdict = (err <= OPENPAW_RATE_CHECK_TOL && err >= -OPENPAW_RATE_CHECK_TOL) ? 1 : -1;
+  return r->verdict;
+}
+
 // st = INT_STATUS_2..FIFO_STATUS read in one burst from 0Bh (0Bh, 0Ch, 0Dh, 0Eh).
 static inline openpaw_fifo_plan_t openpaw_qma_fifo_plan(const uint8_t st[4]) {
   openpaw_fifo_plan_t p;

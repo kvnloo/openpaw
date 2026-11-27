@@ -133,10 +133,21 @@ static bool imu_fifo_read(int16_t *xyz, uint16_t max, uint16_t *n, bool *overrun
 #define IMU_LOW_HZ 12.5f
 #define IMU_FIFO_READ_MS OPENPAW_QMA_FIFO_READ_MS
 #define FIFO_CHUNK 10  // frames per I2C burst: 60 B fits the Wire buffer
-// ODR first, then FIFO_CFG0: writing 3Eh empties the FIFO, so no old-rate frame is left.
+// Still mode runs the sensor at MCLK 12.8 kHz (10 uA instead of 38 uA) if a rate check over
+// its first 4 s agrees; otherwise 51.2 kHz + ODR code 7 for the rest of the boot
+// (openpaw_qma_clock / openpaw_rate_check_* in openpaw_core.h).
+static bool g_qma_slow_ok = true, g_qma_low = false;
+static openpaw_rate_check_t g_qma_rate;
+static uint32_t g_qma_last_ms = 0;
+// Clock, then ODR, then FIFO_CFG0: writing 3Eh empties the FIFO, so no old-rate frame is left.
 static void imu_fifo_restart(bool low) {
-  i2c_write(QMA_ADDR, 0x10, openpaw_qma_odr(low ? IMU_LOW_HZ : IMU_FULL_HZ));
+  openpaw_qma_clock_t c = openpaw_qma_clock(low, g_qma_slow_ok);
+  i2c_write(QMA_ADDR, 0x11, c.pm);
+  i2c_write(QMA_ADDR, 0x10, c.odr);
   i2c_write(QMA_ADDR, 0x3E, OPENPAW_QMA_FIFO_CFG0);
+  g_qma_low = low;
+  openpaw_rate_check_start(&g_qma_rate, low ? IMU_LOW_HZ : IMU_FULL_HZ);
+  g_qma_last_ms = millis();
 }
 static bool imu_begin() {
   pinMode(PIN_ACC_POWER_EN, OUTPUT);
@@ -158,11 +169,11 @@ static bool imu_begin() {
   imu_fifo_restart(false);
   return true;
 }
-// QMA6100P current depends on its master clock, not the ODR (38 uA at MCLK 51.2 kHz,
-// QST datasheet Rev F): still mode only means fewer frames to read.
+// QMA6100P current depends on its master clock, not the ODR (QST datasheet Rev F table 2),
+// so still mode lowers the clock as well as the rate (see imu_fifo_restart).
 static void imu_set_low_rate(bool low) { imu_fifo_restart(low); }
 // Read up to max queued frames (mg, xyz interleaved). false on an I2C error.
-static bool imu_fifo_read(int16_t *xyz, uint16_t max, uint16_t *n, bool *overrun) {
+static bool qma_fifo_drain(int16_t *xyz, uint16_t max, uint16_t *n, bool *overrun) {
   uint8_t st[4], b[6 * FIFO_CHUNK];
   *n = 0; *overrun = false;
   if (!i2c_read(QMA_ADDR, 0x0B, st, 4)) return false;  // INT_STATUS_2 (FIFO_OR) .. FIFO_STATUS
@@ -178,6 +189,18 @@ static bool imu_fifo_read(int16_t *xyz, uint16_t max, uint16_t *n, bool *overrun
       (*n)++;
     }
   }
+  return true;
+}
+static bool imu_fifo_read(int16_t *xyz, uint16_t max, uint16_t *n, bool *overrun) {
+  if (!qma_fifo_drain(xyz, max, n, overrun)) return false;
+  uint32_t now = millis();
+  if (g_qma_low && g_qma_slow_ok && openpaw_rate_check_feed(&g_qma_rate, *n, now - g_qma_last_ms) < 0) {
+    g_qma_slow_ok = false;  // the slow clock did not give 12.5 Hz: back to 51.2 kHz until reboot
+    Serial.println("qma_clock=fallback");
+    imu_fifo_restart(true);
+    return true;
+  }
+  g_qma_last_ms = now;
   return true;
 }
 #endif

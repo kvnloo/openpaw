@@ -316,6 +316,41 @@ int main(int argc, char **argv) {
   const uint8_t qe[6] = {0, 0, 0, 0, 0, 0};  // read past the fill level: all zeroes
   CHECK(openpaw_qma_frame_mg(qe, &mx, &my, &mz) == 0, "all-zero frame (FIFO empty) is not valid");
 
+  // 15c. QMA6100P master clock in Still mode. Datasheet Rev F table 2: current 38/19/10/6 uA
+  // at MCLK 51.2/25.6/12.8/6.4 kHz (any ODR); 9.12 PM 11h = MODE bit 7 + MCLK[3:0] (4 = 51.2,
+  // 6 = 12.8 kHz); 9.11 gives the ODR table "when MCLK is 51.2 kHz". Still mode asks for MCLK
+  // 12.8 kHz with ODR code 5 (50 Hz at 51.2 kHz -> 12.5 Hz if the rate scales with MCLK),
+  // and a rate check falls back to 51.2 kHz + ODR code 7 when the measured rate is off.
+  openpaw_qma_clock_t ck = openpaw_qma_clock(0, 1);
+  CHECK(ck.pm == 0x84 && ck.odr == 0x05 && ck.ua == 38, "Active: PM 0x84 (51.2 kHz), ODR 0x05, 38 uA (%02x %02x %u)",
+        ck.pm, ck.odr, ck.ua);
+  ck = openpaw_qma_clock(1, 1);
+  CHECK(ck.pm == 0x86 && ck.odr == 0x05 && ck.ua == 10, "Still: PM 0x86 (12.8 kHz), ODR 0x05, 10 uA (%02x %02x %u)",
+        ck.pm, ck.odr, ck.ua);
+  ck = openpaw_qma_clock(1, 0);
+  CHECK(ck.pm == 0x84 && ck.odr == 0x07 && ck.ua == 38, "Still after a failed rate check: PM 0x84, ODR 0x07 (%02x %02x)",
+        ck.pm, ck.odr);
+  openpaw_rate_check_t rck;
+  int rv = 0;
+  openpaw_rate_check_start(&rck, 12.5f);
+  for (int i = 0; i < 4; i++) rv = openpaw_rate_check_feed(&rck, 10, 800);
+  CHECK(rv == 0, "3.2 s is too short for a verdict (%d)", rv);
+  rv = openpaw_rate_check_feed(&rck, 10, 800);
+  CHECK(rv == 1, "12.5 Hz over 4 s -> rate ok (%d)", rv);
+  CHECK(openpaw_rate_check_feed(&rck, 40, 800) == 1, "the verdict is sticky once given");
+  openpaw_rate_check_start(&rck, 12.5f);
+  for (int i = 0; i < 5; i++) rv = openpaw_rate_check_feed(&rck, 40, 800);
+  CHECK(rv == -1, "50 Hz when 12.5 Hz was asked (ODR did not scale) -> fall back (%d)", rv);
+  openpaw_rate_check_start(&rck, 12.5f);
+  for (int i = 0; i < 5; i++) rv = openpaw_rate_check_feed(&rck, 0, 800);
+  CHECK(rv == -1, "no frames at all -> fall back (%d)", rv);
+  openpaw_rate_check_start(&rck, 12.5f);
+  for (int i = 0; i < 5; i++) rv = openpaw_rate_check_feed(&rck, 11, 800);
+  CHECK(rv == 1, "13.75 Hz (10%% fast, internal oscillator) -> ok (%d)", rv);
+  openpaw_rate_check_start(&rck, 12.5f);
+  for (int i = 0; i < 5; i++) rv = openpaw_rate_check_feed(&rck, 7, 800);
+  CHECK(rv == -1, "8.75 Hz (30%% slow) -> fall back (%d)", rv);
+
   // a batch gives the same epochs as feeding the samples one by one
   openpaw_state_t sa, sb; openpaw_init(&sa, cfg); openpaw_init(&sb, cfg);
   int16_t xyz[3 * 37]; uint32_t ta = 0, n_rec_a = 0, n_rec_b = 0, mism = 0;

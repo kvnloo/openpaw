@@ -15,7 +15,7 @@ test('the T1000-E block uses the QMA6100P FIFO, not 50 Hz polling', () => {
   assert.match(t1000, /#define IMU_HAS_FIFO 1/);
   assert.doesNotMatch(t1000, /#define IMU_HAS_FIFO 0/);
   assert.match(t1000, /OPENPAW_QMA_FIFO_CFG0/, 'FIFO_CFG0 written from the tested constant');
-  assert.match(t1000, /openpaw_qma_odr\(/, 'ODR from the tested helper');
+  assert.match(t1000, /openpaw_qma_(odr|clock)\(/, 'ODR from a tested helper');
   assert.match(t1000, /openpaw_qma_fifo_plan\(/);
   assert.match(t1000, /openpaw_qma_frame_mg\(/);
   assert.match(t1000, /i2c_read\(QMA_ADDR, 0x0B, st, 4\)/, 'status burst 0Bh..0Eh (FIFO_OR + frame counter)');
