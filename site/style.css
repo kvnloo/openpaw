@@ -360,7 +360,7 @@ input[type=range]:focus-visible { outline: none; } input[type=range]:focus-visib
 .evidence h3 { font-size: 32px; margin-bottom: 14px; }
 .evidence ul { list-style: none; padding: 0; margin: 0; }
 .evidence button { font: inherit; font-size: 13.5px; color: var(--ink); background: none; border: 0; border-bottom: 1px solid var(--line2); width: 100%; text-align: left; padding: 12px 0; cursor: pointer; transition: color .2s, padding .25s; }
-.evidence button:hover, .evidence button:focus-visible { color: var(--gold); padding-left: 6px; outline: none; }
+.evidence button:hover, .evidence button:focus-visible { color: var(--gold); padding-left: 6px; }
 
 /* terminal copy + toast */
 .term-wrap { position: relative; }
