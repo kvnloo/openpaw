@@ -15,8 +15,20 @@ const html = readFileSync(join(root, 'app/track.html'), 'utf8');
 const body = js.slice(js.indexOf('function renderNeeds'), js.indexOf('\n}\n', js.indexOf('function renderNeeds')));
 
 test('ring centre prints the unit under the value when the need has one', () => {
-  assert.match(body, /<em>\$\{fmt\(v\)\}\$\{u \? `<small>\$\{u\}<\/small>` : ''\}<\/em>/,
+  assert.match(body, /<em>\$\{fmt\(v\)\}\$\{r \? `<small>\$\{r\}<\/small>` : ''\}<\/em>/,
     'renderNeeds centre is not value + <small>unit</small>');
+});
+
+test('every ring centre has a unit line, so the four figures share one baseline', () => {
+  // Meals had no unit, so its figure was centred alone ~5 px below the other three.
+  // It counts meals: the ring says "meals", the goal line stays "of 2" (no repeat).
+  const meals = body.match(/\['Meals',[^\]]*\]/);
+  assert.ok(meals, 'no Meals need item');
+  assert.match(meals[0], /, '', [^,]*'meals'\]$/, `Meals ring has no ring unit: ${meals[0]}`);
+  // one meal is "1 meal", not "1 meals"
+  assert.match(meals[0], /=== 1 \? 'meal' : 'meals'\]$/, `Meals ring unit has no singular: ${meals[0]}`);
+  assert.match(body, /\(\[label, v, goal, u, r = u\]\)/, 'items do not take a ring unit that defaults to the goal unit');
+  assert.match(body, /<span>of \$\{goal\}\$\{u \? ' ' \+ u : ''\}<\/span>/, 'goal line no longer uses the goal unit');
 });
 
 test('ring value is a larger sans figure and the unit a small mono label', () => {

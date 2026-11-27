@@ -56,12 +56,12 @@ function renderNeeds() {
     ['Play', get('play').v, n.play_min || 20, 'min'],
     ['Sniff', get('sniff').v, n.sniff_min || 30, 'min'],
     ['Walk', get('walk').v, 45, 'min'],
-    ['Meals', get('meal').n, n.meals || 2, ''],
+    ['Meals', get('meal').n, n.meals || 2, '', get('meal').n === 1 ? 'meal' : 'meals'],
   ];
   const C = 2 * Math.PI * 26;
-  $('#needs').innerHTML = items.map(([label, v, goal, u]) => {
+  $('#needs').innerHTML = items.map(([label, v, goal, u, r = u]) => {
     const f = Math.min(1, goal ? v / goal : 0);
-    return `<div class="card need ${f >= 1 ? 'done' : ''}"><div class="need-wrap"><svg viewBox="0 0 64 64" aria-hidden="true"><circle class="bg" cx="32" cy="32" r="26"/><circle class="fg" cx="32" cy="32" r="26" stroke-dasharray="${C}" stroke-dashoffset="${C}" data-off="${C * (1 - f)}"/><circle class="start" cx="58" cy="32" r="3.5"/></svg><em>${fmt(v)}${u ? `<small>${u}</small>` : ''}</em></div><b>${label}</b><span>of ${goal}${u ? ' ' + u : ''}</span></div>`;
+    return `<div class="card need ${f >= 1 ? 'done' : ''}"><div class="need-wrap"><svg viewBox="0 0 64 64" aria-hidden="true"><circle class="bg" cx="32" cy="32" r="26"/><circle class="fg" cx="32" cy="32" r="26" stroke-dasharray="${C}" stroke-dashoffset="${C}" data-off="${C * (1 - f)}"/><circle class="start" cx="58" cy="32" r="3.5"/></svg><em>${fmt(v)}${r ? `<small>${r}</small>` : ''}</em></div><b>${label}</b><span>of ${goal}${u ? ' ' + u : ''}</span></div>`;
   }).join('');
   requestAnimationFrame(() => requestAnimationFrame(() => document.querySelectorAll('.need .fg').forEach((c) => { c.style.strokeDashoffset = c.dataset.off; })));
   if (!profile) $('#needs').insertAdjacentHTML('afterend', '');
