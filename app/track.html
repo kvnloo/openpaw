@@ -57,7 +57,9 @@
   .need .start { fill:var(--gold); stroke:none; }
   .need.done .start { display:none; }
   .need b { font:600 15px/1 var(--sans); } .need span { font:500 10.5px/1.2 var(--mono); letter-spacing:.06em; text-transform:uppercase; color:var(--mute); text-align:center; }
-  .need-wrap { position:relative; } .need-wrap em { position:absolute; inset:0; display:grid; place-items:center; font:500 13px/1 var(--mono); font-style:normal; color:var(--ink); }
+  .need-wrap { position:relative; } .need-wrap em { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; font:600 18px/1 var(--sans); font-style:normal; color:var(--ink); }
+  /* the ring centre is the day's value with its unit ("0 min"), not a bare figure */
+  .need-wrap em small { font:500 8.5px/1 var(--mono); letter-spacing:.06em; text-transform:uppercase; color:var(--mute); }
 
   /* tracker tiles */
   /* group label on a hairline across the group's width (landing section-divider pattern): groups read as sections */

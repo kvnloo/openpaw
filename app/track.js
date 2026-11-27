@@ -61,7 +61,7 @@ function renderNeeds() {
   const C = 2 * Math.PI * 26;
   $('#needs').innerHTML = items.map(([label, v, goal, u]) => {
     const f = Math.min(1, goal ? v / goal : 0);
-    return `<div class="card need ${f >= 1 ? 'done' : ''}"><div class="need-wrap"><svg viewBox="0 0 64 64" aria-hidden="true"><circle class="bg" cx="32" cy="32" r="26"/><circle class="fg" cx="32" cy="32" r="26" stroke-dasharray="${C}" stroke-dashoffset="${C}" data-off="${C * (1 - f)}"/><circle class="start" cx="58" cy="32" r="3.5"/></svg><em>${fmt(v)}</em></div><b>${label}</b><span>of ${goal}${u ? ' ' + u : ''}</span></div>`;
+    return `<div class="card need ${f >= 1 ? 'done' : ''}"><div class="need-wrap"><svg viewBox="0 0 64 64" aria-hidden="true"><circle class="bg" cx="32" cy="32" r="26"/><circle class="fg" cx="32" cy="32" r="26" stroke-dasharray="${C}" stroke-dashoffset="${C}" data-off="${C * (1 - f)}"/><circle class="start" cx="58" cy="32" r="3.5"/></svg><em>${fmt(v)}${u ? `<small>${u}</small>` : ''}</em></div><b>${label}</b><span>of ${goal}${u ? ' ' + u : ''}</span></div>`;
   }).join('');
   requestAnimationFrame(() => requestAnimationFrame(() => document.querySelectorAll('.need .fg').forEach((c) => { c.style.strokeDashoffset = c.dataset.off; })));
   if (!profile) $('#needs').insertAdjacentHTML('afterend', '');
