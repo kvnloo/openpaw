@@ -607,6 +607,53 @@ test('c-see-first card: start the treats once he has seen the person, not before
   assert.ok(c.examples.some((e) => /estimate|not readable/i.test(e.label)), 'distances from frames are flagged as estimates');
 });
 
+test('c-muzzle card: a muzzle is taught with food in small steps the dog chooses, not buckled on for the first walk; cites the owner survey with its numbers and its limits', async () => {
+  const c = CARDS.find((x) => x.id === 'c-muzzle');
+  assert.ok(c, 'c-muzzle card exists');
+  assert.equal(c.lesson, 'consent', 'the dog puts his own nose in: a consent skill');
+  assert.match(c.context, /muzzle/i);
+  assert.match(c.context, /people|stranger/i, 'stranger-directed reactivity is the reason for the muzzle');
+  const { askFor, DEFAULT_ASK } = await import('../learn-content.js');
+  assert.notEqual(askFor(c), DEFAULT_ASK, 'an action card');
+  assert.match(askFor(c), /\b(do|start|next)\b.*\?$/i);
+  const right = c.choices[c.answer];
+  assert.match(right, /food|treat/i);
+  assert.match(right, /own nose|nose in/i, 'he puts his own nose in');
+  assert.match(right, /days|weeks/i, 'over days or weeks');
+  assert.match(right, /back a step|step back/i, 'pawing at it means go back a step');
+  assert.ok(c.choices.some((x, i) => i !== c.answer && /buckle|strap/i.test(x) && /walk/i.test(x) && !/food|treat/i.test(x)), 'a distractor: buckle it on for a walk without training');
+  assert.ok(c.choices.some((x, i) => i !== c.answer && /bark/i.test(x)), 'a distractor: muzzle as a consequence for barking');
+  assert.ok(c.choices.some((x, i) => i !== c.answer && /closer|close/i.test(x)), 'a distractor: the muzzle lets you go closer');
+  const slug = 'arhant2020-owner-reports-on-the-use-of-muzzles-and-their-effects';
+  assert.deepEqual(c.evidence, [slug, 'avsab2021-position-statement-on-humane-dog-training']);
+  assert.ok(c.sources.includes(SRC.arhant2020) && c.sources.includes(SRC.avsabHumane));
+  assert.equal(SRC.arhant2020, 'https://doi.org/10.1016/j.jveb.2020.07.006');
+  // Arhant 2020 full text: 1,862 dogs; 65.3% pawed at the muzzle the first time; habituation
+  // without food went with more pawing, weeks of training with treats with less; 12.9% physical damage.
+  assert.match(c.explain, /1,862/);
+  assert.match(c.explain, /65%/);
+  assert.match(c.explain, /12\.9%|13%/);
+  assert.match(c.explain, /survey|owners reported/i);
+  assert.match(c.explain, /cannot show cause|not a trial/i, 'states the survey limit');
+  assert.match(c.explain, /pant|drink/i, 'fit: room to pant and drink');
+  assert.match(c.explain, /distance/i, 'a muzzle does not replace distance');
+  assert.match(c.explain, /reward-based/i);
+  assert.match(c.explain, /consultant/i);
+  assert.doesNotMatch(c.explain, /proven|always works|guarantee|cure|stress score|is happy|is dominant/i);
+  assert.ok(Array.isArray(c.examples) && c.examples.length >= 2);
+  for (const e of c.examples) {
+    assert.match(e.url, /^https:\/\/www\.youtube\.com\/watch\?v=WSOaL5rfBp8&t=\d+s$/, e.url);
+    assert.match(e.label, /\(\d+:\d\d( to \d+:\d\d)?/);
+    assert.doesNotMatch(e.label, /scared|afraid|fearful|stress|nervous|anxious|happy/i, 'visible facts only');
+  }
+  assert.ok(c.examples.some((e) => /hungry|meal|withh/i.test(e.label) && /not (recommended|part)/i.test(e.label)), 'the clip\u2019s meal-withholding step is flagged, not taught');
+  const { readFileSync } = await import('node:fs');
+  const card = readFileSync(new URL(`../../docs/evidence/cards/${slug}.md`, import.meta.url), 'utf8');
+  assert.match(card, /^doi: "10\.1016\/j\.jveb\.2020\.07\.006"$/m);
+  assert.match(card, /^n_dogs: 1862$/m);
+  assert.match(card, /^design: "cross-sectional"$/m);
+});
+
 test('all registered sources are used and named', () => {
   const used = new Set([...LESSONS.flatMap((l) => l.sources), ...CARDS.flatMap((c) => c.sources)]);
   for (const u of Object.values(SRC)) assert.ok(used.has(u), `unused source ${u}`);
