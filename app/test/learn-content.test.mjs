@@ -654,6 +654,56 @@ test('c-muzzle card: a muzzle is taught with food in small steps the dog chooses
   assert.match(card, /^design: "cross-sectional"$/m);
 });
 
+test('c-toss-away card: a dog who will not come close to eat gets the food tossed and the person steps back; cites the ASPCA fearful-dog programme with its numbers and its limits', async () => {
+  const c = CARDS.find((x) => x.id === 'c-toss-away');
+  assert.ok(c, 'c-toss-away card exists');
+  assert.equal(c.lesson, 'consent', 'he chooses how close to come: a consent skill');
+  assert.equal(c.art.prop, 'person', 'stranger-directed: the trigger is a person');
+  assert.match(c.context, /visitor|person|stranger/i);
+  assert.match(c.context, /(will not|won\u2019t|won't) come/i, 'he keeps his distance');
+  assert.match(c.context, /leave|gone|walk(s)? away/i, 'he eats once the person has gone');
+  const { askFor, DEFAULT_ASK } = await import('../learn-content.js');
+  assert.notEqual(askFor(c), DEFAULT_ASK, 'an action card');
+  assert.match(askFor(c), /\b(do|help|next)\b.*\?$/i);
+  const right = c.choices[c.answer];
+  assert.match(right, /toss/i);
+  assert.match(right, /steps? back|moves? away|walks? away/i, 'the person makes the distance, not the dog');
+  assert.match(right, /short/i, 'short sessions');
+  assert.match(right, /choose|chooses/i, 'he chooses to come closer');
+  assert.ok(c.choices.some((x, i) => i !== c.answer && /hold/i.test(x) && /come to you|until he comes/i.test(x)), 'a distractor: hold it out until he comes to you');
+  assert.ok(c.choices.some((x, i) => i !== c.answer && /pick him up|carry|lift/i.test(x)), 'a distractor: carry him over to the person');
+  assert.ok(c.choices.some((x, i) => i !== c.answer && /hungr|skip|meal/i.test(x)), 'a distractor: withhold food so he comes in');
+  const slug = 'collins2022-behavioral-rehabilitation-of-extremely-fearful-dogs-report-on';
+  assert.deepEqual(c.evidence, [slug, 'pedretti2023-appeasement-function-of-displacement-behaviours-dogs-behavioural-displays', 'avsab2021-position-statement-on-humane-dog-training']);
+  for (const s of [SRC.collins2022, SRC.pedretti2023, SRC.avsabHumane]) assert.ok(c.sources.includes(s), s);
+  assert.equal(SRC.collins2022, 'https://doi.org/10.1016/j.applanim.2022.105689');
+  // Collins et al. 2022 full text: 441 dogs; 86% (380/441) graduated; mean 78 sessions over 96 days;
+  // 15-minute sessions 5 days a week; immediate-onset dogs had improved more by evaluation 2 than delayed-onset
+  // dogs; no untreated control; vet-behaviourist medication was part of the programme.
+  assert.match(c.explain, /441/);
+  assert.match(c.explain, /86%/);
+  assert.match(c.explain, /78/);
+  assert.match(c.explain, /15[- ]minute/i);
+  assert.match(c.explain, /no (untreated )?control|not a trial/i, 'states the design limit');
+  assert.match(c.explain, /medication/i, 'states the medication confound');
+  assert.match(c.explain, /vet/i);
+  assert.match(c.explain, /trainer/i, 'treat and retreat is a trainer method, stated as such');
+  assert.match(c.explain, /reward-based/i);
+  assert.match(c.explain, /consultant/i);
+  assert.doesNotMatch(c.explain, /proven|always works|guarantee|cure|stress score|is happy|is dominant/i);
+  assert.ok(Array.isArray(c.examples) && c.examples.length >= 2);
+  for (const e of c.examples) {
+    assert.match(e.url, /^https:\/\/www\.youtube\.com\/watch\?v=35rjr6UOGFM&t=\d+s$/, e.url);
+    assert.match(e.label, /\(\d+:\d\d( to \d+:\d\d)?/);
+    assert.doesNotMatch(e.label, /scared|afraid|fearful|stress|nervous|anxious|happy/i, 'visible facts only');
+  }
+  assert.ok(c.examples.some((e) => /not readable|uploader|caption/i.test(e.label)), 'claims from the description, not the frames, are flagged');
+  const { readFileSync } = await import('node:fs');
+  const card = readFileSync(new URL(`../../docs/evidence/cards/${slug}.md`, import.meta.url), 'utf8');
+  assert.match(card, /^doi: "10\.1016\/j\.applanim\.2022\.105689"$/m);
+  assert.match(card, /^n_dogs: 441$/m, 'n filled in from the full text');
+});
+
 test('all registered sources are used and named', () => {
   const used = new Set([...LESSONS.flatMap((l) => l.sources), ...CARDS.flatMap((c) => c.sources)]);
   for (const u of Object.values(SRC)) assert.ok(used.has(u), `unused source ${u}`);
