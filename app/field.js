@@ -14,7 +14,7 @@ import { stoodUpFrom } from './stood-up.js';
 import { SESSION_SIGNS, sessionAdvice, sessionCheckPayload } from './session-check.js';
 import { refusalPayload, refusalText } from './walk-refusal.js';
 import { contextExtra } from './context-tag.js';
-import { CHAIN_SLOTS } from './field-chain.js';
+import { CHAIN_SLOTS, chipsThatFit } from './field-chain.js';
 
 const $ = (id) => document.getElementById(id);
 const SOURCE = 'openpaw-field';
@@ -108,6 +108,17 @@ function hud(tone_, glyph, text, sub, holdMs = 0) {
 }
 
 // ---------------------------------------------------------------- render
+// One line of chips: hidden chips (dropped as the oldest that don't fit) are measured again on
+// resize, so a wider screen shows them again. The Log panel keeps every mark.
+function fitChain() {
+  const row = $('chain');
+  const chips = [...row.children];
+  chips.forEach((s) => { s.hidden = false; });
+  if (chips.length < 2) return;
+  const gap = parseFloat(getComputedStyle(row).columnGap) || 0;
+  const first = chipsThatFit(chips.map((s) => s.getBoundingClientRect().width), gap, row.clientWidth);
+  chips.forEach((s, i) => { s.hidden = i < first; });
+}
 const CHAIN_LABEL = (c) => (c.act === 'trigger' ? `Trigger ${c.band ? BAND_LABEL[c.band] : '?'}` : ACTS[c.act]?.label || c.act);
 function render() {
   const st = $('status');
@@ -137,6 +148,7 @@ function render() {
     $('timer').textContent = '0:00';
     CHAIN_SLOTS.forEach((t) => { const s = document.createElement('span'); s.className = 'slot'; s.setAttribute('aria-hidden', 'true'); s.textContent = t; $('chain').append(s); });
   }
+  fitChain();
   $('btnUndo').disabled = !walkLog.length;
   renderLog();
   renderEpisode();
@@ -608,5 +620,6 @@ dog = await S.dogId();
 ep = (await S.getMeta(EP_KEY)) || null;
 if (ep && Date.now() - ep.start > 6 * 3600 * 1000) { ep = null; await persistEpisode(); } // stale (forgotten) episode
 window.addEventListener('resize', drawSpark);
+window.addEventListener('resize', fitChain);
 render(); tick(); setInterval(tick, 250);
 window.OpenPawField = { mark, parseSpeech, state: () => ({ episode: ep, lastDone, logged: walkLog.length }) };
