@@ -1,12 +1,13 @@
 // Bench: the analytics work of one collar-page render, reference vs candidate collar-analytics.js,
 // alternating ABAB arms.
-// usage: node tools/bench-collar.mjs <ref/collar-analytics.js> <cand/collar-analytics.js> [--gate 0.7] [--rounds 7]
+// usage: node tools/bench-collar.mjs <ref/collar-analytics.js> <cand/collar-analytics.js> [--gate 0.7] [--gate-size 7d|14d|30d|bursty] [--rounds 7]
 // The collar page re-renders on every live record (every 5 s) and each render runs summary(),
 // circadian(), dayBudget(7 days) and burstEvents() over every stored epoch. Inputs are simulated
 // 5 s epochs (demoWeek, stepS 5, seeds 3,5,9) covering 7, 14 and 30 days; the "bursty" size marks
 // every vigorous epoch of a 7-day history as a burst (a dog with many reactions). Every output is
 // compared between the arms: any difference is an error and the run exits 1. With --gate R it also
-// exits 1 unless the 7-day candidate median is <= R x the reference median.
+// exits 1 unless the candidate median is <= R x the reference median for the --gate-size history
+// (default 7d).
 // SPDX-License-Identifier: GPL-3.0-only
 import { pathToFileURL } from 'node:url';
 import { resolve } from 'node:path';
@@ -16,6 +17,8 @@ const flag = (name, dflt) => { const i = args.indexOf(name); return i >= 0 ? Num
 const [refPath, candPath] = args.filter((a, i) => !a.startsWith('--') && !(i > 0 && args[i - 1].startsWith('--')));
 if (!refPath || !candPath) { console.error('usage: node tools/bench-collar.mjs <ref/collar-analytics.js> <cand/collar-analytics.js> [--gate R] [--rounds N]'); process.exit(2); }
 const gate = flag('--gate', null), rounds = flag('--rounds', 7);
+const gateSize = args.includes('--gate-size') ? args[args.indexOf('--gate-size') + 1] : '7d';
+if (!['7d', '14d', '30d', 'bursty'].includes(gateSize)) { console.error(`--gate-size must be 7d, 14d, 30d or bursty, not ${gateSize}`); process.exit(2); }
 const load = (p) => import(pathToFileURL(resolve(p)).href + `?arm=${encodeURIComponent(p)}`);
 const A = await load(refPath), B = await load(candPath);
 const NOW = Date.UTC(2026, 10, 20, 15, 4, 7), TZ = 360, seeds = [3, 5, 9];
@@ -52,5 +55,5 @@ for (const [name, eps] of Object.entries(sets)) {
 }
 console.log(JSON.stringify(out, null, 1));
 let fail = out.error_count > 0;
-if (gate !== null && !(out.sizes['7d'].ratio <= gate)) { console.error(`gate: 7-day ratio ${out.sizes['7d'].ratio} > ${gate}`); fail = true; }
+if (gate !== null && !(out.sizes[gateSize].ratio <= gate)) { console.error(`gate: ${gateSize} ratio ${out.sizes[gateSize].ratio} > ${gate}`); fail = true; }
 process.exit(fail ? 1 : 0);
