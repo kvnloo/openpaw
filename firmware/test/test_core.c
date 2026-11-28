@@ -499,6 +499,56 @@ int main(int argc, char **argv) {
         "the rest of the batch starts the next epoch (used %u, n %u)", used, sc.n);
   CHECK(openpaw_push_batch(&sc, flat, 0, 20300, 0, 80, 0, &rc, &used) == 0 && used == 0, "empty batch is a no-op");
 
+  // Chest strap read by the collar itself (BLE central): Heart Rate Measurement 0x2A37
+  // parsed exactly like app/openpaw-ble.js parseHeartRate (same vectors as decode.test.mjs).
+  {
+    openpaw_hrm_t m;
+    const uint8_t v8[] = {0x16, 92, 666 & 0xff, 666 >> 8, 700 & 0xff, 700 >> 8};
+    CHECK(openpaw_hrm_parse(v8, sizeof v8, &m) == 1 && m.bpm == 92 && m.contact == 1 && m.n_rr == 2 &&
+              m.rr_1024[0] == 666 && m.rr_1024[1] == 700,
+          "8-bit HR + contact + 2 RR (bpm %u contact %d n_rr %u)", m.bpm, m.contact, m.n_rr);
+    const uint8_t v16[] = {0x01, 0x2c, 0x01};
+    CHECK(openpaw_hrm_parse(v16, sizeof v16, &m) == 1 && m.bpm == 300 && m.contact == -1 && m.n_rr == 0,
+          "16-bit HR, contact not supported (bpm %u contact %d)", m.bpm, m.contact);
+    const uint8_t ve[] = {0x18, 80, 0x10, 0x00, 0x00, 0x04, 0x07};  // energy skipped, odd trailing byte ignored
+    CHECK(openpaw_hrm_parse(ve, sizeof ve, &m) == 1 && m.bpm == 80 && m.n_rr == 1 && m.rr_1024[0] == 1024,
+          "energy field skipped, RR after it (n_rr %u rr0 %u)", m.n_rr, m.rr_1024[0]);
+    const uint8_t t16[] = {0x01, 0x2c}, te[] = {0x08, 80, 0x10};
+    CHECK(openpaw_hrm_parse(v8, 0, &m) == 0 && openpaw_hrm_parse(v8, 1, &m) == 0 &&
+              openpaw_hrm_parse(t16, sizeof t16, &m) == 0 && openpaw_hrm_parse(te, sizeof te, &m) == 0,
+          "truncated packets are refused");
+    uint8_t many[2 + 2 * 12]; many[0] = 0x10; many[1] = 70;
+    for (int i = 0; i < 12; i++) { many[2 + 2 * i] = (uint8_t)(i + 1); many[3 + 2 * i] = 3; }
+    CHECK(openpaw_hrm_parse(many, sizeof many, &m) == 1 && m.n_rr == OPENPAW_HRM_MAX_RR &&
+              m.rr_1024[OPENPAW_HRM_MAX_RR - 1] == (uint16_t)(OPENPAW_HRM_MAX_RR | 0x300),
+          "RR list capped at %d without overflow (n_rr %u)", OPENPAW_HRM_MAX_RR, m.n_rr);
+
+    // one epoch's hr_bpm = rounded mean of the beats-per-minute notified during it
+    openpaw_hr_t h; openpaw_hr_init(&h);
+    CHECK(openpaw_hr_take(&h) == 0, "no strap -> hr_bpm 0");
+    const uint8_t a92[] = {0x06, 92}, a96[] = {0x06, 96}, a101[] = {0x06, 101};
+    openpaw_hrm_parse(a92, 2, &m); openpaw_hr_feed(&h, &m);
+    openpaw_hrm_parse(a96, 2, &m); openpaw_hr_feed(&h, &m);
+    openpaw_hrm_parse(a101, 2, &m); openpaw_hr_feed(&h, &m);
+    CHECK(openpaw_hr_take(&h) == 96, "mean of 92/96/101 rounds to 96");
+    CHECK(openpaw_hr_take(&h) == 0, "the next epoch with no notification -> 0 (no stale value carried)");
+    const uint8_t off[] = {0x04, 70}, zero[] = {0x00, 0};
+    openpaw_hrm_parse(off, 2, &m); openpaw_hr_feed(&h, &m);
+    openpaw_hrm_parse(zero, 2, &m); openpaw_hr_feed(&h, &m);
+    CHECK(openpaw_hr_take(&h) == 0, "contact lost or 0 bpm is never logged as a heart rate");
+    openpaw_hrm_parse(v16, sizeof v16, &m); openpaw_hr_feed(&h, &m);
+    CHECK(openpaw_hr_take(&h) == 255, "above 255 bpm saturates (uint8 record field)");
+
+    // the epoch record carries it and sets HR_VALID; with no strap the flag stays clear
+    openpaw_state_t sh; openpaw_init(&sh, cfg); openpaw_record_t rh;
+    openpaw_hrm_parse(a92, 2, &m); openpaw_hr_feed(&h, &m);
+    uint8_t bpm = openpaw_hr_take(&h);
+    for (int i = 0; i < 250; i++) openpaw_push(&sh, 0, 0, 1000, 5, bpm, 80, 0, &rh);
+    CHECK(rh.hr_bpm == 92 && (rh.flags & OPENPAW_FLAG_HR_VALID), "record hr_bpm %u flags 0x%02x", rh.hr_bpm, rh.flags);
+    for (int i = 0; i < 250; i++) openpaw_push(&sh, 0, 0, 1000, 10, openpaw_hr_take(&h), 80, 0, &rh);
+    CHECK(rh.hr_bpm == 0 && !(rh.flags & OPENPAW_FLAG_HR_VALID), "no strap -> no HR_VALID");
+  }
+
   if (argc > 1) {  // golden vectors for app/test: hex packet + expected decoded fields
     FILE *f = fopen(argv[1], "w");
     if (!f) { perror("golden"); return 2; }
