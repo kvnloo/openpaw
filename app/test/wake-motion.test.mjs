@@ -37,14 +37,35 @@ test('POWER.md says why longer FIFO drains alone save little (same bytes on the 
   assert.match(todo, /same (number of )?bytes/i);
 });
 
-test('POWER.md documents the no-sample Still record (flag 0x20, -128 posture) and that nothing writes it yet', () => {
-  assert.match(todo, /openpaw_nosample_epoch/);
-  assert.match(todo, /`0x20`/);
-  assert.match(todo, /-128/);
-  assert.match(todo, /device\.no_sample/);
-  assert.match(todo, /no firmware writes it yet/i);
-  assert.doesNotMatch(todo, /needs its own record design \(flagged, never mistaken for a measured epoch\) before/);
-  assert.doesNotMatch(ino, /openpaw_nosample_epoch\s*\(/, 'the sketch does not write no-sample records yet');
+test('POWER.md documents the no-sample Still record (flag 0x20, -128 posture) and Quiet mode', () => {
+  assert.match(power, /openpaw_nosample_epoch/);
+  assert.match(power, /`0x20`/);
+  assert.match(power, /-128/);
+  assert.match(power, /device\.no_sample/);
+  assert.doesNotMatch(power, /no firmware writes it yet/i);
+  assert.match(power, /\*\*Quiet\*\*/, 'Quiet is a row in the Modes table');
+  assert.match(power, /openpaw_quiet_step/);
+  assert.match(power, /check epoch/i);
+  assert.match(power, /wake_pin=fallback/);
+});
+
+// XIAO block of the sketch (between "#if BOARD_XIAO_SENSE" and its "#endif")
+const xiao = ino.slice(ino.indexOf('#if BOARD_XIAO_SENSE\n// LSM6DS3TR-C'), ino.indexOf('#if BOARD_T1000E\n// QMA6100P'));
+const t1000 = ino.slice(ino.indexOf('#if BOARD_T1000E\n// QMA6100P'), ino.indexOf('#ifndef IMU_FIFO_READ_MS'));
+
+test('XIAO Quiet mode: latched wake-up on INT1 read with digitalRead, never attachInterrupt', () => {
+  assert.ok(xiao.length > 100 && t1000.length > 100, 'board blocks found');
+  assert.match(xiao, /#define IMU_WAKE_PIN PIN_LSM6DS3TR_C_INT1/);
+  assert.doesNotMatch(t1000, /IMU_WAKE_PIN/, 'T1000-E has no wake pin yet (QMA6100P any-motion is a follow-up)');
+  assert.match(xiao, /i2c_write\(LSM_ADDR, 0x58, OPENPAW_LSM_TAP_CFG_WAKE\)/, 'TAP_CFG: interrupts on + latch');
+  assert.match(xiao, /i2c_write\(LSM_ADDR, 0x5B, OPENPAW_LSM_WAKE_THS\)/);
+  assert.match(xiao, /i2c_write\(LSM_ADDR, 0x5E, on \? OPENPAW_LSM_MD1_INT1_WU : 0\)/, 'wake-up routed to INT1 only in Quiet');
+  assert.match(xiao, /i2c_read\(LSM_ADDR, 0x1B,/, 'WAKE_UP_SRC read clears the latch');
+  assert.match(ino, /digitalRead\(IMU_WAKE_PIN\)/);
+  assert.match(ino, /openpaw_quiet_init\(&g_quiet, IMU_HAS_WAKE_PIN\)/);
+  assert.match(ino, /openpaw_quiet_step\(/);
+  assert.match(ino, /openpaw_nosample_epoch\s*\(/, 'quiet epochs are written as no-sample records');
+  assert.match(ino, /wake_pin=fallback/);
 });
 
 test('the sketch does not use attachInterrupt (GPIOTE IN channel = +15 µA asleep)', () => {
