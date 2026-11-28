@@ -857,6 +857,61 @@ test('c-look-back card: a calm look at a far dog and a quick turn back means thi
   assert.ok(c.examples.some((e) => /out of shot/i.test(e.label)), 'says when the trigger is not on camera');
 });
 
+test('c-small-signs card: several small signs close together on a hard walk, no bark; read them together and make the walk easier; one sign alone is a clue, not proof; cites the 10-dog lab study and the 9-dog therapy pilot with their limits', async () => {
+  const c = CARDS.find((x) => x.id === 'c-small-signs');
+  assert.ok(c, 'c-small-signs card exists');
+  assert.equal(c.lesson, 'whole-dog');
+  assert.equal(c.art.mouth, 'lick');
+  assert.match(c.context, /lick/i);
+  assert.match(c.context, /yawn/i);
+  assert.match(c.context, /still/i, 'a short freeze');
+  assert.match(c.context, /pant/i);
+  assert.match(c.context, /sniff/i);
+  assert.match(c.context, /cool/i, 'panting is not explained by heat');
+  assert.match(c.context, /(not|no|hasn\u2019t|has not) bark/i, 'no big reaction');
+  const { askFor, DEFAULT_ASK } = await import('../learn-content.js');
+  assert.notEqual(askFor(c), DEFAULT_ASK, 'an action card');
+  const right = c.choices[c.answer];
+  assert.match(right, /together/i, 'read the cluster');
+  assert.match(right, /quieter|space/i, 'make it easier now');
+  assert.match(right, /short/i);
+  assert.match(right, /write|note/i, 'record it for the consultant');
+  assert.ok(c.choices.some((x, i) => i !== c.answer && /not barking|fine/i.test(x)), 'a distractor: no bark means fine');
+  assert.ok(c.choices.some((x, i) => i !== c.answer && /used to it/i.test(x)), 'a distractor: push on');
+  assert.ok(c.choices.some((x, i) => i !== c.answer && /tell him off|pull him/i.test(x)), 'a distractor: punish the stop');
+  const beerda = 'beerda1998-behavioural-saliva-cortisol-and-heart-rate-responses-to';
+  const clark = 'clark2020-therapy-dogs-and-handlers-behavior-and-salivary-cortisol';
+  assert.deepEqual(c.evidence, [beerda, clark, 'avsab2021-position-statement-on-humane-dog-training']);
+  assert.ok(c.sources.includes(SRC.beerda1997) && c.sources.includes(SRC.clark2020) && c.sources.includes(SRC.avsabHumane));
+  // Beerda et al. 1998 (PDF read): 10 dogs, six stimuli; restraint and an opening umbrella, given visibly by a person,
+  // brought restlessness, a moderate lowering of the posture, oral behaviours (tongue out, snout licking) and, to a
+  // lesser extent, yawning, with no cortisol rise; sudden sounds brought a very low posture in some dogs with cortisol
+  // rises; no behaviour correlated with cortisol or heart rate; large individual variation.
+  assert.match(c.explain, /10 dogs/);
+  assert.match(c.explain, /lick/i);
+  assert.match(c.explain, /yawn/i);
+  assert.match(c.explain, /no (clear )?link|did not (match|line up)/i, 'no single sign tracked the body measures');
+  // Clark et al. 2020 (PubMed abstract read): nine therapy dog teams, three hospital visits; panting, lip licking and
+  // yawning were the three most reported behaviours; cortisol did not differ pre vs post visit; handler-perceived
+  // stress correlated with the dog's cortisol (P = 0.02).
+  assert.match(c.explain, /nine therapy dogs/i);
+  assert.match(c.explain, /clue/i, 'one sign is a clue, not proof');
+  assert.match(c.explain, /AVSAB/);
+  assert.match(c.explain, /reward-based/i);
+  assert.match(c.explain, /consultant/i);
+  assert.doesNotMatch(c.explain, /proven|always works|guarantee|cure|stress score|is happy|is dominant/i);
+  assert.ok(Array.isArray(c.examples) && c.examples.length >= 3);
+  for (const e of c.examples) {
+    assert.match(e.url, /^https:\/\/www\.youtube\.com\/watch\?v=6o5pZ0hXq_E&t=\d+s$/, e.url);
+    assert.match(e.label, /\(\d+:\d\d( to \d+:\d\d)?/);
+    assert.doesNotMatch(e.label, /scared|afraid|fearful|stress|nervous|anxious|happy/i, 'visible facts only');
+  }
+  assert.ok(c.examples.some((e) => /out of shot|no person or dog in view/i.test(e.label)), 'says when no trigger is on camera');
+  const { readFileSync } = await import('node:fs');
+  const card = readFileSync(new URL(`../../docs/evidence/cards/${clark}.md`, import.meta.url), 'utf8');
+  assert.match(card, /^main_finding: .*[Pp]anting, lip licking and yawning/m);
+});
+
 test('all registered sources are used and named', () => {
   const used = new Set([...LESSONS.flatMap((l) => l.sources), ...CARDS.flatMap((c) => c.sources)]);
   for (const u of Object.values(SRC)) assert.ok(used.has(u), `unused source ${u}`);
