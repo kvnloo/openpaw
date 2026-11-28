@@ -27,8 +27,34 @@ function jpegSize(buf) {
   throw new Error('no SOF marker');
 }
 
+// WebP (VP8 lossy) pixel size from the frame header: 'RIFF' .... 'WEBP' 'VP8 ' ... start code 9d 01 2a, then 14-bit width/height.
+function webpSize(buf) {
+  assert.equal(buf.toString('ascii', 0, 4), 'RIFF');
+  assert.equal(buf.toString('ascii', 8, 12), 'WEBP');
+  assert.equal(buf.toString('ascii', 12, 16), 'VP8 ', 'lossy VP8 chunk expected');
+  assert.deepEqual([...buf.subarray(23, 26)], [0x9d, 0x01, 0x2a]);
+  return [buf.readUInt16LE(26) & 0x3fff, buf.readUInt16LE(28) & 0x3fff];
+}
+
 test('landing uses at least the four known photos', () => {
-  for (const f of ['hero-exploded.jpg', 'app-demo.jpg', 'dog-night.jpg', 'walk-field.jpg']) assert.ok(used.includes(f), f);
+  for (const f of ['hero-exploded', 'app-demo', 'dog-night', 'walk-field']) assert.ok(used.some((u) => u.startsWith(f + '.')), f);
+});
+
+// The page draws WebP (smaller at the same SSIM to the original photo); the jpg stays only as og:image for link previews.
+test('the page draws every photo as WebP (og:image excepted)', () => {
+  const page = html.replace(/<meta property="og:image"[^>]*>/, '') + css;
+  const drawn = [...page.matchAll(/img\/([\w-]+\.(?:jpe?g|png|webp|avif))/g)].map((m) => m[1]);
+  assert.ok(drawn.length >= 4);
+  assert.deepEqual(drawn.filter((f) => !f.endsWith('.webp')), []);
+});
+
+test('<img> width/height attributes match the WebP pixel size', () => {
+  const imgs = [...html.matchAll(/<img\s[^>]*src="img\/([\w-]+\.webp)"[^>]*>/g)];
+  assert.ok(imgs.length >= 3);
+  for (const m of imgs) {
+    const w = +m[0].match(/\swidth="(\d+)"/)[1], h = +m[0].match(/\sheight="(\d+)"/)[1];
+    assert.deepEqual([w, h], webpSize(readFileSync(join(root, 'site/img', m[1]))), m[1]);
+  }
 });
 
 test('each landing photo is <= 150 KB', () => {
