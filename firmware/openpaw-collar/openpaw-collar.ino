@@ -190,6 +190,28 @@ static bool imu_begin() {
 // QMA6100P current depends on its master clock, not the ODR (QST datasheet Rev F table 2),
 // so still mode lowers the clock as well as the rate (see imu_fifo_restart).
 static void imu_set_low_rate(bool low) { imu_fifo_restart(low); }
+// Quiet mode (openpaw_quiet_step in openpaw_core.h): the CPU stops draining the FIFO, the
+// sensor keeps running at its Still rate, and its any-motion interrupt is latched on INT1
+// (P1.02, Seeed variant.h PIN_ACC_INTERRUPT), which the loop reads with digitalRead once
+// per epoch: no GPIOTE channel (docs/POWER.md). INT_RD_CLR stays off, so a check epoch's
+// FIFO status reads (0Bh..0Eh) leave the latch set; only reading 09h clears it.
+#define IMU_WAKE_PIN PIN_ACC_INTERRUPT
+#define IMU_HAS_WAKE_PIN 1
+static void imu_quiet(bool on) {
+  uint8_t v = 0;
+  if (i2c_read(QMA_ADDR, 0x20, &v, 1)) i2c_write(QMA_ADDR, 0x20, openpaw_qma_intpin(v));  // INT1 push-pull, active high
+  if (i2c_read(QMA_ADDR, 0x21, &v, 1)) i2c_write(QMA_ADDR, 0x21, openpaw_qma_int_cfg(v));  // latched, INT_RD_CLR off
+  i2c_write(QMA_ADDR, 0x2E, OPENPAW_QMA_ANY_MOT_TH);   // MOTION_CFG2: 125 mg at +/-8 g
+  i2c_write(QMA_ADDR, 0x2C, OPENPAW_QMA_ANY_MOT_DUR);  // MOTION_CFG0: one sample is enough
+  i2c_write(QMA_ADDR, 0x2F, 0x00);                     // MOTION_CFG3: any-motion input is the slope
+  i2c_write(QMA_ADDR, 0x18, on ? OPENPAW_QMA_INT_EN2_ANY : 0);    // INT_EN2: any-motion X/Y/Z only in Quiet
+  i2c_write(QMA_ADDR, 0x1A, on ? OPENPAW_QMA_INT1_MAP1_ANY : 0);  // INT1_MAP1: any-motion on INT1 only in Quiet
+  i2c_read(QMA_ADDR, 0x09, &v, 1);                     // INT_STATUS_0: reading it clears an old latch
+}
+static bool imu_wake_pin() {
+  pinMode(IMU_WAKE_PIN, INPUT);  // push-pull, active high (INTPIN_CONF set above)
+  return digitalRead(IMU_WAKE_PIN) == HIGH;
+}
 // Read up to max queued frames (mg, xyz interleaved). false on an I2C error.
 static bool qma_fifo_drain(int16_t *xyz, uint16_t max, uint16_t *n, bool *overrun) {
   uint8_t st[4], b[6 * FIFO_CHUNK];
@@ -225,10 +247,8 @@ static bool imu_fifo_read(int16_t *xyz, uint16_t max, uint16_t *n, bool *overrun
 #ifndef IMU_FIFO_READ_MS
 #define IMU_FIFO_READ_MS OPENPAW_FIFO_READ_MS
 #endif
-#ifndef IMU_HAS_WAKE_PIN  // T1000-E: QMA6100P any-motion not wired yet, so Quiet mode stays off
-#define IMU_HAS_WAKE_PIN 0
-static void imu_quiet(bool on) { (void)on; }
-static bool imu_wake_pin() { return false; }
+#ifndef IMU_HAS_WAKE_PIN
+#error "Quiet mode needs a latched accelerometer wake pin: every board defines imu_quiet() and imu_wake_pin()"
 #endif
 #if !IMU_HAS_FIFO
 #error "the main loop drains the IMU FIFO: every board needs imu_fifo_read()"
