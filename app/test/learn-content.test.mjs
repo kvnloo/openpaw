@@ -1060,6 +1060,49 @@ test('c-stand-up card: a dog who barks when a seated visitor gets up is taught t
   assert.ok(c.examples.some((e) => /trainer (says|describes)/i.test(e.label)), 'the barking and the next stage are the trainer\u2019s words');
 });
 
+test('c-missed-treat card: when a helper\u2019s tossed treat lands where the dog can\u2019t find it, she stays put and tosses another (you pick the lost one up later), with every few tosses landing behind him; reaching in, holding him and luring him closer are the distractors; cites the 53-dog approach study, the ASPCA programme and AVSAB with their limits', async () => {
+  const c = CARDS.find((x) => x.id === 'c-missed-treat');
+  assert.ok(c, 'c-missed-treat card exists');
+  assert.equal(c.lesson, 'consent');
+  assert.equal(c.art.prop, 'hand', 'the trigger is a reaching hand');
+  assert.ok(['loose', 'closed', 'tense', 'lick', 'yawn', 'snarl'].includes(c.art.mouth), `mouth '${c.art.mouth}' is one the illustration draws`);
+  assert.match(c.context, /toss/i, 'a helper is tossing treats');
+  assert.match(c.context, /can\u2019t find|cannot find/i, 'one treat is lost near him');
+  assert.match(c.context, /bend|reach/i, 'the helper moves in to get it');
+  const { askFor, DEFAULT_ASK } = await import('../learn-content.js');
+  assert.notEqual(askFor(c), DEFAULT_ASK, 'an action card');
+  const right = c.choices[c.answer];
+  assert.match(right, /stay where she is|stays where she is/i, 'the helper does not come in');
+  assert.match(right, /another/i, 'toss another treat instead');
+  assert.match(right, /you pick/i, 'the handler collects the lost treat later');
+  assert.match(right, /behind him/i, 'some tosses land behind him so he can move away');
+  assert.match(right, /minute/i, 'short sessions');
+  assert.ok(c.choices.some((x, i) => i !== c.answer && /pick it up|reach/i.test(x)), 'a distractor: the helper reaches in');
+  assert.ok(c.choices.some((x, i) => i !== c.answer && /collar|hold him/i.test(x)), 'a distractor: restraint');
+  assert.ok(c.choices.some((x, i) => i !== c.answer && /closer|her feet/i.test(x)), 'a distractor: luring him in');
+  assert.deepEqual(c.evidence, ['pedretti2023-appeasement-function-of-displacement-behaviours-dogs-behavioural-displays', 'collins2022-behavioral-rehabilitation-of-extremely-fearful-dogs-report-on', 'avsab2021-position-statement-on-humane-dog-training']);
+  assert.ok(c.sources.includes(SRC.pedretti2023) && c.sources.includes(SRC.collins2022) && c.sources.includes(SRC.avsabHumane));
+  // Pedretti 2023 card: 26 of 53 dogs barked and lunged at a slow, bent-forward, staring approach, 11 of 53 at a neutral one.
+  assert.match(c.explain, /26 of 53/);
+  assert.match(c.explain, /bent/i);
+  assert.match(c.explain, /441/);
+  assert.match(c.explain, /no untreated control/i);
+  assert.match(c.explain, /no study|no trial/i, 'the toss-another and toss-behind steps are a trainer\u2019s practice');
+  assert.match(c.explain, /bite/i, 'names the trainer\u2019s bite warning');
+  assert.match(c.explain, /AVSAB/);
+  assert.match(c.explain, /reward-based/i);
+  assert.match(c.explain, /consultant/i);
+  assert.doesNotMatch(c.explain, /proven|always works|guarantee|cure|stress score|is happy|is dominant|insecure|luxurious/i);
+  assert.ok(Array.isArray(c.examples) && c.examples.length >= 3);
+  for (const e of c.examples) {
+    assert.match(e.url, /^https:\/\/www\.youtube\.com\/watch\?v=XYdq4SmZdtg&t=\d+s$/, e.url);
+    assert.match(e.label, /\(\d+:\d\d( to \d+:\d\d)?/);
+    assert.doesNotMatch(e.label, /scared|afraid|fearful|stress|nervous|anxious|happy|calm|relaxed|insecure/i, 'visible facts only');
+  }
+  assert.ok(c.examples.some((e) => /trainer (says|asks)/i.test(e.label)), 'the bite warning and the toss-behind step are the trainer\u2019s words');
+  assert.ok(c.examples.some((e) => /our estimate/i.test(e.label)), 'distances are marked as estimates');
+});
+
 test('all registered sources are used and named', () => {
   const used = new Set([...LESSONS.flatMap((l) => l.sources), ...CARDS.flatMap((c) => c.sources)]);
   for (const u of Object.values(SRC)) assert.ok(used.has(u), `unused source ${u}`);
