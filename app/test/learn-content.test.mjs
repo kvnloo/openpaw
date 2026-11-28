@@ -855,6 +855,14 @@ test('c-look-back card: a calm look at a far dog and a quick turn back means thi
     assert.doesNotMatch(e.label, /scared|afraid|fearful|stress|nervous|anxious|happy/i, 'visible facts only');
   }
   assert.ok(c.examples.some((e) => /out of shot/i.test(e.label)), 'says when the trigger is not on camera');
+  // V37 (jTYGsQrFcu4, paula shimko, 2014): a long line and stuffed decoy dogs; the caption says the dog looks
+  // at the decoy, is clicked and comes back. The label must say the trigger is a stuffed decoy, not a live dog.
+  const decoy = c.examples.find((e) => /v=jTYGsQrFcu4&/.test(e.url));
+  assert.ok(decoy, 'an example with a stuffed decoy dog on a long line (V37)');
+  assert.match(decoy.label, /stuffed/i, 'says the decoy is stuffed, not a live dog');
+  assert.doesNotMatch(decoy.label, /easier|harder/i, 'no unsourced claim about how hard a decoy is');
+  assert.match(decoy.label, /long line|30 ft/i, 'says he is on a long line');
+  assert.match(decoy.label, /caption/i, 'the look and click are from the caption, not seen at this size');
 });
 
 test('c-small-signs card: several small signs close together on a hard walk, no bark; read them together and make the walk easier; one sign alone is a clue, not proof; cites the 10-dog lab study and the 9-dog therapy pilot with their limits', async () => {
