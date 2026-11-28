@@ -15,6 +15,7 @@ Legend: **[D]** = value from a datasheet (source linked below), **[E]** = estima
 |---|---|---|---|---|
 | **Active** | Default | XIAO: LSM6DS3TR-C at 52 Hz low-power, samples queued in its FIFO; T1000-E: QMA6100P at 50 Hz, samples queued in its 64-frame FIFO | XIAO: 1 per second (FIFO read); T1000-E: 1.25 per second (FIFO read every 0.8 s) | Advertising every 100 ms for 30 s after boot or a disconnect, then every 1 s; Advertising every 2 s once no phone has connected for 10 min ("parked") |
 | **Still** | 5 min of still epochs (mean VeDBA under 60 mg, no burst, no sensor gap) and no phone connected | XIAO: 12.5 Hz low-power, FIFO; T1000-E: 12.5 Hz, FIFO | XIAO: 1 per second; T1000-E: 1.25 per second | As in Active (usually parked: 2 s) |
+| **Quiet** (XIAO only, firmware after 0.4.0) | 1 more minute of still epochs in Still mode (12 epochs), no phone connected | XIAO: still running at 12.5 Hz low-power, FIFO off, wake-up interrupt latched on INT1 | 1 per 5 s epoch (one pin read, one no-sample record); every 12th epoch is sampled for real (a check epoch) | As in Still |
 | **Connected, downloading** | The app is connected and a backlog download runs (and for 2 s after it ends) | As in Active (a connected phone always gets the full rate) | As in Active | Asks for connection events every 15 ms |
 | **Connected, idle** | Connected, no download for 2 s | As in Active | As in Active | Asks for 200 ms events with peripheral latency 4: the collar may skip up to 4 empty events, so it answers at least once a second, and sooner whenever it has a live record to send |
 
@@ -168,7 +169,7 @@ The intervals stay inside the BLE Core rule that the supervision timeout (4 s) i
     all while the dog lies still (CPU line ~7 → ~0 µA, and the sensor could drop below its
     12.5 Hz 9 µA). That changes what a Still epoch is: there would be no samples to compute it
     from.
-  - *The no-sample record (designed and host-tested; no firmware writes it yet).*
+  - *The no-sample record (host-tested; the XIAO writes it in Quiet mode, below).*
     `openpaw_nosample_epoch()` in `openpaw_core.h` closes an epoch without samples: record flag
     `0x20` (`NOSAMPLE`), movement fields 0, and pitch/roll set to -128, a value no real posture
     has, so a reader that ignores the flag still sees an impossible posture rather than "lying
@@ -176,8 +177,25 @@ The intervals stay inside the BLE Core rule that the supervision timeout (4 s) i
     mode. The app exports no movement or posture events for it, only `device.no_sample` (and the
     battery), with `provenance.quality.no_sample`; the live views skip it; `tools/check_export.py`
     counts it for spacing and leaves it out of the still/moving, burst and posture checks. It
-    records only "the sensor was not read", never "the dog was still". Next: sensor-only Still
-    mode, reading the latched INT1 level with `digitalRead()` on a timer.
+    records only "the sensor was not read", never "the dog was still".
+  - *Quiet mode (XIAO, firmware after 0.4.0; compiled and host-tested, not yet run on hardware).*
+    After 12 more still epochs in Still mode (1 minute) with no phone, `openpaw_quiet_step()` in
+    `openpaw_core.h` stops the FIFO reads. The LSM6DS3TR-C keeps running at 12.5 Hz with its
+    wake-up event routed to INT1 and latched (`TAP_CFG` 58h = `0x81`, `WAKE_UP_THS` 5Bh = 1, i.e.
+    125 mg at ±8 g, `WAKE_UP_DUR` 5Ch = 0, `MD1_CFG` 5Eh `INT1_WU`). Once per 5 s epoch the CPU
+    reads the pin with `digitalRead()` and writes a no-sample record; a high pin, a phone
+    connecting, or a check epoch that is not still returns to Active at the full rate, and the
+    5 min Still count starts again. Every 12th quiet epoch is a **check epoch**, sampled from the
+    FIFO for real, so a dead or miswired pin cannot hide a moving dog for more than about a
+    minute: if a check epoch has a burst or a peak of 500 mg or more while the pin stayed low,
+    the collar prints `wake_pin=fallback` on the serial port and stays out of Quiet mode until
+    the next reboot. Trade-offs: the first up to 5 s of movement after a quiet epoch is a
+    no-sample record (the wake is noticed at the epoch boundary), and about 11 of every 12 quiet
+    epochs carry no movement or posture. Estimated saving, DC/DC: the Still CPU line (~7 µA)
+    drops to roughly one short wake-up per 5 s plus the check epoch's share (~1 µA) [E], so the
+    XIAO's Still total goes from ~25 to ~19 µA (parts only); the accelerometer's 9 µA stays. The
+    thresholds (125 mg, 500 mg, 1 min) are provisional power settings, not calibrated. The
+    T1000-E stays in Still mode for now (QMA6100P `ANY_MOT_INT` latching is a follow-up).
 - **QMA6100P master clock in Active mode.** Still mode already runs at 12.8 kHz (above).
   Active mode stays at 51.2 kHz; 25.6 kHz would save another ~19 µA if 50 Hz data stays clean
   there. Check the Still-mode rate on a real board first.

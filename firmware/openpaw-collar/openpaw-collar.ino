@@ -100,6 +100,24 @@ static void imu_set_low_rate(bool low) {
   i2c_write(LSM_ADDR, 0x10, low ? 0x1C : 0x3C);
   imu_fifo_restart(low);
 }
+// Quiet mode (openpaw_quiet_step in openpaw_core.h): the FIFO stops, the accelerometer keeps
+// running at 12.5 Hz, and its wake-up event is latched on INT1 (P0.11, Seeed variant.h), which
+// the loop reads with digitalRead once per epoch: no GPIOTE channel (docs/POWER.md).
+#define IMU_WAKE_PIN PIN_LSM6DS3TR_C_INT1
+#define IMU_HAS_WAKE_PIN 1
+static void imu_quiet(bool on) {
+  uint8_t src = 0;
+  i2c_write(LSM_ADDR, 0x5B, OPENPAW_LSM_WAKE_THS);      // WAKE_UP_THS: 125 mg at +/-8 g
+  i2c_write(LSM_ADDR, 0x5C, 0x00);                      // WAKE_UP_DUR: one sample is enough
+  i2c_write(LSM_ADDR, 0x58, OPENPAW_LSM_TAP_CFG_WAKE);  // TAP_CFG: interrupts on, latched (LIR)
+  i2c_write(LSM_ADDR, 0x5E, on ? OPENPAW_LSM_MD1_INT1_WU : 0);  // MD1_CFG: wake-up on INT1 only in Quiet
+  if (on) i2c_write(LSM_ADDR, 0x0A, 0x00);              // FIFO bypass: nothing queues while nobody reads
+  i2c_read(LSM_ADDR, 0x1B, &src, 1);                    // WAKE_UP_SRC: reading clears an old latch
+}
+static bool imu_wake_pin() {
+  pinMode(IMU_WAKE_PIN, INPUT);  // push-pull, active high (CTRL3_C defaults)
+  return digitalRead(IMU_WAKE_PIN) == HIGH;
+}
 // Read up to max queued samples (mg, xyz interleaved). false on an I2C error.
 static bool imu_fifo_read(int16_t *xyz, uint16_t max, uint16_t *n, bool *overrun) {
   uint8_t st[4], b[6 * FIFO_CHUNK];
@@ -206,6 +224,11 @@ static bool imu_fifo_read(int16_t *xyz, uint16_t max, uint16_t *n, bool *overrun
 #endif
 #ifndef IMU_FIFO_READ_MS
 #define IMU_FIFO_READ_MS OPENPAW_FIFO_READ_MS
+#endif
+#ifndef IMU_HAS_WAKE_PIN  // T1000-E: QMA6100P any-motion not wired yet, so Quiet mode stays off
+#define IMU_HAS_WAKE_PIN 0
+static void imu_quiet(bool on) { (void)on; }
+static bool imu_wake_pin() { return false; }
 #endif
 #if !IMU_HAS_FIFO
 #error "the main loop drains the IMU FIFO: every board needs imu_fifo_read()"
@@ -463,6 +486,9 @@ static uint8_t g_batt = 255;
 static uint32_t g_imu_errors = 0;
 static openpaw_power_t g_pwr;          // still mode: 10 Hz after 5 min still with no phone (openpaw_core.h)
 static float g_rate_hz = SAMPLE_HZ;
+static openpaw_quiet_t g_quiet;        // Quiet: no FIFO reads, latched wake pin checked per epoch (openpaw_core.h)
+static bool g_skip = false;            // this epoch is a skipped (no-sample) one
+static uint32_t g_next_ms = 0;         // next loop wake-up: FIFO drain, or the next Quiet epoch boundary
 
 static void ctrl_write_cb(uint16_t conn, BLECharacteristic *chr, uint8_t *data, uint16_t len) {
   (void)conn; (void)chr;
@@ -625,6 +651,7 @@ void setup() {
   openpaw_init(&g_core, cfg);
   openpaw_ring_init(&g_ring, g_ring_store, RING_RECORDS);
   openpaw_power_init(&g_pwr);
+  openpaw_quiet_init(&g_quiet, IMU_HAS_WAKE_PIN);
   openpaw_link_init(&g_link);
   openpaw_adv_init(&g_adv, millis());
 
@@ -647,11 +674,12 @@ void setup() {
 static bool epoch_done(openpaw_record_t *rec, uint32_t up);
 static void epoch_out(openpaw_record_t *rec, uint32_t up);
 
+static void quiet_wake();
+
 void loop() {
-  static uint32_t next_ms = millis();
   static uint32_t last_ok_ms = millis();
 
-  if (g_find_me) { g_find_me = false; find_me(); next_ms = millis(); }
+  if (g_find_me) { g_find_me = false; find_me(); g_next_ms = millis(); }
   if (g_time_req) {  // RAM ring is lost on restart anyway: only the flash log keeps anchors
     g_time_req = false;
     openpaw_anchor_t a = {g_core.seq, millis() / 1000, g_time_unix, g_boot_seq};
@@ -664,25 +692,42 @@ void loop() {
   uint32_t now = millis();
   link_update(now);
   adv_update(now);
-  if ((int32_t)(now - next_ms) < 0) {
-    if (!g_dumping) delay(next_ms - now);  // FreeRTOS delay = CPU sleeps between samples
+  if ((int32_t)(now - g_next_ms) < 0) {
+    if (!g_dumping) delay(g_next_ms - now);  // FreeRTOS delay = CPU sleeps between samples
     return;
   }
   uint32_t up = now / 1000;
   openpaw_record_t rec;
+
+  // Quiet: a skipped epoch ended. No FIFO read; one pin read decides the next epoch.
+  if (g_skip) {
+    g_next_ms = now + (uint32_t)g_core.cfg.epoch_s * 1000u;
+    const bool pin = imu_wake_pin();
+    if (openpaw_nosample_epoch(&g_core, up, g_batt, &rec)) epoch_out(&rec, up);
+    const int qa = openpaw_quiet_step(&g_quiet, NULL, g_conn != BLE_CONN_HANDLE_INVALID, pin);
+    if (qa == OPENPAW_QUIET_WAKE) {
+      g_skip = false;
+      quiet_wake();
+    } else if (qa == OPENPAW_QUIET_READ) {  // check epoch: sample one epoch at the Still rate
+      g_skip = false;
+      imu_fifo_restart(true);
+    }
+    if (!g_skip) { last_ok_ms = now; g_next_ms = now + IMU_FIFO_READ_MS; }
+    return;
+  }
 
   // drain the IMU FIFO every IMU_FIFO_READ_MS (1 s XIAO, 0.8 s T1000-E): ~40-50x fewer
   // CPU wake-ups than polling each sample
   static int16_t xyz[3 * 128];
   uint16_t n = 0;
   bool overrun = false;
-  next_ms = now + IMU_FIFO_READ_MS;
+  g_next_ms = now + IMU_FIFO_READ_MS;
   if (!imu_fifo_read(xyz, 128, &n, &overrun)) {
     g_imu_errors++;
     n = 0;
   } else if (n) {
     last_ok_ms = now;
-    if (n == 128) next_ms = now;  // more queued (e.g. after find-me): read again at once
+    if (n == 128) g_next_ms = now;  // more queued (e.g. after find-me): read again at once
   }
   if (now - last_ok_ms > 2000 + IMU_FIFO_READ_MS) {  // no samples: close the epoch as a GAP, re-init
     if (openpaw_flush(&g_core, up, 0, g_batt, &rec)) epoch_done(&rec, up);
@@ -701,15 +746,38 @@ void loop() {
   }
 }
 
-// Store, stream and report one closed epoch; returns true if the sampling rate changed.
+static void set_rate(float want_hz) {
+  g_rate_hz = want_hz;
+  openpaw_set_rate(&g_core, want_hz < SAMPLE_HZ ? IMU_LOW_HZ : IMU_FULL_HZ);
+  imu_set_low_rate(want_hz < SAMPLE_HZ);
+}
+// Leave Quiet for Active: wake-up off the pin, full rate, the 5 min Still count starts again.
+static void quiet_wake() {
+  imu_quiet(false);
+  openpaw_power_init(&g_pwr);
+  if (g_quiet.disabled) Serial.println("wake_pin=fallback");  // the pin missed motion: no Quiet until reboot
+  set_rate(SAMPLE_HZ);
+}
+
+// Store, stream and report one closed epoch; returns true if the FIFO restarted or stopped
+// (the rest of the batch must be dropped).
 static bool epoch_done(openpaw_record_t *rec, uint32_t up) {
   bool changed = false;
+  const bool conn = g_conn != BLE_CONN_HANDLE_INVALID;
   // the epoch just closed, so a rate change starts cleanly with the next one
-  float want_hz = openpaw_power_step(&g_pwr, rec, g_conn != BLE_CONN_HANDLE_INVALID);
-  if (want_hz != g_rate_hz) {
-    g_rate_hz = want_hz;
-    openpaw_set_rate(&g_core, want_hz < SAMPLE_HZ ? IMU_LOW_HZ : IMU_FULL_HZ);
-    imu_set_low_rate(want_hz < SAMPLE_HZ);
+  float want_hz = openpaw_power_step(&g_pwr, rec, conn);
+  const int qa = openpaw_quiet_step(&g_quiet, rec, conn, imu_wake_pin());
+  if (qa == OPENPAW_QUIET_WAKE) {
+    quiet_wake();
+    changed = true;
+  } else if (want_hz != g_rate_hz) {
+    set_rate(want_hz);
+    changed = true;
+  }
+  if (qa == OPENPAW_QUIET_SKIP) {  // stop reading the FIFO; the loop reads the pin once per epoch
+    imu_quiet(true);
+    g_skip = true;
+    g_next_ms = millis() + (uint32_t)g_core.cfg.epoch_s * 1000u;
     changed = true;
   }
   epoch_out(rec, up);

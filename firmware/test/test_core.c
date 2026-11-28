@@ -243,6 +243,64 @@ int main(int argc, char **argv) {
   CHECK(openpaw_nosample_epoch(&s7, 5, 50, &r7) == 0 && s7.seq == 0 && s7.n == 1,
         "refused inside a half-filled epoch: never mixes samples and no-sample");
 
+  // 12c. sensor-only Still ("quiet"): after 1 more minute of low-rate still epochs the CPU
+  // stops reading the FIFO and only reads the IMU's latched wake-up pin once per epoch,
+  // writing no-sample records. Every OPENPAW_QUIET_CHECK-th quiet epoch is sampled again;
+  // the pin, a phone, or a non-still check epoch wakes it. A lively check epoch with the
+  // pin still low means the pin missed motion: quiet mode is off until reboot.
+  CHECK(OPENPAW_LSM_TAP_CFG_WAKE == 0x81, "TAP_CFG 58h: INTERRUPTS_ENABLE (bit 7) + LIR latch (bit 0)");
+  CHECK(OPENPAW_LSM_MD1_INT1_WU == 0x20 && OPENPAW_LSM_WU_IA == 0x08, "MD1_CFG 5Eh INT1_WU bit 5; WAKE_UP_SRC 1Bh WU_IA bit 3");
+  CHECK(OPENPAW_LSM_WAKE_THS * 8000 / 64 == 125, "wake threshold 1 LSB = FS/2^6 = 125 mg at +/-8 g");
+  openpaw_quiet_t qt; openpaw_quiet_init(&qt, 1);
+  openpaw_record_t low_r = still_r; low_r.flags = OPENPAW_FLAG_LOWRATE;
+  int act = -1;
+  for (int i = 0; i < OPENPAW_QUIET_AFTER - 1; i++) act = openpaw_quiet_step(&qt, &low_r, 0, 0);
+  CHECK(act == OPENPAW_QUIET_READ && !qt.quiet, "11 low-rate still epochs: keep reading, got %d", act);
+  CHECK(openpaw_quiet_step(&qt, &low_r, 0, 0) == OPENPAW_QUIET_SKIP && qt.quiet, "12th (1 min in Still): stop reading");
+  for (int i = 0; i < OPENPAW_QUIET_CHECK - 1; i++) act = openpaw_quiet_step(&qt, NULL, 0, 0);
+  CHECK(act == OPENPAW_QUIET_SKIP, "quiet epochs with the pin low stay skipped, got %d", act);
+  CHECK(openpaw_quiet_step(&qt, NULL, 0, 0) == OPENPAW_QUIET_READ && qt.quiet, "every 12th quiet epoch is sampled (check)");
+  CHECK(openpaw_quiet_step(&qt, &low_r, 0, 0) == OPENPAW_QUIET_SKIP, "a still check epoch with the pin low: skip again");
+  CHECK(openpaw_quiet_step(&qt, NULL, 0, 1) == OPENPAW_QUIET_WAKE && !qt.quiet, "latched pin high: wake to Active");
+  CHECK(openpaw_quiet_step(&qt, &low_r, 0, 0) == OPENPAW_QUIET_READ, "after a wake the 1 min count starts again");
+  openpaw_quiet_init(&qt, 1);
+  for (int i = 0; i < OPENPAW_QUIET_AFTER; i++) openpaw_quiet_step(&qt, &low_r, 0, 0);
+  CHECK(openpaw_quiet_step(&qt, NULL, 1, 0) == OPENPAW_QUIET_WAKE, "a phone connecting wakes it (live view needs samples)");
+  CHECK(openpaw_quiet_step(&qt, &low_r, 1, 0) == OPENPAW_QUIET_READ, "connected: never skip");
+  openpaw_quiet_init(&qt, 1);
+  openpaw_record_t full_r = still_r; full_r.flags = 0;
+  for (int i = 0; i < 3 * OPENPAW_QUIET_AFTER; i++) act = openpaw_quiet_step(&qt, &full_r, 0, 0);
+  CHECK(act == OPENPAW_QUIET_READ, "still but full rate (not in Still mode yet): keep reading");
+  openpaw_record_t low_gap = low_r; low_gap.flags |= OPENPAW_FLAG_GAP;
+  for (int i = 0; i < OPENPAW_QUIET_AFTER - 1; i++) openpaw_quiet_step(&qt, &low_r, 0, 0);
+  CHECK(openpaw_quiet_step(&qt, &low_gap, 0, 0) == OPENPAW_QUIET_READ, "a gap epoch breaks the count");
+  // check epochs that wake
+  openpaw_quiet_init(&qt, 1);
+  for (int i = 0; i < OPENPAW_QUIET_AFTER; i++) openpaw_quiet_step(&qt, &low_r, 0, 0);
+  for (int i = 0; i < OPENPAW_QUIET_CHECK; i++) openpaw_quiet_step(&qt, NULL, 0, 0);
+  openpaw_record_t stir_r = low_r; stir_r.vedba_mean_mg = OPENPAW_STILL_MG;
+  CHECK(openpaw_quiet_step(&qt, &stir_r, 0, 1) == OPENPAW_QUIET_WAKE && !qt.disabled, "check epoch not still, pin high: wake");
+  openpaw_quiet_init(&qt, 1);
+  for (int i = 0; i < OPENPAW_QUIET_AFTER; i++) openpaw_quiet_step(&qt, &low_r, 0, 0);
+  for (int i = 0; i < OPENPAW_QUIET_CHECK; i++) openpaw_quiet_step(&qt, NULL, 0, 0);
+  CHECK(openpaw_quiet_step(&qt, &low_gap, 0, 0) == OPENPAW_QUIET_WAKE && !qt.disabled, "check epoch with a gap: wake");
+  openpaw_quiet_init(&qt, 1);
+  for (int i = 0; i < OPENPAW_QUIET_AFTER; i++) openpaw_quiet_step(&qt, &low_r, 0, 0);
+  for (int i = 0; i < OPENPAW_QUIET_CHECK; i++) openpaw_quiet_step(&qt, NULL, 0, 0);
+  openpaw_record_t miss_r = low_r; miss_r.vedba_mean_mg = 80; miss_r.vedba_max_mg = OPENPAW_QUIET_MISS_MG;
+  CHECK(openpaw_quiet_step(&qt, &miss_r, 0, 0) == OPENPAW_QUIET_WAKE && qt.disabled,
+        "lively check epoch but the pin stayed low: the pin missed motion, quiet off");
+  for (int i = 0; i < 3 * OPENPAW_QUIET_AFTER; i++) act = openpaw_quiet_step(&qt, &low_r, 0, 0);
+  CHECK(act == OPENPAW_QUIET_READ, "after a miss: never skip again until reboot");
+  openpaw_quiet_init(&qt, 1);
+  for (int i = 0; i < OPENPAW_QUIET_AFTER; i++) openpaw_quiet_step(&qt, &low_r, 0, 0);
+  for (int i = 0; i < OPENPAW_QUIET_CHECK; i++) openpaw_quiet_step(&qt, NULL, 0, 0);
+  openpaw_record_t burst_low = low_r; burst_low.bursts = 1;
+  CHECK(openpaw_quiet_step(&qt, &burst_low, 0, 0) == OPENPAW_QUIET_WAKE && qt.disabled, "a burst with the pin low is a miss too");
+  openpaw_quiet_init(&qt, 0);
+  for (int i = 0; i < 3 * OPENPAW_QUIET_AFTER; i++) act = openpaw_quiet_step(&qt, &low_r, 0, 0);
+  CHECK(act == OPENPAW_QUIET_READ, "board without a wake pin (T1000-E for now): never skip");
+
   // 13. connection interval: 15 ms while a backlog download runs (fast sync), then a
   // slow 200 ms interval with peripheral latency once the link has been idle for
   // OPENPAW_LINK_IDLE_MS, so a phone left connected does not cost >100 uA (docs/POWER.md).

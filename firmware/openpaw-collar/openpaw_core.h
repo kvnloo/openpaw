@@ -218,15 +218,15 @@ static inline float openpaw_power_step(openpaw_power_t *p, const openpaw_record_
   return p->still_epochs >= OPENPAW_STILL_EPOCHS ? OPENPAW_HZ_LOW : 50.0f;
 }
 
-// ---- No-sample Still epoch (record design for a later sensor-only Still mode; nothing
-// calls it yet). When the IMU's motion interrupt has stayed quiet for a whole epoch the
+// ---- No-sample Still epoch (written in Quiet mode, openpaw_quiet_step below; XIAO only
+// for now). When the IMU's motion interrupt has stayed quiet for a whole epoch the
 // CPU may skip reading it, so there is no movement or posture to report. The record says
 // so with OPENPAW_FLAG_NOSAMPLE; movement fields are 0 and pitch/roll carry
 // OPENPAW_NOSAMPLE_POSTURE (-128: outside -90..90 pitch and, x2, outside -180..180 roll),
 // so even a reader that ignores the flag sees an impossible posture, never "lying flat".
 // The app exports no movement or posture events for it (app/openpaw-ble.js) and
 // tools/check_export.py keeps it out of the still/moving checks. It is not a measurement
-// of stillness: only "the motion interrupt did not fire" (its threshold is not set yet).
+// of stillness: only "the motion interrupt did not fire" (provisional 125 mg threshold).
 #define OPENPAW_NOSAMPLE_POSTURE (-128)
 
 // Returns 1 and fills *out; returns 0 (nothing written) inside a half-filled epoch, so one
@@ -243,6 +243,69 @@ static inline int openpaw_nosample_epoch(openpaw_state_t *s, uint32_t uptime_s, 
   out->roll_half_deg = OPENPAW_NOSAMPLE_POSTURE;
   out->battery_pct = battery_pct;
   return 1;
+}
+
+// ---- Sensor-only Still ("quiet", power). After OPENPAW_QUIET_AFTER low-rate still epochs
+// (1 more minute in Still mode) with no phone, the CPU stops draining the IMU FIFO. The
+// accelerometer keeps running at 12.5 Hz with its wake-up interrupt latched on INT1, and
+// once per epoch the CPU reads only that pin (digitalRead: no GPIOTE channel, see
+// docs/POWER.md) and writes a no-sample record. The pin, a phone connecting, or a check
+// epoch that is not still returns to Active. Every OPENPAW_QUIET_CHECK-th quiet epoch is
+// sampled for real (a check epoch), so a dead pin cannot hide a moving dog for more than a
+// minute: a check epoch with a burst or a peak of OPENPAW_QUIET_MISS_MG or more while the
+// pin stayed low means the pin missed motion, and quiet mode stays off until reboot.
+// LSM6DS3TR-C registers (datasheet register map; ST lsm6ds3tr-c_reg.h):
+//   TAP_CFG 58h: INTERRUPTS_ENABLE bit 7, LIR bit 0 (latch until WAKE_UP_SRC is read)
+//   WAKE_UP_THS 5Bh WK_THS[5:0], 1 LSB = FS_XL / 2^6 (125 mg at +/-8 g); WAKE_UP_DUR 5Ch = 0
+//   MD1_CFG 5Eh INT1_WU bit 5; WAKE_UP_SRC 1Bh WU_IA bit 3 (reading it clears the latch)
+// Thresholds are provisional power settings, not calibrated. Not yet run on hardware.
+#define OPENPAW_LSM_TAP_CFG_WAKE 0x81
+#define OPENPAW_LSM_MD1_INT1_WU 0x20
+#define OPENPAW_LSM_WU_IA 0x08
+#define OPENPAW_LSM_WAKE_THS 1       // 125 mg slope at +/-8 g
+#define OPENPAW_QUIET_AFTER 12       // low-rate still epochs before reads stop (1 min)
+#define OPENPAW_QUIET_CHECK 12       // every 12th quiet epoch is sampled (once a minute)
+#define OPENPAW_QUIET_MISS_MG 500    // check-epoch peak that the wake pin must have seen
+enum { OPENPAW_QUIET_READ = 0, OPENPAW_QUIET_SKIP = 1, OPENPAW_QUIET_WAKE = 2 };
+
+typedef struct {
+  uint8_t quiet;      // reads are skipped (or this is a check epoch inside quiet)
+  uint8_t disabled;   // no wake pin on this board, or the pin missed motion: never skip
+  uint32_t low_still; // consecutive low-rate still epochs, not connected
+  uint32_t skipped;   // quiet epochs since the last check epoch
+} openpaw_quiet_t;
+
+static inline void openpaw_quiet_init(openpaw_quiet_t *q, int available) {
+  q->quiet = 0; q->disabled = available ? 0 : 1; q->low_still = 0; q->skipped = 0;
+}
+
+// Call at every epoch boundary. r = the sampled epoch that just closed, or NULL if it was a
+// skipped (no-sample) one; pin_high = the latched wake-up pin level read now. Returns what
+// the next epoch does: READ (sample), SKIP (write a no-sample record), WAKE (leave Still:
+// full rate, restart the Still count).
+static inline int openpaw_quiet_step(openpaw_quiet_t *q, const openpaw_record_t *r, int connected, int pin_high) {
+  if (q->disabled) return OPENPAW_QUIET_READ;
+  const int was_quiet = q->quiet;
+  if (connected) {
+    q->quiet = 0; q->low_still = 0; q->skipped = 0;
+    return was_quiet ? OPENPAW_QUIET_WAKE : OPENPAW_QUIET_READ;
+  }
+  if (!r) {  // a skipped epoch ended
+    if (pin_high) { q->quiet = 0; q->low_still = 0; q->skipped = 0; return OPENPAW_QUIET_WAKE; }
+    if (++q->skipped >= OPENPAW_QUIET_CHECK) { q->skipped = 0; return OPENPAW_QUIET_READ; }
+    return OPENPAW_QUIET_SKIP;
+  }
+  const int still = r->vedba_mean_mg < OPENPAW_STILL_MG && r->bursts == 0 && !(r->flags & OPENPAW_FLAG_GAP);
+  if (was_quiet) {  // a check epoch ended
+    const int lively = r->bursts > 0 || r->vedba_max_mg >= OPENPAW_QUIET_MISS_MG;
+    if (lively && !pin_high) q->disabled = 1;
+    if (q->disabled || pin_high || !still) { q->quiet = 0; q->low_still = 0; q->skipped = 0; return OPENPAW_QUIET_WAKE; }
+    return OPENPAW_QUIET_SKIP;
+  }
+  if (still && (r->flags & OPENPAW_FLAG_LOWRATE)) q->low_still++;
+  else q->low_still = 0;
+  if (q->low_still >= OPENPAW_QUIET_AFTER) { q->quiet = 1; q->skipped = 0; return OPENPAW_QUIET_SKIP; }
+  return OPENPAW_QUIET_READ;
 }
 
 // ---- Connection interval (power). The phone gets a 15 ms interval while it is
