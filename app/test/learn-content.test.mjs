@@ -958,6 +958,64 @@ test('c-walk-off card: a dog who takes a treat from a visitor\u2019s hand and th
   assert.ok(c.examples.some((e) => /uploader/i.test(e.label)), 'the before/after claim is the uploader\u2019s, not ours');
 });
 
+test('c-slow-stop card: a dog who surges straight at a person on a long line is slowed to a stop, not snapped or tugged, the line is slackened and he is followed when he turns away; cites the BAT leash handout, the lead-pulling review and the trainer interviews with their limits', async () => {
+  const c = CARDS.find((x) => x.id === 'c-slow-stop');
+  assert.ok(c, 'c-slow-stop card exists');
+  assert.equal(c.lesson, 'threshold');
+  assert.equal(c.art.prop, 'person');
+  assert.ok(['loose', 'closed', 'tense', 'lick', 'yawn', 'snarl'].includes(c.art.mouth), `mouth '${c.art.mouth}' is one the illustration draws`);
+  assert.match(c.context, /long line/i);
+  assert.match(c.context, /harness/i);
+  assert.match(c.context, /straight (at|towards?)/i, 'he heads straight at the person');
+  const { askFor, DEFAULT_ASK } = await import('../learn-content.js');
+  assert.notEqual(askFor(c), DEFAULT_ASK, 'an action card');
+  const right = c.choices[c.answer];
+  assert.match(right, /slide/i, 'line slides through the fingers');
+  assert.match(right, /slow/i);
+  assert.match(right, /slack|smile/i, 'line relaxed after the stop');
+  assert.match(right, /follow/i, 'follow him when he turns away');
+  assert.match(right, /farther|more distance/i, 'what to do if he stays fixed');
+  assert.ok(c.choices.some((x, i) => i !== c.answer && /snap|tight/i.test(x)), 'a distractor: snap the line tight');
+  assert.ok(c.choices.some((x, i) => i !== c.answer && /meet/i.test(x)), 'a distractor: let him walk up to her');
+  assert.ok(c.choices.some((x, i) => i !== c.answer && /tug/i.test(x)), 'a distractor: tug each look');
+  const townsend22 = 'townsend2022-lead-pulling-as-a-welfare-concern-in-pet';
+  const shnookal = 'shnookal2025-exploring-trainer-insights-and-understanding-of-on-lead';
+  assert.deepEqual(c.evidence, [townsend22, shnookal, 'avsab2021-position-statement-on-humane-dog-training']);
+  assert.ok(c.sources.includes(SRC.batLeash) && c.sources.includes(SRC.townsend2022) && c.sources.includes(SRC.shnookal2025) && c.sources.includes(SRC.avsabHumane));
+  assert.match(SOURCE_NAMES[SRC.batLeash], /Stewart/);
+  assert.match(SOURCE_NAMES[SRC.townsend2022], /Townsend, Dixon & Buckley 2022/);
+  // Stewart, Leash Skills for BAT (2013 handout, PDF read): "The leash is a force field, not a correction tool";
+  // "should not be used for leash pops"; Slow Stop: "Let the leash slide through your fingers for about one foot
+  // (30 cm)", "Your dog is less likely to bark when you come to a stop more slowly"; Rebalance: put a "smile" in the
+  // leash. A practitioner handout, not a trial.
+  assert.match(c.explain, /30 cm/);
+  assert.match(c.explain, /force field/i);
+  assert.match(c.explain, /handout/i);
+  assert.match(c.explain, /not a trial/i);
+  // Townsend, Dixon & Buckley 2022 (Vet Rec, abstract read via Europe PMC): excluding bites, being pulled over on a
+  // lead is the leading cause of non-fatal dog-related injuries in the UK; aversive equipment can cause pain, distress
+  // and injury. A narrative review.
+  assert.match(c.explain, /pulled over/i);
+  assert.match(c.explain, /narrative review/i);
+  assert.match(c.explain, /ten trainers/i);
+  assert.match(c.explain, /too close/i);
+  assert.match(c.explain, /AVSAB/);
+  assert.match(c.explain, /reward-based/i);
+  assert.match(c.explain, /consultant/i);
+  assert.doesNotMatch(c.explain, /proven|always works|guarantee|cure|stress score|is happy|is dominant/i);
+  assert.ok(Array.isArray(c.examples) && c.examples.length >= 3);
+  for (const e of c.examples) {
+    assert.match(e.url, /^https:\/\/www\.youtube\.com\/watch\?v=hazeJSOr7Y4&t=\d+s$/, e.url);
+    assert.match(e.label, /\(\d+:\d\d( to \d+:\d\d)?/);
+    assert.doesNotMatch(e.label, /scared|afraid|fearful|stress|nervous|anxious|happy|calm/i, 'visible facts only');
+  }
+  assert.ok(c.examples.some((e) => /not on camera/i.test(e.label)), 'says the helper is off camera');
+  assert.ok(c.examples.some((e) => /uploader/i.test(e.label)), 'the rush-forward report is the uploader\u2019s');
+  const { readFileSync } = await import('node:fs');
+  const card = readFileSync(new URL(`../../docs/evidence/cards/${townsend22}.md`, import.meta.url), 'utf8');
+  assert.match(card, /^design: "review"/m);
+});
+
 test('all registered sources are used and named', () => {
   const used = new Set([...LESSONS.flatMap((l) => l.sources), ...CARDS.flatMap((c) => c.sources)]);
   for (const u of Object.values(SRC)) assert.ok(used.has(u), `unused source ${u}`);
