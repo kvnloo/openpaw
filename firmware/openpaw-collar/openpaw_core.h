@@ -601,6 +601,86 @@ static inline uint8_t openpaw_hr_take(openpaw_hr_t *h) {
   return (uint8_t)(v > 255 ? 255 : v);
 }
 
+// ---- Strap scan policy (power). Scanning keeps the radio receiving (~6.3 mA, nRF52840
+// PS v1.5 IRADIO_RX0), so the collar never scans on its own. The app's "pair strap"
+// command (control 0x30) opens one OPENPAW_STRAP_PAIR_MS window that accepts any strap
+// advertising the Heart Rate service; the first link saves its address (RAM only: a
+// reboot needs a new pair command). When that link drops, the collar retries only the
+// saved address, in OPENPAW_STRAP_TRY_MS windows whose start-to-start gap doubles from
+// 30 s to 10 min, and gives up OPENPAW_STRAP_GIVEUP_MS after the drop (strap taken off).
+// Control 0x31 forgets the strap. Times are millis() and survive its wrap.
+#define OPENPAW_STRAP_PAIR_MS 30000u
+#define OPENPAW_STRAP_TRY_MS 10000u
+#define OPENPAW_STRAP_GAP0_MS 30000u
+#define OPENPAW_STRAP_GAP_MAX_MS 600000u
+#define OPENPAW_STRAP_GIVEUP_MS 3600000u
+#define OPENPAW_STRAP_SCAN_INTERVAL 160  // 100 ms, units of 0.625 ms
+#define OPENPAW_STRAP_SCAN_WINDOW 80     // 50 ms: the radio listens half the time while scanning
+// Connection events asked of the strap, units of 1.25 ms: 250-500 ms instead of the core's
+// 20 ms default (~50 events/s). bpm arrives about once a second, so a notification waits at
+// most one interval. A strap may ask for other values and the core accepts its request.
+#define OPENPAW_STRAP_CONN_MIN 200
+#define OPENPAW_STRAP_CONN_MAX 400
+
+enum { OPENPAW_STRAP_OFF = 0, OPENPAW_STRAP_PAIRING, OPENPAW_STRAP_LINKED, OPENPAW_STRAP_LOST };
+typedef struct {
+  uint8_t state, has_addr, addr[6];
+  uint32_t t_ms;     // start of the pair window or of the current/last retry window
+  uint32_t lost_ms;  // when the link dropped
+  uint32_t gap_ms;   // start-to-start gap to the next retry window
+} openpaw_strap_t;
+
+static inline void openpaw_strap_init(openpaw_strap_t *s) { memset(s, 0, sizeof(*s)); }
+
+// A new pair command picks whichever strap answers first, so the old address goes.
+static inline void openpaw_strap_pair(openpaw_strap_t *s, uint32_t now_ms) {
+  s->state = OPENPAW_STRAP_PAIRING;
+  s->has_addr = 0;
+  s->t_ms = now_ms;
+}
+
+static inline void openpaw_strap_forget(openpaw_strap_t *s) { openpaw_strap_init(s); }
+
+// Should the collar connect to this advertiser (already filtered on service 0x180D)?
+static inline int openpaw_strap_accept(const openpaw_strap_t *s, const uint8_t addr[6]) {
+  if (s->state == OPENPAW_STRAP_PAIRING) return 1;
+  return s->state == OPENPAW_STRAP_LOST && s->has_addr && memcmp(s->addr, addr, 6) == 0;
+}
+
+static inline void openpaw_strap_linked(openpaw_strap_t *s, const uint8_t addr[6], uint32_t now_ms) {
+  (void)now_ms;
+  memcpy(s->addr, addr, 6);
+  s->has_addr = 1;
+  s->state = OPENPAW_STRAP_LINKED;
+}
+
+static inline void openpaw_strap_dropped(openpaw_strap_t *s, uint32_t now_ms) {
+  if (s->state != OPENPAW_STRAP_LINKED) return;
+  s->state = OPENPAW_STRAP_LOST;
+  s->lost_ms = s->t_ms = now_ms;
+  s->gap_ms = OPENPAW_STRAP_GAP0_MS;
+}
+
+// Call from the main loop; returns 1 while the collar should scan, 0 otherwise.
+static inline int openpaw_strap_step(openpaw_strap_t *s, uint32_t now_ms) {
+  if (s->state == OPENPAW_STRAP_PAIRING) {
+    if ((uint32_t)(now_ms - s->t_ms) < OPENPAW_STRAP_PAIR_MS) return 1;
+    s->state = OPENPAW_STRAP_OFF;
+    return 0;
+  }
+  if (s->state != OPENPAW_STRAP_LOST) return 0;
+  if ((uint32_t)(now_ms - s->lost_ms) >= OPENPAW_STRAP_GIVEUP_MS) {
+    s->state = OPENPAW_STRAP_OFF;  // address kept for the record; only a pair command reconnects
+    return 0;
+  }
+  const uint32_t since = (uint32_t)(now_ms - s->t_ms);
+  if (since < OPENPAW_STRAP_TRY_MS) return 1;
+  if (since < s->gap_ms) return 0;
+  s->t_ms = now_ms;
+  s->gap_ms = s->gap_ms * 2 > OPENPAW_STRAP_GAP_MAX_MS ? OPENPAW_STRAP_GAP_MAX_MS : s->gap_ms * 2;
+  return 1;
+}
+
 // Little-endian wire format, 20 bytes. Must match app/openpaw-ble.js decodeRecord().
 static inline void openpaw_encode(const openpaw_record_t *r, uint8_t b[OPENPAW_RECORD_SIZE]) {
   b[0] = r->version;

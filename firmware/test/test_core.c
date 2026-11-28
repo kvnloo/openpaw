@@ -549,6 +549,62 @@ int main(int argc, char **argv) {
     CHECK(rh.hr_bpm == 0 && !(rh.flags & OPENPAW_FLAG_HR_VALID), "no strap -> no HR_VALID");
   }
 
+  // Strap scan policy (power): the collar never scans on its own. A "pair strap" command
+  // opens a 30 s window that accepts any Heart Rate strap; a dropped link retries only the
+  // saved address, in 10 s windows with gaps doubling 30 s -> 10 min, and gives up after 1 h.
+  {
+    openpaw_strap_t st; openpaw_strap_init(&st);
+    const uint8_t a1[6] = {1, 2, 3, 4, 5, 6}, a2[6] = {9, 9, 9, 9, 9, 9};
+    CHECK(st.state == OPENPAW_STRAP_OFF && openpaw_strap_step(&st, 0) == 0 && openpaw_strap_step(&st, 9000000) == 0,
+          "never paired -> never scans");
+    CHECK(openpaw_strap_accept(&st, a1) == 0, "no connect while off");
+    openpaw_strap_pair(&st, 1000);
+    CHECK(st.state == OPENPAW_STRAP_PAIRING && openpaw_strap_step(&st, 1000) == 1 && openpaw_strap_step(&st, 30999) == 1,
+          "pair command scans for up to 30 s");
+    CHECK(openpaw_strap_step(&st, 31000) == 0 && st.state == OPENPAW_STRAP_OFF, "no strap found in 30 s -> off again");
+    openpaw_strap_pair(&st, 40000);
+    CHECK(openpaw_strap_accept(&st, a2) == 1, "pairing accepts any strap that advertises 0x180D");
+    openpaw_strap_linked(&st, a1, 42000);
+    CHECK(st.state == OPENPAW_STRAP_LINKED && st.has_addr && memcmp(st.addr, a1, 6) == 0 &&
+              openpaw_strap_step(&st, 42000) == 0 && openpaw_strap_step(&st, 5000000) == 0,
+          "linked: address saved, scanning off");
+    CHECK(openpaw_strap_accept(&st, a2) == 0, "linked: no second strap");
+    openpaw_strap_dropped(&st, 100000);
+    CHECK(st.state == OPENPAW_STRAP_LOST && openpaw_strap_step(&st, 100000) == 1 && openpaw_strap_step(&st, 109999) == 1,
+          "dropped: retry at once for 10 s");
+    CHECK(openpaw_strap_accept(&st, a2) == 0 && openpaw_strap_accept(&st, a1) == 1, "retry connects only the saved strap");
+    CHECK(openpaw_strap_step(&st, 110000) == 0 && openpaw_strap_step(&st, 129999) == 0, "then quiet until 30 s after the try");
+    CHECK(openpaw_strap_step(&st, 130000) == 1 && openpaw_strap_step(&st, 139999) == 1 && openpaw_strap_step(&st, 140000) == 0,
+          "second try at +30 s, 10 s long");
+    CHECK(openpaw_strap_step(&st, 189999) == 0 && openpaw_strap_step(&st, 190000) == 1, "gap doubles: third try 60 s later");
+    uint32_t tries = 2, scan_ms = 0, last = 0;  // the loop sees try 3 start at 190 s
+    for (uint32_t t = 190000; t < 100000 + 3700000; t += 1000) {
+      const int on = openpaw_strap_step(&st, t);
+      if (on && !last) tries++;
+      if (on) scan_ms += 1000;
+      last = on;
+    }
+    CHECK(st.state == OPENPAW_STRAP_OFF && tries == 10, "gives up after 1 h lost (%u tries, state %u)", tries, st.state);
+    CHECK(scan_ms <= 100000u, "first lost hour scans <= 100 s in total (%u ms)", scan_ms);
+    CHECK(st.has_addr && openpaw_strap_accept(&st, a1) == 0, "gave up: address kept, no connect until the next pair command");
+    openpaw_strap_pair(&st, 5000000);
+    openpaw_strap_linked(&st, a1, 5001000);
+    openpaw_strap_dropped(&st, 5100000);
+    openpaw_strap_linked(&st, a1, 5105000);
+    openpaw_strap_dropped(&st, 5200000);
+    CHECK(openpaw_strap_step(&st, 5200000) == 1 && openpaw_strap_step(&st, 5210000) == 0 && openpaw_strap_step(&st, 5230000) == 1,
+          "a relink resets the backoff to 30 s");
+    openpaw_strap_forget(&st);
+    CHECK(st.state == OPENPAW_STRAP_OFF && !st.has_addr && openpaw_strap_step(&st, 5240000) == 0, "forget: off, address cleared");
+    openpaw_strap_dropped(&st, 5250000);
+    CHECK(st.state == OPENPAW_STRAP_OFF, "a drop while not linked changes nothing");
+    // the strap link asks for 250-500 ms events (~1 bpm notification per second), not the
+    // core's 20 ms default; Bluefruit's 2 s supervision timeout must exceed 2 x max interval
+    CHECK(OPENPAW_STRAP_CONN_MIN == 200 && OPENPAW_STRAP_CONN_MAX == 400 &&
+              2u * OPENPAW_STRAP_CONN_MAX * 125u / 100u < 2000u,
+          "strap connection interval 250-500 ms within the 2 s supervision timeout");
+  }
+
   if (argc > 1) {  // golden vectors for app/test: hex packet + expected decoded fields
     FILE *f = fopen(argv[1], "w");
     if (!f) { perror("golden"); return 2; }

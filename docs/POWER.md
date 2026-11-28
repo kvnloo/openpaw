@@ -144,6 +144,33 @@ the app starts another download. Live records (one per 5 s epoch) and status sti
 The intervals stay inside the BLE Core rule that the supervision timeout (4 s) is longer than
 2 × interval × (latency + 1) = 2 s.
 
+## Strap scan: a chest strap read by the collar (firmware after 0.4.0)
+
+The collar can log a Heart Rate strap (for example a Polar H10) by itself, as a BLE
+central, so heart rate lands in each epoch's `hr_bpm` without a phone nearby. Scanning
+keeps the radio receiving, so the firmware never scans on its own: the app's
+**pair strap** command (control `0x30`) opens one 30 s window that connects to the first
+strap advertising the Heart Rate service. If that link drops, the collar retries only that
+strap's address, in 10 s windows that start 30 s, 60 s, 120 s … apart (at most 10 min), and
+stops 1 h after the drop (the strap was probably taken off; pair again from the app). The
+address is kept in RAM only, so after a reboot the strap needs a new pair command. Control
+`0x31` forgets the strap. The policy is `openpaw_strap_step` in `openpaw_core.h` (host-tested).
+
+| Strap state | Radio | Estimate [E] |
+|---|---|---|
+| Never paired, or given up | Nothing: no scanning | 0 µA |
+| Scanning (pair window or a retry) | Listening 50 ms of every 100 ms: 0.5 × 6.26 mA | ~3.1 mA while it lasts |
+| One pair window (30 s) | 30 s × ~3.1 mA ≈ 94 mC once | ~1 µA averaged over a day |
+| Lost strap, first hour | 10 windows, 100 s of scanning in total (host test) | ~87 µA averaged over that hour, then 0 |
+| Connected to the strap | The collar asks for 250–500 ms connection events; at ~2 µC per event (as above) that is 2–4 events per second | ~4–8 µA |
+
+The strap may ask for other connection parameters and the core accepts them; a strap that
+insists on short intervals costs more (20 ms would be ~100 µA). None of this is measured.
+The phone link and the strap link share the radio; the SoftDevice must have RAM for both
+(boot prints `ble=ok` or `ble=FAILED` on the serial port), which is not checked on a board yet.
+In Quiet mode the collar still writes no-sample records with no heart rate, even when a strap
+is connected.
+
 ## What else costs power (not done yet)
 
 - **Wake on motion.** Both accelerometers can raise an interrupt on motion: LSM6DS3TR-C wake-up and
