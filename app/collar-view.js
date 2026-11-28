@@ -59,11 +59,14 @@ export function renderNow(root, epochs, { tz, now, simulated }) {
   const typical = s.typicalActiveSoFar;
   const delta = typical && typical > 1 ? Math.round(((s.activeToday - typical) / typical) * 100) : null;
   const set = (k, v, sub) => { const el = root.querySelector(`[data-k=${k}]`); el.querySelector('b').textContent = v; if (sub !== undefined) el.querySelector('small').textContent = sub; };
-  set('active', fmtMin(s.activeToday), delta === null ? 'active + vigorous today' : `${delta >= 0 ? '+' : '−'}${Math.abs(delta)}% vs a typical day so far`);
+  // sub-lines say what the number means (unit, sign, source), never restate the chip's label
+  set('active', fmtMin(s.activeToday), delta === null ? 'above 250 mg' : `${delta >= 0 ? '+' : '−'}${Math.abs(delta)}% vs a typical day so far`);
   set('bursts', String(s.burstsToday), s.minutesSinceBurst === null ? 'none recorded' : `last ${fmtMin(s.minutesSinceBurst)} ago`);
-  set('pose', s.last && s.last.pitch !== null ? `${s.last.pitch > 0 ? '+' : ''}${s.last.pitch}°` : '–', s.last && s.last.pitch !== null ? (s.last.pitch < -8 ? 'head down (sniffing range)' : s.last.pitch > 6 ? 'head up / lying' : 'level') : 'head pitch');
-  set('batt', s.battery === null ? '–' : `${s.battery}%`, simulated ? 'simulated collar' : 'collar battery');
-  root.querySelector('[data-k=battring]').style.setProperty('--p', s.battery === null ? 0 : s.battery);
+  set('pose', s.last && s.last.pitch !== null ? `${s.last.pitch > 0 ? '+' : ''}${s.last.pitch}°` : '–', s.last && s.last.pitch !== null ? (s.last.pitch < -8 ? 'head down (sniffing range)' : s.last.pitch > 6 ? 'head up / lying' : 'level') : '+ means nose up');
+  set('batt', s.battery === null ? '–' : `${s.battery}%`, simulated ? 'simulated collar' : 'from the collar');
+  const ring = root.querySelector('[data-k=battring]');
+  ring.hidden = s.battery === null; // no empty ring before the collar has reported a level
+  ring.style.setProperty('--p', s.battery === null ? 0 : s.battery);
   return s;
 }
 
