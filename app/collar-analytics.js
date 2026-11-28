@@ -121,16 +121,26 @@ export function circadian(epochs, { tz = 0, now = Date.now(), days = 7, binMin =
   const n = Math.round(1440 / binMin);
   const today = dayNum(now, tz);
   const sum = new Array(n).fill(0), cnt = new Array(n).fill(0), tSum = new Array(n).fill(0), tCnt = new Array(n).fill(0);
-  const past = new Set();
-  for (const e of epochs) {
-    if (e.t < now - (days + 1) * 864e5 || e.t > now) continue;
-    const b = Math.min(n - 1, Math.floor(minuteOfDay(e.t, tz) / binMin));
-    const d = dayNum(e.t, tz);
-    if (d === today) { tSum[b] += e.vedba; tCnt[b]++; } else { sum[b] += e.vedba; cnt[b]++; past.add(d); }
+  // Past days are flagged by distance from today (the window keeps it 0..days+1); anything else
+  // (a non-number t gives a NaN day) still goes through a Set, so the count is unchanged.
+  // Day and minute come from one truncation: d = floor(k / day), minute = (k - d * day) / 1 min,
+  // exact for the integer k (same values as dayNum/minuteOfDay).
+  const seen = new Uint8Array(Math.max(0, Math.ceil(days)) + 2), past = new Set();
+  let pastDays = 0;
+  const lo = now - (days + 1) * 864e5, off = tz * 60000;
+  for (let i = 0; i < epochs.length; i++) {
+    const e = epochs[i], t = e.t;
+    if (t < lo || t > now) continue;
+    const k = Math.trunc(t - off), d = Math.floor(k / DAY_MS);
+    const b = Math.min(n - 1, Math.floor(Math.floor((k - d * DAY_MS) / 60000) / binMin));
+    if (d === today) { tSum[b] += e.vedba; tCnt[b]++; continue; }
+    sum[b] += e.vedba; cnt[b]++;
+    const j = today - d;
+    if (j >= 0 && j < seen.length) { if (!seen[j]) { seen[j] = 1; pastDays++; } } else past.add(d);
   }
   return {
     binMin,
-    pastDays: past.size,
+    pastDays: pastDays + past.size,
     typical: sum.map((s, i) => (cnt[i] ? s / cnt[i] : null)),
     today: tSum.map((s, i) => (tCnt[i] ? s / tCnt[i] : null)),
     nowBin: Math.floor(minuteOfDay(now, tz) / binMin),

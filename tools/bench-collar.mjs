@@ -23,12 +23,17 @@ const load = (p) => import(pathToFileURL(resolve(p)).href + `?arm=${encodeURICom
 const A = await load(refPath), B = await load(candPath);
 const NOW = Date.UTC(2026, 10, 20, 15, 4, 7), TZ = 360, seeds = [3, 5, 9];
 const med = (a) => { const s = a.slice().sort((x, y) => x - y); const h = s.length >> 1; return s.length % 2 ? s[h] : (s[h - 1] + s[h]) / 2; };
-const render = (lib, ep) => ({
-  s: lib.summary(ep, { tz: TZ, now: NOW }),
-  c: lib.circadian(ep, { tz: TZ, now: NOW }),
-  d: lib.dayBudget(ep, { tz: TZ, now: NOW, days: 7 }),
-  b: lib.burstEvents(ep),
-});
+// --fn summary|circadian|dayBudget|burstEvents times that one call alone (same inputs, same output check).
+const fn = args.includes('--fn') ? args[args.indexOf('--fn') + 1] : null;
+if (fn && !['summary', 'circadian', 'dayBudget', 'burstEvents'].includes(fn)) { console.error(`--fn must be summary, circadian, dayBudget or burstEvents, not ${fn}`); process.exit(2); }
+const parts = {
+  s: (lib, ep) => lib.summary(ep, { tz: TZ, now: NOW }),
+  c: (lib, ep) => lib.circadian(ep, { tz: TZ, now: NOW }),
+  d: (lib, ep) => lib.dayBudget(ep, { tz: TZ, now: NOW, days: 7 }),
+  b: (lib, ep) => lib.burstEvents(ep),
+};
+const pick = fn ? { summary: 's', circadian: 'c', dayBudget: 'd', burstEvents: 'b' }[fn] : null;
+const render = (lib, ep) => (pick ? { [pick]: parts[pick](lib, ep) } : Object.fromEntries(Object.entries(parts).map(([k, f]) => [k, f(lib, ep)])));
 const sets = {
   '7d': seeds.map((seed) => A.demoWeek({ now: NOW, days: 7, stepS: 5, seed, tz: TZ })),
   '14d': seeds.map((seed) => A.demoWeek({ now: NOW, days: 14, stepS: 5, seed, tz: TZ })),
