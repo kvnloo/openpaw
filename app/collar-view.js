@@ -86,8 +86,8 @@ export function renderTimeline(svg, readout, epochs, { range = 3600e3, now, anim
   let h = `<defs><linearGradient id="tlg" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#d7b986" stop-opacity=".34"/><stop offset=".7" stop-color="#d7b986" stop-opacity=".05"/><stop offset="1" stop-color="#d7b986" stop-opacity="0"/></linearGradient>
     <clipPath id="tlc"><rect x="${L}" y="0" width="${W - L - Rr}" height="${H}"/></clipPath>
     <pattern id="tlnr" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#4a463d" stroke-width="1.5"/></pattern></defs>`;
-  let prev = 0;
-  LEVELS.forEach((Lv, i) => { const hi = Math.min(MAX, Lv.max); h += `<rect x="${L}" y="${y(hi)}" width="${W - L - Rr}" height="${y(prev) - y(hi)}" fill="${LEVEL_COLORS[i]}" opacity="${0.02 + i * 0.008}"/><text class="band" x="${W - Rr + 10}" y="${(y(prev) + y(hi)) / 2 + 3}" fill="${LEVEL_TEXT[i]}">${Lv.label.toLowerCase()}</text>`; if (i < VIGOROUS) h += `<line x1="${L}" x2="${W - Rr}" y1="${y(hi)}" y2="${y(hi)}" stroke="#2a2823" stroke-dasharray="2 4"/><text class="cut" x="${L + 6}" y="${(y(hi) - 4).toFixed(1)}">${Lv.max} mg</text>`; prev = hi; });
+  let prev = 0, cutLabels = '';
+  LEVELS.forEach((Lv, i) => { const hi = Math.min(MAX, Lv.max); h += `<rect x="${L}" y="${y(hi)}" width="${W - L - Rr}" height="${y(prev) - y(hi)}" fill="${LEVEL_COLORS[i]}" opacity="${0.02 + i * 0.008}"/><text class="band" x="${W - Rr + 10}" y="${(y(prev) + y(hi)) / 2 + 3}" fill="${LEVEL_TEXT[i]}">${Lv.label.toLowerCase()}</text>`; if (i < VIGOROUS) { h += `<line x1="${L}" x2="${W - Rr}" y1="${y(hi)}" y2="${y(hi)}" stroke="#2a2823" stroke-dasharray="2 4"/>`; cutLabels += `<text class="cut" x="${L + 6}" y="${(y(hi) - 4).toFixed(1)}">${Lv.max} mg</text>`; } prev = hi; });
   // time ticks
   const narrow = W < 560;
   const step = range <= 3600e3 ? (narrow ? 20 : 10) * 60000 : range <= 6 * 3600e3 ? (narrow ? 2 : 1) * 3600e3 : (narrow ? 6 : 4) * 3600e3;
@@ -97,6 +97,8 @@ export function renderTimeline(svg, readout, epochs, { range = 3600e3, now, anim
     const a = Math.max(from, s.start), b = Math.min(end, s.end);
     if (b > a) h += `<rect class="notread" x="${x(a).toFixed(1)}" y="${T}" width="${(x(b) - x(a)).toFixed(1)}" height="${H - B - T}" fill="url(#tlnr)" opacity=".7"><title>not read: the collar rested its sensor</title></rect>`;
   }
+  // cutoff labels over the gridlines (their card-colour halo stops a crossing gridline short of the text)
+  h += cutLabels;
   if (pts.length > 1) {
     const d = pts.map((e, i) => `${i ? 'L' : 'M'}${x(e.t).toFixed(1)} ${y(e.vedba).toFixed(1)}`).join('');
     h += `<g clip-path="url(#tlc)"><path d="${d}L${x(pts[pts.length - 1].t)} ${H - B}L${x(pts[0].t)} ${H - B}Z" fill="url(#tlg)"/>`;
