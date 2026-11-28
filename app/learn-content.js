@@ -62,6 +62,7 @@ export const SRC = {
   collins2022: 'https://doi.org/10.1016/j.applanim.2022.105689',
   johnson2024: 'https://doi.org/10.7717/peerj.18131',
   clark2020: 'https://doi.org/10.3389/fvets.2020.564201',
+  townsend2021: 'https://doi.org/10.3390/vetsci8110254',
 };
 
 // Human-readable names for the source list.
@@ -113,6 +114,7 @@ export const SOURCE_NAMES = {
   [SRC.collins2022]: 'Collins et al. 2022, Behavioral rehabilitation of extremely fearful dogs: an ASPCA treatment protocol (Appl Anim Behav Sci)',
   [SRC.johnson2024]: 'Johnson & Wynne 2024, Comparing efficacy in reducing pulling and welfare impacts of four types of leash walking equipment (PeerJ)',
   [SRC.clark2020]: 'Clark, Smidt & Bauer 2020, Therapy dogs\u2019 and handlers\u2019 behavior and salivary cortisol during initial hospital visits: a pilot study (Front Vet Sci)',
+  [SRC.townsend2021]: 'Townsend, Gee, Johnson & Ng 2021, Recognizing and mitigating canine stress during animal assisted interventions (Vet Sci, review)',
 };
 
 export const LESSONS = [
@@ -664,6 +666,18 @@ export const CARDS = [
       { url: 'https://www.youtube.com/watch?v=6o5pZ0hXq_E&t=45s', label: 'His tongue flicks out over his nose about three times in two seconds as he walks along the pavement (0:45 to 0:47; no person or dog in view)' },
       { url: 'https://www.youtube.com/watch?v=6o5pZ0hXq_E&t=54s', label: 'On an open plaza he stops and stands still for about three seconds, ears up, mouth closed, head turned to the side; what he is looking at is out of shot (0:54 to 0:57)' },
       { url: 'https://www.youtube.com/watch?v=6o5pZ0hXq_E&t=61s', label: 'A wide-open mouth with the eyes narrowed, which may be a yawn, then a tongue flick over the nose (1:01 to 1:03; it is sunny, so the open-mouth panting earlier in the clip may also be heat). The uploader\u2019s description lists freezing, lip licking, yawning, a lowered tail, sniffing and panting on this walk, and says he would not always take treats; no treat is visible in the clip' },
+    ] },
+  { id: 'c-walk-off', lesson: 'consent', art: { posture: 'turn', ears: 'neutral', eye: 'soft', mouth: 'loose', tail: 'mid', prop: 'hand', marks: [['body', 'Turning away from the hand after the treat']] },
+    context: 'Your dog used to bark at visitors. A friend he has met in a few short sessions sits on the sofa with treats. He walks up, takes one from her open hand, then turns and walks off a few metres, and after a moment comes back for another. She says \u201cdon\u2019t go\u201d and reaches for his collar to hold him by her.',
+    ask: 'What do you do?',
+    choices: ['Let her hold his collar so he stays and gets used to her', 'Have her follow him across the room and offer the treat where he is', 'Let him go: walking off is him choosing, and coming back is the good news. Ask her to stay seated and still, hands low, and offer a treat only when he comes to her. Keep it short (a few visits) and stop while he is still coming back; if he stops coming back, give him more distance next time, with tossed treats', 'Call him back each time he walks off, so he spends more time next to her'], answer: 2,
+    explain: 'A dog who can walk away is also choosing each time he comes back, and that choice is what the sessions are building. A review of how to recognise and ease stress in therapy dogs says that letting dogs give consent, and honouring their wish to move away from an interaction, strengthens the bond with their handler; one of its examples is a gentle hold that did not let a small dog move away, during which he showed whale eye and yawned often. It is a review of practice and cases, not a trial. Following him or calling him back brings her closer than he chose, and how a person moves matters: in a study of 53 dogs on lead, 26 of 53 barked or lunged at a person who walked up slowly, bent over and staring, against 11 of 53 at a friendly approach. Letting a fearful dog set the pace in small steps paired with food is how an ASPCA programme for 441 very fearful shelter dogs worked; 86% reached its standard for adoption, but it had no untreated control group and most dogs also had medication, so it cannot say which part helped. Holding his collar takes the choice away. AVSAB recommends reward-based methods. Your behaviour consultant can help you plan the next steps.',
+    sources: [SRC.townsend2021, SRC.pedretti2023, SRC.collins2022, SRC.avsabHumane],
+    evidence: ['townsend2021-recognizing-and-mitigating-canine-stress-during-animal-assisted', 'pedretti2023-appeasement-function-of-displacement-behaviours-dogs-behavioural-displays', 'collins2022-behavioral-rehabilitation-of-extremely-fearful-dogs-report-on', 'avsab2021-position-statement-on-humane-dog-training'],
+    examples: [
+      { url: 'https://www.youtube.com/watch?v=uVuA4UyVsjM&t=0s', label: 'In a living room a large long-coated dog takes a treat from a seated visitor\u2019s open hand, then turns and walks off to the side, the lead hanging slack from the person standing behind; by about 3 seconds he is facing the camera again, mouth open (0:00 to 0:04; short home clip, Kris Glover). The uploader writes that he used to lunge and bark at visitors closer than about 15 feet, and that he was allowed to control the distance' },
+      { url: 'https://www.youtube.com/watch?v=uVuA4UyVsjM&t=5s', label: 'Back at her hand for another treat (0:05 to 0:06), then he stands by the table facing her, mouth open, tongue out (0:08 to 0:14)' },
+      { url: 'https://www.youtube.com/watch?v=uVuA4UyVsjM&t=19s', label: 'Nose at her hand (0:19 to 0:20), then he turns and walks away past the person standing behind, lead slack (0:20 to 0:22), and comes back to the table with his head low (0:22 to 0:26)' },
     ] },
 ];
 

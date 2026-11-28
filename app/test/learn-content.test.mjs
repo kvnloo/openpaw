@@ -912,6 +912,52 @@ test('c-small-signs card: several small signs close together on a hard walk, no 
   assert.match(card, /^main_finding: .*[Pp]anting, lip licking and yawning/m);
 });
 
+test('c-walk-off card: a dog who takes a treat from a visitor\u2019s hand and then walks off is choosing; let him go, no holding, following or calling back; cites the AAI review on letting dogs move away, the 53-dog approach study and the ASPCA programme with their limits', async () => {
+  const c = CARDS.find((x) => x.id === 'c-walk-off');
+  assert.ok(c, 'c-walk-off card exists');
+  assert.equal(c.lesson, 'consent');
+  assert.equal(c.art.prop, 'hand');
+  assert.ok(['loose', 'closed', 'tense', 'lick', 'yawn', 'snarl'].includes(c.art.mouth), `mouth '${c.art.mouth}' is one the illustration draws`);
+  assert.match(c.context, /visitor|friend/i);
+  assert.match(c.context, /hand/i, 'takes food from a hand');
+  assert.match(c.context, /walks? (off|away)/i, 'then walks off by himself');
+  assert.match(c.context, /comes? back/i, 'and comes back');
+  assert.match(c.context, /collar|hold/i, 'the visitor tries to keep him there');
+  const { askFor, DEFAULT_ASK } = await import('../learn-content.js');
+  assert.notEqual(askFor(c), DEFAULT_ASK, 'an action card');
+  const right = c.choices[c.answer];
+  assert.match(right, /let him (go|walk)/i, 'the walk-off is allowed');
+  assert.match(right, /still|seated|sit/i, 'the visitor stays put');
+  assert.match(right, /short/i);
+  assert.match(right, /distance/i, 'what to do if he stops coming back');
+  assert.ok(c.choices.some((x, i) => i !== c.answer && /collar|hold/i.test(x)), 'a distractor: hold him there');
+  assert.ok(c.choices.some((x, i) => i !== c.answer && /follow/i.test(x)), 'a distractor: follow him');
+  assert.ok(c.choices.some((x, i) => i !== c.answer && /call/i.test(x)), 'a distractor: call him back each time');
+  const townsend = 'townsend2021-recognizing-and-mitigating-canine-stress-during-animal-assisted';
+  assert.deepEqual(c.evidence, [townsend, 'pedretti2023-appeasement-function-of-displacement-behaviours-dogs-behavioural-displays', 'collins2022-behavioral-rehabilitation-of-extremely-fearful-dogs-report-on', 'avsab2021-position-statement-on-humane-dog-training']);
+  assert.ok(c.sources.includes(SRC.townsend2021) && c.sources.includes(SRC.pedretti2023) && c.sources.includes(SRC.collins2022) && c.sources.includes(SRC.avsabHumane));
+  assert.match(SOURCE_NAMES[SRC.townsend2021], /Townsend/);
+  // Townsend, Gee, Johnson & Ng 2021 (full text read, PMC8623698): "Allowing dogs to provide consent and honoring
+  // their desire to dissent and move away from an interaction strengthens the handler-dog bond"; case example of a
+  // gentle hold that does not let a small dog move away, with whale eye and frequent yawning. A narrative review.
+  assert.match(c.explain, /review/i);
+  assert.match(c.explain, /move away/i);
+  assert.match(c.explain, /26 of 53/);
+  assert.match(c.explain, /441/);
+  assert.match(c.explain, /no (untreated )?control group/i);
+  assert.match(c.explain, /AVSAB/);
+  assert.match(c.explain, /reward-based/i);
+  assert.match(c.explain, /consultant/i);
+  assert.doesNotMatch(c.explain, /proven|always works|guarantee|cure|stress score|is happy|is dominant/i);
+  assert.ok(Array.isArray(c.examples) && c.examples.length >= 3);
+  for (const e of c.examples) {
+    assert.match(e.url, /^https:\/\/www\.youtube\.com\/watch\?v=uVuA4UyVsjM&t=\d+s$/, e.url);
+    assert.match(e.label, /\(\d+:\d\d( to \d+:\d\d)?/);
+    assert.doesNotMatch(e.label, /scared|afraid|fearful|stress|nervous|anxious|happy/i, 'visible facts only');
+  }
+  assert.ok(c.examples.some((e) => /uploader/i.test(e.label)), 'the before/after claim is the uploader\u2019s, not ours');
+});
+
 test('all registered sources are used and named', () => {
   const used = new Set([...LESSONS.flatMap((l) => l.sources), ...CARDS.flatMap((c) => c.sources)]);
   for (const u of Object.values(SRC)) assert.ok(used.has(u), `unused source ${u}`);
