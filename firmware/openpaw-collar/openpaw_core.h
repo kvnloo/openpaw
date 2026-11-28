@@ -263,6 +263,24 @@ static inline int openpaw_nosample_epoch(openpaw_state_t *s, uint32_t uptime_s, 
 #define OPENPAW_LSM_MD1_INT1_WU 0x20
 #define OPENPAW_LSM_WU_IA 0x08
 #define OPENPAW_LSM_WAKE_THS 1       // 125 mg slope at +/-8 g
+// QMA6100P (T1000-E) any-motion on INT1 = P1.02 (QST datasheet Rev F; Seeed's T1000-E
+// qma6100p.c and Meshtastic's QMA6100PSensor.cpp use the same registers):
+//   7.3 any-motion: slope between successive samples > ANY_MOT_TH for ANY_MOT_DUR + 1 samples
+//   MOTION_CFG2 2Eh ANY_MOT_TH: 1 LSB = 16 x 0.977 mg = 15.6 mg at +/-8 g (8 = 125 mg)
+//   MOTION_CFG0 2Ch ANY_MOT_DUR[1:0] = 0 (NO_MOT_DUR unused); MOTION_CFG3 2Fh = 0 (slope input)
+//   INT_EN2 18h ANY_MOT_EN_X/Y/Z bits 2:0; INT1_MAP1 1Ah INT1_ANY_MOT bit 0
+//   INTPIN_CONF 20h INT1_LVL bit 0 (1 = active high), INT1_OD bit 1 (0 = push-pull)
+//   INT_CFG 21h LATCH_INT bit 0; INT_RD_CLR bit 7 = 0: only reading INT_STATUS_0 09h clears
+//     the any-motion latch, so the FIFO status burst from 0Bh in a check epoch leaves it set
+//   INT_STATUS_0 09h ANY_MOT_X/Y/Z bits 2:0
+// Thresholds are provisional power settings, not calibrated. Not yet run on hardware.
+#define OPENPAW_QMA_ANY_MOT_TH 8        // 125 mg slope at +/-8 g, as on the XIAO
+#define OPENPAW_QMA_ANY_MOT_DUR 0
+#define OPENPAW_QMA_INT_EN2_ANY 0x07
+#define OPENPAW_QMA_INT1_MAP1_ANY 0x01
+#define OPENPAW_QMA_ANY_MOT_X_Y_Z 0x07
+static inline uint8_t openpaw_qma_int_cfg(uint8_t old) { return (uint8_t)((old | 0x01u) & ~0x80u); }
+static inline uint8_t openpaw_qma_intpin(uint8_t old) { return (uint8_t)((old & ~0x03u) | 0x01u); }
 #define OPENPAW_QUIET_AFTER 12       // low-rate still epochs before reads stop (1 min)
 #define OPENPAW_QUIET_CHECK 12       // every 12th quiet epoch is sampled (once a minute)
 #define OPENPAW_QUIET_MISS_MG 500    // check-epoch peak that the wake pin must have seen

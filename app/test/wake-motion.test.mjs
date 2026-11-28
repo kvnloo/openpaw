@@ -56,7 +56,6 @@ const t1000 = ino.slice(ino.indexOf('#if BOARD_T1000E\n// QMA6100P'), ino.indexO
 test('XIAO Quiet mode: latched wake-up on INT1 read with digitalRead, never attachInterrupt', () => {
   assert.ok(xiao.length > 100 && t1000.length > 100, 'board blocks found');
   assert.match(xiao, /#define IMU_WAKE_PIN PIN_LSM6DS3TR_C_INT1/);
-  assert.doesNotMatch(t1000, /IMU_WAKE_PIN/, 'T1000-E has no wake pin yet (QMA6100P any-motion is a follow-up)');
   assert.match(xiao, /i2c_write\(LSM_ADDR, 0x58, OPENPAW_LSM_TAP_CFG_WAKE\)/, 'TAP_CFG: interrupts on + latch');
   assert.match(xiao, /i2c_write\(LSM_ADDR, 0x5B, OPENPAW_LSM_WAKE_THS\)/);
   assert.match(xiao, /i2c_write\(LSM_ADDR, 0x5E, on \? OPENPAW_LSM_MD1_INT1_WU : 0\)/, 'wake-up routed to INT1 only in Quiet');
@@ -66,6 +65,23 @@ test('XIAO Quiet mode: latched wake-up on INT1 read with digitalRead, never atta
   assert.match(ino, /openpaw_quiet_step\(/);
   assert.match(ino, /openpaw_nosample_epoch\s*\(/, 'quiet epochs are written as no-sample records');
   assert.match(ino, /wake_pin=fallback/);
+});
+
+test('T1000-E Quiet mode: QMA6100P any-motion latched on INT1 (P1.02), read with digitalRead', () => {
+  assert.match(t1000, /#define IMU_WAKE_PIN PIN_ACC_INTERRUPT/);
+  assert.match(t1000, /#define IMU_HAS_WAKE_PIN 1/);
+  assert.match(t1000, /i2c_write\(QMA_ADDR, 0x2E, OPENPAW_QMA_ANY_MOT_TH\)/, 'ANY_MOT_TH 125 mg');
+  assert.match(t1000, /i2c_write\(QMA_ADDR, 0x2C, OPENPAW_QMA_ANY_MOT_DUR\)/);
+  assert.match(t1000, /openpaw_qma_intpin\(/, 'INTPIN_CONF read-modify-write: INT1 push-pull active high');
+  assert.match(t1000, /openpaw_qma_int_cfg\(/, 'INT_CFG read-modify-write: latched, INT_RD_CLR off');
+  assert.match(t1000, /i2c_write\(QMA_ADDR, 0x1A, on \? OPENPAW_QMA_INT1_MAP1_ANY : 0\)/, 'any-motion on INT1 only in Quiet');
+  assert.match(t1000, /i2c_write\(QMA_ADDR, 0x18, on \? OPENPAW_QMA_INT_EN2_ANY : 0\)/, 'any-motion engine on only in Quiet');
+  assert.match(t1000, /i2c_read\(QMA_ADDR, 0x09,/, 'INT_STATUS_0 read clears the latch');
+  assert.doesNotMatch(ino, /IMU_HAS_WAKE_PIN 0/, 'both boards have a wake pin now');
+  assert.doesNotMatch(power, /T1000-E stays in Still mode for now/);
+  assert.match(power, /\*\*Quiet\*\* \(both boards/);
+  assert.match(power, /ANY_MOT_TH/);
+  assert.match(power, /INT_RD_CLR/);
 });
 
 test('the sketch does not use attachInterrupt (GPIOTE IN channel = +15 µA asleep)', () => {

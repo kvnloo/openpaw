@@ -15,7 +15,7 @@ Legend: **[D]** = value from a datasheet (source linked below), **[E]** = estima
 |---|---|---|---|---|
 | **Active** | Default | XIAO: LSM6DS3TR-C at 52 Hz low-power, samples queued in its FIFO; T1000-E: QMA6100P at 50 Hz, samples queued in its 64-frame FIFO | XIAO: 1 per second (FIFO read); T1000-E: 1.25 per second (FIFO read every 0.8 s) | Advertising every 100 ms for 30 s after boot or a disconnect, then every 1 s; Advertising every 2 s once no phone has connected for 10 min ("parked") |
 | **Still** | 5 min of still epochs (mean VeDBA under 60 mg, no burst, no sensor gap) and no phone connected | XIAO: 12.5 Hz low-power, FIFO; T1000-E: 12.5 Hz, FIFO | XIAO: 1 per second; T1000-E: 1.25 per second | As in Active (usually parked: 2 s) |
-| **Quiet** (XIAO only, firmware after 0.4.0) | 1 more minute of still epochs in Still mode (12 epochs), no phone connected | XIAO: still running at 12.5 Hz low-power, FIFO off, wake-up interrupt latched on INT1 | 1 per 5 s epoch (one pin read, one no-sample record); every 12th epoch is sampled for real (a check epoch) | As in Still |
+| **Quiet** (both boards, firmware after 0.4.0; T1000-E since the QMA6100P any-motion change) | 1 more minute of still epochs in Still mode (12 epochs), no phone connected | XIAO: still running at 12.5 Hz low-power, FIFO off, wake-up interrupt latched on INT1; T1000-E: QMA6100P still running at its Still rate, FIFO not read, any-motion interrupt latched on INT1 (P1.02) | 1 per 5 s epoch (one pin read, one no-sample record); every 12th epoch is sampled for real (a check epoch) | As in Still |
 | **Connected, downloading** | The app is connected and a backlog download runs (and for 2 s after it ends) | As in Active (a connected phone always gets the full rate) | As in Active | Asks for connection events every 15 ms |
 | **Connected, idle** | Connected, no download for 2 s | As in Active | As in Active | Asks for 200 ms events with peripheral latency 4: the collar may skip up to 4 empty events, so it answers at least once a second, and sooner whenever it has a live record to send |
 
@@ -169,7 +169,7 @@ The intervals stay inside the BLE Core rule that the supervision timeout (4 s) i
     all while the dog lies still (CPU line ~7 → ~0 µA, and the sensor could drop below its
     12.5 Hz 9 µA). That changes what a Still epoch is: there would be no samples to compute it
     from.
-  - *The no-sample record (host-tested; the XIAO writes it in Quiet mode, below).*
+  - *The no-sample record (host-tested; both boards write it in Quiet mode, below).*
     `openpaw_nosample_epoch()` in `openpaw_core.h` closes an epoch without samples: record flag
     `0x20` (`NOSAMPLE`), movement fields 0, and pitch/roll set to -128, a value no real posture
     has, so a reader that ignores the flag still sees an impossible posture rather than "lying
@@ -194,8 +194,25 @@ The intervals stay inside the BLE Core rule that the supervision timeout (4 s) i
     epochs carry no movement or posture. Estimated saving, DC/DC: the Still CPU line (~7 µA)
     drops to roughly one short wake-up per 5 s plus the check epoch's share (~1 µA) [E], so the
     XIAO's Still total goes from ~25 to ~19 µA (parts only); the accelerometer's 9 µA stays. The
-    thresholds (125 mg, 500 mg, 1 min) are provisional power settings, not calibrated. The
-    T1000-E stays in Still mode for now (QMA6100P `ANY_MOT_INT` latching is a follow-up).
+    thresholds (125 mg, 500 mg, 1 min) are provisional power settings, not calibrated.
+  - *Quiet mode on the T1000-E (compiled and host-tested, not yet run on hardware).* Same state
+    machine (`openpaw_quiet_step`), same check epochs and `wake_pin=fallback`. The QMA6100P keeps
+    running at its Still rate and clock, and its any-motion engine (datasheet Rev F §7.3: the
+    slope between two successive samples) is switched on only in Quiet mode: `ANY_MOT_TH` 2Eh =
+    8, i.e. 8 × 16 LSB × 0.977 mg = 125 mg at ±8 g like the XIAO; `ANY_MOT_DUR` 2Ch = 0 (one
+    sample); `INT_EN2` 18h = `0x07` (X/Y/Z); `INT1_MAP1` 1Ah = `0x01` (`INT1_ANY_MOT`).
+    `INTPIN_CONF` 20h sets INT1 push-pull, active high, and `INT_CFG` 21h sets `LATCH_INT`
+    (bit 0) with `INT_RD_CLR` (bit 7) **off**: with it on, any read of 09h–0Dh clears every
+    latch, and a check epoch's FIFO status read starts at 0Bh, so the latch would be lost
+    before the epoch ends. With it off only reading `INT_STATUS_0` 09h clears it, which the
+    firmware does when it enters Quiet mode. Both registers are read-modify-write, because
+    the Rev F and Rev A1 datasheets disagree on 21h's default (`0x00` vs `0x0C`) and 20h bit 6
+    changes the I²C address. Seeed's T1000-E driver (`qma6100p.c`, `qma6100p_motion_init`) and
+    Meshtastic's `QMA6100PSensor.cpp` use the same threshold and map registers. Whether the
+    any-motion engine runs correctly at the 12.8 kHz Still clock is not stated in the
+    datasheet; a pin that misses motion is caught by the check epoch as above. Estimated
+    saving, DC/DC: the Still CPU line (~7 µA) drops to ~1 µA [E], so the T1000-E's Still total
+    goes from ~27 to ~21 µA (parts only; ~49 µA after a `qma_clock=fallback`).
 - **QMA6100P master clock in Active mode.** Still mode already runs at 12.8 kHz (above).
   Active mode stays at 51.2 kHz; 25.6 kHz would save another ~19 µA if 50 Hz data stays clean
   there. Check the Still-mode rate on a real board first.
@@ -220,6 +237,12 @@ The intervals stay inside the BLE Core rule that the supervision timeout (4 s) i
   `Seeed-Tracker-T1000-E-for-LoRaWAN-dev-board` `t1000_e/peripherals/src/qma6100p.c` and
   `inc/qma6100p_defs.h` (MCLK enum, only 51.2 kHz used); QST's Linux input driver as vendored in
   `tjh-l/HCD3100-8y` `.../gsensor/qma6100p/qma6100p.c` (`qma6100p_set_mode` always 51.2 kHz).
+- QST, *QMA6100P datasheet Rev F*, §7.3 "ANY_MOT_INT", §7.9 "Interrupt configuration" and
+  registers 09h INT_STATUS_0, 18h INT_EN2, 1Ah INT1_MAP1, 20h INTPIN_CONF, 21h INT_CFG,
+  2Ch MOTION_CFG0, 2Eh MOTION_CFG2, 2Fh MOTION_CFG3 (same PDF as below); Rev A1 for the other
+  21h default. Cross-checked against Seeed `t1000_e/peripherals/src/qma6100p.c`
+  (`qma6100p_motion_init`: threshold in 15.625 mg steps, any-motion on 1Ah bit 0) and Meshtastic
+  `src/motion/QMA6100PSensor.cpp` (INT_EN2 `0x07`, `INT1_ANY_MOT`, P1.02).
 - QST, *QMA6100P datasheet Rev F*, electrical characteristics, I²C section and table 9 "I2C Timings"
   (fSCL max 400 kHz; fast mode needs external pull-ups)
   (https://qstcorp.com/upload/pdf/202602/13-52-20%20QMA6100P%20Datasheet%20Rev%20F.pdf).

@@ -299,7 +299,27 @@ int main(int argc, char **argv) {
   CHECK(openpaw_quiet_step(&qt, &burst_low, 0, 0) == OPENPAW_QUIET_WAKE && qt.disabled, "a burst with the pin low is a miss too");
   openpaw_quiet_init(&qt, 0);
   for (int i = 0; i < 3 * OPENPAW_QUIET_AFTER; i++) act = openpaw_quiet_step(&qt, &low_r, 0, 0);
-  CHECK(act == OPENPAW_QUIET_READ, "board without a wake pin (T1000-E for now): never skip");
+  CHECK(act == OPENPAW_QUIET_READ, "board without a wake pin: never skip");
+
+  // 12d. T1000-E wake pin: QMA6100P any-motion latched on INT1 (P1.02), same Quiet state
+  // machine. QST QMA6100P datasheet Rev F 7.3, 7.9, 9.5, 9.19, 9.21, 9.27, 9.28, 9.37, 9.39.
+  CHECK(OPENPAW_QMA_ANY_MOT_TH == 8 && OPENPAW_QMA_ANY_MOT_TH * 15625 / 1000 == 125,
+        "ANY_MOT_TH 2Eh: 8 x 16 LSB x 0.977 mg = 125 mg at +/-8 g, same as the XIAO's wake-up");
+  CHECK(OPENPAW_QMA_ANY_MOT_DUR == 0, "MOTION_CFG0 2Ch ANY_MOT_DUR 0: one sample over the threshold");
+  CHECK(OPENPAW_QMA_INT_EN2_ANY == 0x07, "INT_EN2 18h: ANY_MOT_EN_X/Y/Z bits 2:0, no-motion off");
+  CHECK(OPENPAW_QMA_INT1_MAP1_ANY == 0x01, "INT1_MAP1 1Ah: INT1_ANY_MOT bit 0 only");
+  CHECK(OPENPAW_QMA_ANY_MOT_X_Y_Z == 0x07, "INT_STATUS_0 09h: ANY_MOT_X/Y/Z bits 2:0");
+  // INT_CFG 21h: LATCH_INT (bit 0) on; INT_RD_CLR (bit 7) off so the FIFO status burst from
+  // 0Bh in a check epoch does not clear the any-motion latch (only reading 09h does);
+  // the other bits (Rev F default 0x00, Rev A1 0x0C: SDX pad settings) are kept.
+  CHECK(openpaw_qma_int_cfg(0x00) == 0x01, "INT_CFG from 0x00 -> 0x01");
+  CHECK(openpaw_qma_int_cfg(0x0C) == 0x0D, "INT_CFG keeps the SDX pad bits (Rev A1 default 0x0C)");
+  CHECK(openpaw_qma_int_cfg(0x81) == 0x01, "INT_CFG clears INT_RD_CLR");
+  // INTPIN_CONF 20h: INT1 push-pull (INT1_OD bit 1 = 0), active high (INT1_LVL bit 0 = 1), so
+  // digitalRead(HIGH) means motion like the XIAO; bit 6 DIS_IE_AD0 (I2C address) etc. kept.
+  CHECK(openpaw_qma_intpin(0x05) == 0x05, "INTPIN_CONF default 0x05 stays");
+  CHECK(openpaw_qma_intpin(0x02) == 0x01, "INT1 open-drain active-low -> push-pull active-high");
+  CHECK(openpaw_qma_intpin(0x4E) == 0x4D, "INTPIN_CONF keeps bit 6 and the INT2 bits");
 
   // 13. connection interval: 15 ms while a backlog download runs (fast sync), then a
   // slow 200 ms interval with peripheral latency once the link has been idle for
