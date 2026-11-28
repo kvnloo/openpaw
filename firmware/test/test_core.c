@@ -603,6 +603,30 @@ int main(int argc, char **argv) {
     CHECK(OPENPAW_STRAP_CONN_MIN == 200 && OPENPAW_STRAP_CONN_MAX == 400 &&
               2u * OPENPAW_STRAP_CONN_MAX * 125u / 100u < 2000u,
           "strap connection interval 250-500 ms within the 2 s supervision timeout");
+
+    // Quiet mode writes no-sample records with hr 0, so a linked strap holds Quiet off like
+    // a phone does: its bpm keeps reaching the records. Pairing or retrying (no bpm yet) does
+    // not hold it, and a strap that links during Quiet wakes the collar at the next epoch.
+    openpaw_strap_t hs; openpaw_strap_init(&hs);
+    CHECK(openpaw_quiet_hold(0, &hs) == 0 && openpaw_quiet_hold(1, &hs) == 1, "hold: phone only, no strap");
+    openpaw_strap_pair(&hs, 0);
+    CHECK(openpaw_quiet_hold(0, &hs) == 0, "pairing (no bpm yet) does not hold Quiet off");
+    openpaw_strap_linked(&hs, a1, 1000);
+    CHECK(openpaw_quiet_hold(0, &hs) == 1, "a linked strap holds Quiet off");
+    openpaw_strap_dropped(&hs, 2000);
+    CHECK(openpaw_quiet_hold(0, &hs) == 0, "a lost strap (retrying) does not hold Quiet off");
+    openpaw_quiet_t hq; openpaw_quiet_init(&hq, 1);
+    openpaw_record_t hl = still_r; hl.flags = OPENPAW_FLAG_LOWRATE;
+    openpaw_strap_linked(&hs, a1, 3000);
+    int hact = -1;
+    for (int i = 0; i < 3 * OPENPAW_QUIET_AFTER; i++) hact = openpaw_quiet_step(&hq, &hl, openpaw_quiet_hold(0, &hs), 0);
+    CHECK(hact == OPENPAW_QUIET_READ && !hq.quiet, "36 low-rate still epochs with a linked strap: still reading, got %d", hact);
+    openpaw_strap_dropped(&hs, 4000);
+    for (int i = 0; i < OPENPAW_QUIET_AFTER; i++) hact = openpaw_quiet_step(&hq, &hl, openpaw_quiet_hold(0, &hs), 0);
+    CHECK(hact == OPENPAW_QUIET_SKIP && hq.quiet, "strap lost: Quiet after the usual 12 still epochs");
+    openpaw_strap_linked(&hs, a1, 5000);
+    CHECK(openpaw_quiet_step(&hq, NULL, openpaw_quiet_hold(0, &hs), 0) == OPENPAW_QUIET_WAKE && !hq.quiet,
+          "a strap linking during Quiet wakes the collar at the next epoch");
   }
 
   if (argc > 1) {  // golden vectors for app/test: hex packet + expected decoded fields

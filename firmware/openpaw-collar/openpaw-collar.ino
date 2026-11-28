@@ -839,7 +839,8 @@ void loop() {
     g_next_ms = now + (uint32_t)g_core.cfg.epoch_s * 1000u;
     const bool pin = imu_wake_pin();
     if (openpaw_nosample_epoch(&g_core, up, g_batt, &rec)) epoch_out(&rec, up);
-    const int qa = openpaw_quiet_step(&g_quiet, NULL, g_conn != BLE_CONN_HANDLE_INVALID, pin);
+    // a strap that linked during Quiet holds it off (wake), so its bpm reaches the records
+    const int qa = openpaw_quiet_step(&g_quiet, NULL, openpaw_quiet_hold(g_conn != BLE_CONN_HANDLE_INVALID, &g_strap), pin);
     if (qa == OPENPAW_QUIET_WAKE) {
       g_skip = false;
       quiet_wake();
@@ -901,7 +902,8 @@ static bool epoch_done(openpaw_record_t *rec, uint32_t up) {
   const bool conn = g_conn != BLE_CONN_HANDLE_INVALID;
   // the epoch just closed, so a rate change starts cleanly with the next one
   float want_hz = openpaw_power_step(&g_pwr, rec, conn);
-  const int qa = openpaw_quiet_step(&g_quiet, rec, conn, imu_wake_pin());
+  // no Quiet while a strap is linked: no-sample records would drop its bpm
+  const int qa = openpaw_quiet_step(&g_quiet, rec, openpaw_quiet_hold(conn, &g_strap), imu_wake_pin());
   if (qa == OPENPAW_QUIET_WAKE) {
     quiet_wake();
     changed = true;
