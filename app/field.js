@@ -14,6 +14,7 @@ import { stoodUpFrom } from './stood-up.js';
 import { SESSION_SIGNS, sessionAdvice, sessionCheckPayload } from './session-check.js';
 import { refusalPayload, refusalText } from './walk-refusal.js';
 import { contextExtra } from './context-tag.js';
+import { CHAIN_SLOTS } from './field-chain.js';
 
 const $ = (id) => document.getElementById(id);
 const SOURCE = 'openpaw-field';
@@ -134,6 +135,7 @@ function render() {
     $('phase').firstChild.textContent = 'Ready';
     $('phaseSub').textContent = 'Tap when you spot a trigger.';
     $('timer').textContent = '0:00';
+    CHAIN_SLOTS.forEach((t) => { const s = document.createElement('span'); s.className = 'slot'; s.setAttribute('aria-hidden', 'true'); s.textContent = t; $('chain').append(s); });
   }
   $('btnUndo').disabled = !walkLog.length;
   renderLog();
