@@ -111,6 +111,14 @@ export function circadian(epochs, { tz = 0, now = Date.now(), days = 7, binMin =
 }
 
 // Burst epochs grouped into events (bursts within `gapS` seconds belong together).
+// Stored epochs are time-sorted (epochsFromEvents sorts them), so each event's peak and settle scans
+// start at the event's own index found by binary search instead of rescanning the whole history per
+// event (the page runs this twice per render). Unsorted input keeps the full scans.
+const firstAtOrAfter = (epochs, t, strict) => {
+  let lo = 0, hi = epochs.length;
+  while (lo < hi) { const mid = (lo + hi) >> 1; if (strict ? epochs[mid].t <= t : epochs[mid].t < t) lo = mid + 1; else hi = mid; }
+  return lo;
+};
 export function burstEvents(epochs, { gapS = 30 } = {}) {
   const out = [];
   for (const e of epochs) {
@@ -119,11 +127,17 @@ export function burstEvents(epochs, { gapS = 30 } = {}) {
     if (last && e.t - last.end <= gapS * 1000) { last.end = e.t; last.count += e.bursts; last.peak = Math.max(last.peak, e.max || 0); last.clipped ||= e.clipped; }
     else out.push({ start: e.t, end: e.t, count: e.bursts, peak: e.max || 0, clipped: e.clipped });
   }
-  for (const b of out) for (const e of epochs) if (e.t >= b.start && e.t <= b.end) b.peak = Math.max(b.peak, e.max || 0);
+  let sorted = true;
+  for (let i = 1; i < epochs.length; i++) if (!(epochs[i].t >= epochs[i - 1].t)) { sorted = false; break; }
+  for (const b of out) {
+    if (!sorted) { for (const e of epochs) if (e.t >= b.start && e.t <= b.end) b.peak = Math.max(b.peak, e.max || 0); continue; }
+    for (let i = firstAtOrAfter(epochs, b.start, false); i < epochs.length && epochs[i].t <= b.end; i++) b.peak = Math.max(b.peak, epochs[i].max || 0);
+  }
   // settle: seconds from the burst until movement is back below the vigorous band for 60 s straight
   for (const b of out) {
     let calmSince = null;
-    for (const e of epochs) {
+    for (let i = sorted ? firstAtOrAfter(epochs, b.end, true) : 0; i < epochs.length; i++) {
+      const e = epochs[i];
       if (e.t <= b.end) continue;
       if (e.t - b.end > 30 * 60000) break;
       if (levelOf(e.vedba) < VIGOROUS) { calmSince ??= e.t; if (e.t - calmSince >= 60000) { b.settleS = Math.round((calmSince - b.end) / 1000); break; } }
