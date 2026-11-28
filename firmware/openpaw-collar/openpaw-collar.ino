@@ -19,6 +19,9 @@
 //                | 0x20 <unix_s u32 LE> set time: logs a time anchor (openpaw_anchor_t, version byte 2)
 //                  in the flash log so epochs from this boot can be dated after a restart; anchors
 //                  come back in dumps between the epochs (proto >= 2)
+//                | 0x30 pair a chest strap: scan 30 s for any Heart Rate (0x180D) strap, e.g. a Polar H10,
+//                  connect, and log its bpm in each epoch's hr_bpm | 0x31 forget the strap
+//                  (openpaw_strap_* in openpaw_core.h; firmware after 0.4.0)
 //   0005 status  read/notify 20 B: proto u8, board u8, epoch_s u16, next_seq u32, uptime_s u32, stored u32,
 //                boot_seq u32 (first seq of this boot; seq continues across reboots when the flash log is used)
 // plus the standard Battery Service (0x180F) and Device Information (0x180A).
@@ -510,6 +513,95 @@ static openpaw_quiet_t g_quiet;        // Quiet: no FIFO reads, latched wake pin
 static bool g_skip = false;            // this epoch is a skipped (no-sample) one
 static uint32_t g_next_ms = 0;         // next loop wake-up: FIFO drain, or the next Quiet epoch boundary
 
+// ---------------------------------------------------------------- chest strap (BLE central)
+// The collar connects to one Heart Rate strap only after the app's pair command (0x30) and
+// scans only as openpaw_strap_step allows (docs/POWER.md "Strap scan"). BLE callbacks run in
+// the Bluefruit task, so they only raise flags or feed g_hr; loop() owns g_strap.
+BLEClientService hrms(UUID16_SVC_HEART_RATE);
+BLEClientCharacteristic hrmc(UUID16_CHR_HEART_RATE_MEASUREMENT);
+static openpaw_strap_t g_strap;
+static openpaw_hr_t g_hr;  // bpm notified during the open epoch
+static volatile uint16_t g_strap_conn = BLE_CONN_HANDLE_INVALID;
+static volatile bool g_strap_pair_req = false, g_strap_forget_req = false;
+static volatile bool g_strap_link_ev = false, g_strap_drop_ev = false;
+static volatile uint8_t g_strap_addr_ev[6];
+static bool g_ble_ok = false;
+
+static void hrm_notify_cb(BLEClientCharacteristic *chr, uint8_t *data, uint16_t len) {
+  (void)chr;
+  openpaw_hrm_t m;
+  if (!openpaw_hrm_parse(data, len, &m)) return;
+  taskENTER_CRITICAL();
+  openpaw_hr_feed(&g_hr, &m);
+  taskEXIT_CRITICAL();
+}
+// The open epoch's heart rate so far (0 = none): passed to the core, which logs it if the
+// epoch closes in this call; epoch_out then starts the next epoch's average.
+static uint8_t hr_now() {
+  taskENTER_CRITICAL();
+  openpaw_hr_t c = g_hr;
+  taskEXIT_CRITICAL();
+  return openpaw_hr_take(&c);
+}
+static void hr_epoch_closed() {
+  taskENTER_CRITICAL();
+  openpaw_hr_init(&g_hr);
+  taskEXIT_CRITICAL();
+}
+static void scan_cb(ble_gap_evt_adv_report_t *report) {  // reports are already filtered on 0x180D
+  if (g_strap_conn == BLE_CONN_HANDLE_INVALID && openpaw_strap_accept(&g_strap, report->peer_addr.addr)) {
+    Bluefruit.Central.connect(report);  // the scanner stops itself when a connection starts
+    return;
+  }
+  Bluefruit.Scanner.resume();
+}
+static void cent_connect_cb(uint16_t conn) {
+  BLEConnection *c = Bluefruit.Connection(conn);
+  if (!c || !hrms.discover(conn) || !hrmc.discover() || !hrmc.enableNotify()) {
+    Bluefruit.disconnect(conn);  // not a usable Heart Rate strap; the policy keeps scanning
+    return;
+  }
+  const ble_gap_addr_t a = c->getPeerAddr();
+  for (int i = 0; i < 6; i++) g_strap_addr_ev[i] = a.addr[i];
+  g_strap_conn = conn;
+  g_strap_link_ev = true;
+}
+static void cent_disconnect_cb(uint16_t conn, uint8_t reason) {
+  (void)reason;
+  if (conn != g_strap_conn) return;
+  g_strap_conn = BLE_CONN_HANDLE_INVALID;
+  g_strap_drop_ev = true;
+}
+static void strap_update(uint32_t now) {
+  if (!g_ble_ok) return;
+  if (g_strap_forget_req || g_strap_pair_req) {
+    if (g_strap_conn != BLE_CONN_HANDLE_INVALID) Bluefruit.disconnect(g_strap_conn);
+    if (g_strap_forget_req) openpaw_strap_forget(&g_strap);
+    else openpaw_strap_pair(&g_strap, now);
+    g_strap_forget_req = g_strap_pair_req = false;
+  }
+  if (g_strap_link_ev) {
+    g_strap_link_ev = false;
+    uint8_t a[6];
+    for (int i = 0; i < 6; i++) a[i] = g_strap_addr_ev[i];
+    if (g_strap.state == OPENPAW_STRAP_PAIRING || g_strap.state == OPENPAW_STRAP_LOST) {
+      openpaw_strap_linked(&g_strap, a, now);
+      Serial.println("strap=linked");
+    } else if (g_strap_conn != BLE_CONN_HANDLE_INVALID) {
+      Bluefruit.disconnect(g_strap_conn);  // forgotten while it was connecting
+    }
+  }
+  if (g_strap_drop_ev) {
+    g_strap_drop_ev = false;
+    if (g_strap.state == OPENPAW_STRAP_LINKED) Serial.println("strap=lost");
+    openpaw_strap_dropped(&g_strap, now);
+  }
+  const bool want = openpaw_strap_step(&g_strap, now) && g_strap_conn == BLE_CONN_HANDLE_INVALID;
+  const bool running = Bluefruit.Scanner.isRunning();
+  if (want && !running) Bluefruit.Scanner.start(0);
+  else if (!want && running) Bluefruit.Scanner.stop();
+}
+
 static void ctrl_write_cb(uint16_t conn, BLECharacteristic *chr, uint8_t *data, uint16_t len) {
   (void)conn; (void)chr;
   if (len < 1) return;
@@ -523,6 +615,10 @@ static void ctrl_write_cb(uint16_t conn, BLECharacteristic *chr, uint8_t *data, 
   } else if (data[0] == 0x20 && len >= 5) {  // flash is written from loop(), not the BLE callback
     g_time_unix = (uint32_t)data[1] | ((uint32_t)data[2] << 8) | ((uint32_t)data[3] << 16) | ((uint32_t)data[4] << 24);
     g_time_req = true;
+  } else if (data[0] == 0x30) {  // the strap's scan and connection run from loop() (strap_update)
+    g_strap_pair_req = true;
+  } else if (data[0] == 0x31) {
+    g_strap_forget_req = true;
   }
 }
 static void connect_cb(uint16_t conn) {
@@ -574,7 +670,10 @@ static void status_update(uint32_t uptime_s) {
 
 static void ble_begin() {
   Bluefruit.configPrphBandwidth(BANDWIDTH_MAX);
-  Bluefruit.begin();
+  Bluefruit.configCentralBandwidth(BANDWIDTH_LOW);  // the strap link: 23 B MTU is plenty for 0x2A37
+  // one phone (peripheral) + one strap (central). Whether the SoftDevice RAM for this fits the
+  // core's linker reservation is not checked on a board yet: boot prints ble=ok or ble=FAILED.
+  g_ble_ok = Bluefruit.begin(1, 1);
   Bluefruit.setTxPower(0);
   Bluefruit.autoConnLed(false);
   uint8_t mac[6];
@@ -618,6 +717,19 @@ static void ble_begin() {
   Bluefruit.Advertising.setInterval(OPENPAW_ADV_FAST, OPENPAW_ADV_SLOW);  // 100 ms for 30 s, then 1 s; loop() parks at 2 s
   Bluefruit.Advertising.setFastTimeout(30);
   Bluefruit.Advertising.start(0);
+
+  // chest strap client: nothing scans until the app sends 0x30
+  Bluefruit.Central.setConnectCallback(cent_connect_cb);
+  Bluefruit.Central.setDisconnectCallback(cent_disconnect_cb);
+  Bluefruit.Central.setConnInterval(OPENPAW_STRAP_CONN_MIN, OPENPAW_STRAP_CONN_MAX);
+  hrms.begin();
+  hrmc.setNotifyCallback(hrm_notify_cb);
+  hrmc.begin();
+  Bluefruit.Scanner.setRxCallback(scan_cb);
+  Bluefruit.Scanner.restartOnDisconnect(false);
+  Bluefruit.Scanner.setInterval(OPENPAW_STRAP_SCAN_INTERVAL, OPENPAW_STRAP_SCAN_WINDOW);
+  Bluefruit.Scanner.filterUuid(hrms.uuid);
+  Bluefruit.Scanner.useActiveScan(false);
 }
 
 // Send as many backlog records as fit in one notification; returns false when done.
@@ -674,6 +786,8 @@ void setup() {
   openpaw_quiet_init(&g_quiet, IMU_HAS_WAKE_PIN);
   openpaw_link_init(&g_link);
   openpaw_adv_init(&g_adv, millis());
+  openpaw_strap_init(&g_strap);
+  openpaw_hr_init(&g_hr);
 
   bool ok = imu_begin();
   flash_probe();
@@ -685,8 +799,8 @@ void setup() {
   // boot signal: 1 long blink = OK, 5 fast blinks = IMU not found
   if (ok) { led(true); delay(600); led(false); }
   else for (int i = 0; i < 5; i++) { led(true); delay(80); led(false); delay(80); }
-  Serial.printf("openpaw fw=%s board=%d imu=%s storage=%s log=%s stored=%lu next_seq=%lu\n", OPENPAW_FW_VERSION,
-                BOARD_ID, ok ? "ok" : "MISSING", g_flash_line, log_kind_name(),
+  Serial.printf("openpaw fw=%s board=%d imu=%s ble=%s storage=%s log=%s stored=%lu next_seq=%lu\n", OPENPAW_FW_VERSION,
+                BOARD_ID, ok ? "ok" : "MISSING", g_ble_ok ? "ok" : "FAILED", g_flash_line, log_kind_name(),
                 (unsigned long)log_count(), (unsigned long)g_core.seq);
   Serial.println("seq,uptime_s,flags,vedba_mean_mg,vedba_max_mg,active_frac,pitch_deg,roll_deg,bursts,hr_bpm,battery_pct");
 }
@@ -712,6 +826,7 @@ void loop() {
   uint32_t now = millis();
   link_update(now);
   adv_update(now);
+  strap_update(now);
   if ((int32_t)(now - g_next_ms) < 0) {
     if (!g_dumping) delay(g_next_ms - now);  // FreeRTOS delay = CPU sleeps between samples
     return;
@@ -750,16 +865,16 @@ void loop() {
     if (n == 128) g_next_ms = now;  // more queued (e.g. after find-me): read again at once
   }
   if (now - last_ok_ms > 2000 + IMU_FIFO_READ_MS) {  // no samples: close the epoch as a GAP, re-init
-    if (openpaw_flush(&g_core, up, 0, g_batt, &rec)) epoch_done(&rec, up);
+    if (openpaw_flush(&g_core, up, hr_now(), g_batt, &rec)) epoch_done(&rec, up);
     imu_begin();
     last_ok_ms = now;
     return;
   }
   // lost samples: close as GAP; if that changes the rate the FIFO restarted, so drop this batch
-  if (overrun && openpaw_flush(&g_core, up, 0, g_batt, &rec) && epoch_done(&rec, up)) n = 0;
+  if (overrun && openpaw_flush(&g_core, up, hr_now(), g_batt, &rec) && epoch_done(&rec, up)) n = 0;
   uint32_t off = 0, used = 0;
   while (off < n) {
-    int closed = openpaw_push_batch(&g_core, xyz + 3 * off, n - off, now, 0, g_batt, 0, &rec, &used);
+    int closed = openpaw_push_batch(&g_core, xyz + 3 * off, n - off, now, hr_now(), g_batt, 0, &rec, &used);
     off += used;
     // a rate change restarts the FIFO: the rest of this batch is at the old rate, so drop it
     if (closed && epoch_done(&rec, up)) break;
@@ -806,6 +921,7 @@ static bool epoch_done(openpaw_record_t *rec, uint32_t up) {
 
 static void epoch_out(openpaw_record_t *rec_p, uint32_t up) {
   openpaw_record_t &rec = *rec_p;
+  hr_epoch_closed();  // the next epoch averages only its own strap notifications
   log_put(&rec);
   uint8_t pkt[OPENPAW_RECORD_SIZE];
   openpaw_encode(&rec, pkt);
