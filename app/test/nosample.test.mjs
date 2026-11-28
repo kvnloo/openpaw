@@ -62,7 +62,9 @@ test('live views never draw a no-sample record as a movement value', () => {
   const field = readFileSync(new URL('../field.js', import.meta.url), 'utf8');
   const show = html.split('function show(rec) {', 2)[1].split('\n}', 1)[0];
   const onRec = field.split('async function onRecord(rec, deviceId, clock, origin) {', 2)[1].split('\n}', 1)[0];
-  assert.match(show, /if \(rec\.no_sample\) return;/, 'collar page show() skips no-sample records');
+  const ns = show.indexOf('if (rec.no_sample)');
+  assert.ok(ns >= 0 && /if \(rec\.no_sample\) \{[^}]*return; \}/.test(show) && show.indexOf('epochs.push') > ns,
+    'collar page show() returns before pushing a no-sample record as a movement epoch');
   const guard = onRec.indexOf('if (!rec.no_sample)');
   assert.ok(guard >= 0 && guard < onRec.indexOf("$('vVal')"), 'Field live readout skips no-sample records');
   assert.ok(onRec.indexOf('recordToEvents') >= 0, 'but still stores its device events');
