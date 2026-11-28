@@ -693,11 +693,20 @@ test('c-toss-away card: a dog who will not come close to eat gets the food tosse
   assert.doesNotMatch(c.explain, /proven|always works|guarantee|cure|stress score|is happy|is dominant/i);
   assert.ok(Array.isArray(c.examples) && c.examples.length >= 2);
   for (const e of c.examples) {
-    assert.match(e.url, /^https:\/\/www\.youtube\.com\/watch\?v=35rjr6UOGFM&t=\d+s$/, e.url);
+    assert.match(e.url, /^https:\/\/www\.youtube\.com\/watch\?v=(35rjr6UOGFM|ongtr6fLkX8)&t=\d+s$/, e.url);
     assert.match(e.label, /\(\d+:\d\d( to \d+:\d\d)?/);
-    assert.doesNotMatch(e.label, /scared|afraid|fearful|stress|nervous|anxious|happy/i, 'visible facts only');
+    assert.doesNotMatch(e.label, /scared|afraid|fearful|\bfear\b|stress|nervous|anxious|happy|braver/i, 'visible facts only');
   }
   assert.ok(c.examples.some((e) => /not readable|uploader|caption/i.test(e.label)), 'claims from the description, not the frames, are flagged');
+  // V38 (ongtr6fLkX8, Jennie Murphy, 2019): a man stands still by a car as the helper; the trainer says he tosses
+  // the treats just past the dog so she can move away a little to eat, and she sets the new distance (0:31-0:42).
+  // A live person in view, unlike the shelter clip where the dog is out of view while the person is inside.
+  const live = c.examples.find((e) => /v=ongtr6fLkX8&/.test(e.url));
+  assert.ok(live, 'an example with a live person tossing food just past the dog (V38)');
+  assert.match(live.label, /trainer says/i, 'the toss rule is the trainer\u2019s words, attributed');
+  assert.match(live.label, /just past her/i, 'the food lands just past her, not in front of her');
+  assert.match(live.label, /move away/i, 'so she can move away to eat');
+  assert.match(live.label, /Jennie Murphy/, 'credits the channel');
   const { readFileSync } = await import('node:fs');
   const card = readFileSync(new URL(`../../docs/evidence/cards/${slug}.md`, import.meta.url), 'utf8');
   assert.match(card, /^doi: "10\.1016\/j\.applanim\.2022\.105689"$/m);
