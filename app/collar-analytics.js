@@ -58,11 +58,22 @@ const minuteOfDay = (t, tz) => { const x = Math.trunc(t - tz * 60000) % DAY_MS; 
 const quantile = (xs, q) => { if (!xs.length) return null; const s = xs.slice().sort((a, b) => a - b); const i = (s.length - 1) * q, lo = Math.floor(i); return s[lo] + (s[Math.min(s.length - 1, lo + 1)] - s[lo]) * (i - lo); };
 
 // Personal reference: resting = median of the quietest 30% of epochs; typical active = p95.
+// One numeric sort serves both quantiles, and the epochs at or below q30 are a prefix of it
+// (the page re-runs this over a week of epochs on each live record). Non-finite values keep the
+// copy-and-sort path, whose comparator order for them the typed sort would not reproduce.
+const quantileSorted = (s, n, q) => { const i = (n - 1) * q, lo = Math.floor(i); return s[lo] + (s[Math.min(n - 1, lo + 1)] - s[lo]) * (i - lo); };
 export function baseline(epochs, { now = Date.now(), days = 7 } = {}) {
   const xs = epochs.filter((e) => e.t > now - days * 864e5).map((e) => e.vedba);
   if (xs.length < 60) return null;
-  const q30 = quantile(xs, 0.3);
-  return { resting: quantile(xs.filter((v) => v <= q30), 0.5), active: quantile(xs, 0.95), n: xs.length };
+  if (!xs.every(Number.isFinite)) {
+    const q30 = quantile(xs, 0.3);
+    return { resting: quantile(xs.filter((v) => v <= q30), 0.5), active: quantile(xs, 0.95), n: xs.length };
+  }
+  const s = Float64Array.from(xs).sort(), n = s.length;
+  const q30 = quantileSorted(s, n, 0.3);
+  let k = Math.floor((n - 1) * 0.3) + 1;
+  while (k < n && s[k] <= q30) k++;
+  return { resting: quantileSorted(s, k, 0.5), active: quantileSorted(s, n, 0.95), n };
 }
 
 // Minutes per level per local day, newest last.
