@@ -61,6 +61,7 @@ export const SRC = {
   arhant2020: 'https://doi.org/10.1016/j.jveb.2020.07.006',
   collins2022: 'https://doi.org/10.1016/j.applanim.2022.105689',
   johnson2024: 'https://doi.org/10.7717/peerj.18131',
+  clark2020: 'https://doi.org/10.3389/fvets.2020.564201',
 };
 
 // Human-readable names for the source list.
@@ -111,6 +112,7 @@ export const SOURCE_NAMES = {
   [SRC.arhant2020]: 'Arhant et al. 2020, Owner reports on the use of muzzles and their effects on dogs: an online survey (J Vet Behav)',
   [SRC.collins2022]: 'Collins et al. 2022, Behavioral rehabilitation of extremely fearful dogs: an ASPCA treatment protocol (Appl Anim Behav Sci)',
   [SRC.johnson2024]: 'Johnson & Wynne 2024, Comparing efficacy in reducing pulling and welfare impacts of four types of leash walking equipment (PeerJ)',
+  [SRC.clark2020]: 'Clark, Smidt & Bauer 2020, Therapy dogs\u2019 and handlers\u2019 behavior and salivary cortisol during initial hospital visits: a pilot study (Front Vet Sci)',
 };
 
 export const LESSONS = [
@@ -649,6 +651,19 @@ export const CARDS = [
     examples: [
       { url: 'https://www.youtube.com/watch?v=8xKcCvgUhlU&t=9s', label: 'On a park lawn a medium-sized short-coated dog stands still facing across the grass, ears up, tail level, lead loose; what she is watching is out of shot (0:09 to 0:13). She turns her head to the handler and comes to his hand; he says he stops when she disengages (0:13 to 0:15; raw, uncut handheld clip, K9 Life Coach Scott)' },
       { url: 'https://www.youtube.com/watch?v=8xKcCvgUhlU&t=52s', label: 'She stands facing the path below, ears up, tail raised, lead loose (0:52 to 0:56); the camera turns to show a person walking a small dark dog along the path, about 30 m away by our estimate (0:57 to 0:58). Next on camera her nose is in the grass and the handler walks on: \u201cwe didn\u2019t retreat, we can walk on\u201d (0:59 to 1:02)' },
+    ] },
+  { id: 'c-small-signs', lesson: 'whole-dog', art: { posture: 'turn', ears: 'back', eye: 'whale', mouth: 'lick', tail: 'low', marks: [['mouth', 'Tongue flicking over the nose']] },
+    context: 'On a cool morning you walk your dog down a busy street he finds hard. He has not barked at anything. Within about a minute he licks his nose several times, stops and stands still for a few seconds looking off to the side, yawns, pants with his mouth open, and keeps putting his nose down to sniff.',
+    ask: 'What do you do?',
+    choices: ['He is not barking, so he is fine: keep to your usual route', 'Keep him on the busiest stretch so he gets used to it', 'Read the signs together: several small ones close together can mean this walk is a lot for him. Make it easier now (a quieter side street, more space, a slower pace and time to sniff), keep the walk short, and write down where and when it happened', 'Tell him off for stopping and pull him on'], answer: 2,
+    explain: 'One small sign on its own tells you little: a nose lick can follow food, a yawn can mean he is tired, panting can be heat or exercise, and sniffing is a normal part of a walk. In a lab study of 10 dogs, when a person did something unpleasant the dogs could see coming (holding them down, or opening an umbrella at them), they licked their lips and moved their mouths more, moved about more, held their bodies a little lower, and yawned a little more. After sudden loud sounds some dogs went very low with the tail between the legs, and their saliva cortisol rose. The study found no link between any one behaviour and cortisol or heart rate, and dogs differed a lot, so each sign is a clue, not proof. In a pilot study of nine therapy dogs on their first hospital visits, panting, lip licking and yawning were the behaviours handlers and staff reported most often, while saliva cortisol did not differ clearly from before to after a visit; handlers who rated their dog as more stressed did have dogs with higher cortisol. So read the signs together and in context: several in a minute, on a cool day, in a place he finds hard, are worth acting on, and making the walk easier costs little. Pushing on keeps him where it is hard, and telling him off adds a bad moment to it; AVSAB recommends reward-based methods. Your notes (where, when, what you saw) help your behaviour consultant plan.',
+    sources: [SRC.beerda1997, SRC.clark2020, SRC.avsabHumane],
+    evidence: ['beerda1998-behavioural-saliva-cortisol-and-heart-rate-responses-to', 'clark2020-therapy-dogs-and-handlers-behavior-and-salivary-cortisol', 'avsab2021-position-statement-on-humane-dog-training'],
+    examples: [
+      { url: 'https://www.youtube.com/watch?v=6o5pZ0hXq_E&t=18s', label: 'Walking past a building site, nose down at the ground again and again (0:18 to 0:24; short clip of one city walk filmed from the handler\u2019s side, RuffMuttsCooperative)' },
+      { url: 'https://www.youtube.com/watch?v=6o5pZ0hXq_E&t=45s', label: 'His tongue flicks out over his nose about three times in two seconds as he walks along the pavement (0:45 to 0:47; no person or dog in view)' },
+      { url: 'https://www.youtube.com/watch?v=6o5pZ0hXq_E&t=54s', label: 'On an open plaza he stops and stands still for about three seconds, ears up, mouth closed, head turned to the side; what he is looking at is out of shot (0:54 to 0:57)' },
+      { url: 'https://www.youtube.com/watch?v=6o5pZ0hXq_E&t=61s', label: 'A wide-open mouth with the eyes narrowed, which may be a yawn, then a tongue flick over the nose (1:01 to 1:03; it is sunny, so the open-mouth panting earlier in the clip may also be heat). The uploader\u2019s description lists freezing, lip licking, yawning, a lowered tail, sniffing and panting on this walk, and says he would not always take treats; no treat is visible in the clip' },
     ] },
 ];
 
