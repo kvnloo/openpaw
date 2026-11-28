@@ -221,7 +221,7 @@
         <div class="chip" data-k="pose"><span class="micro">Head pitch</span><b>–</b><small></small></div>
         <div class="chip" data-k="batt"><span class="micro">Battery</span><b>–</b><small></small><span class="battring" data-k="battring"></span></div>
       </div>
-      <p class="note" id="mHr" hidden>Heart rate (strap) <b class="hr-chip">–</b> bpm</p>
+      <p class="note" id="mHr" hidden>Heart rate <span data-k="hrsrc">(strap)</span> <b class="hr-chip">–</b> bpm</p>
     </section>
 
     <section class="card c5" aria-labelledby="rh-h"><span class="br tl"></span><span class="br bR"></span>
@@ -277,6 +277,11 @@
             <button id="btnPage" class="btn" disabled>Save as a page</button>
             <button id="btnClear" class="btn">Clear stored data</button>
           </div>
+          <div class="row">
+            <button id="btnStrapPair" class="btn" disabled>Pair strap to collar</button>
+            <button id="btnStrapForget" class="btn" disabled>Forget strap</button>
+          </div>
+          <p class="note" id="strapState" aria-live="polite">Optional: the collar can log a heart-rate chest strap (e.g. a Polar H10) itself, so the phone can stay home. Needs firmware newer than 0.4.0.</p>
           <p class="note">Everything stays in this browser until you export it. The export is the open OpenPaw v0.1 format: every derived number points back to its raw record.</p>
           <details><summary>Connection log</summary><div id="log" class="log"></div></details>
         </div>
@@ -289,6 +294,7 @@
 
 <script type="module">
 import { UUIDS, decodeRecord, decodeChunk, decodeStatus, encodeDumpFrom, CMD_FIND_ME, parseHeartRate,
+         CMD_STRAP_PAIR, CMD_STRAP_FORGET, collarHr, strapStatus,
          recordToEvents, heartRateToEvents, makeClock, toJsonl, decodeDisString, deviceLabel, syncFrom,
          encodeSetTime, PROTO_TIME_ANCHOR, dateBacklog, advanceCursor, rememberAnchors } from './openpaw-ble.js';
 
@@ -353,11 +359,28 @@ document.querySelectorAll('#range button').forEach((b) => b.onclick = () => {
   range = +b.dataset.r; document.querySelectorAll('#range button').forEach((x) => x.setAttribute('aria-pressed', String(x === b))); render(true);
 });
 
+// heart rate under Right now: from a strap linked to the phone, or logged by the collar
+const strap = { askedAt: null, forgotAt: null, lastHrAt: null, lastHr: null };
+function showHr(text, src) {
+  $('mHr').querySelector('[data-k="hrsrc"]').textContent = src;
+  $('mHr').querySelector('b').textContent = String(text); $('mHr').hidden = false;
+}
+function hideCollarHr() {  // a phone-linked strap's bpm stays; only the collar's goes
+  if ($('mHr').querySelector('[data-k="hrsrc"]').textContent === '(via the collar)') $('mHr').hidden = true;
+}
+function showStrap() {
+  const s = strapStatus({ ...strap, now: Date.now() });
+  if (s) $('strapState').textContent = s.text;
+}
+setInterval(showStrap, 5000);
+
 // live record -> epoch, without waiting for a store round-trip
 function show(rec) {
   const t = collar && collar.clock ? Date.parse(collar.clock(rec.uptime_s)) : Date.now();
   // the collar did not read its sensor: no movement value, only a shaded "not read" stretch
   if (rec.no_sample) { extendNotRead(notRead, t, collar?.epochS || 5); if (!demo) render(); return; }
+  const bpm = collarHr(rec);
+  if (bpm) { strap.lastHrAt = Date.now(); strap.lastHr = bpm; showHr(bpm, '(via the collar)'); showStrap(); }
   if (demo) { demo = null; $('btnDemo').setAttribute('aria-pressed', 'false'); }
   epochs.push({ t, vedba: rec.vedba_mean_mg, max: rec.vedba_max_mg, active: rec.active_frac / 255,
     bursts: rec.bursts, pitch: rec.pitch_deg, roll: rec.roll_deg, hr: rec.hr_bpm || null, batt: rec.battery_pct === 255 ? null : rec.battery_pct, clipped: rec.clipped, origin: 'sensor', w: collar?.epochS || 5 });
@@ -437,7 +460,7 @@ $('btnConnect').onclick = async () => {
       await chr.control.writeValue(encodeSetTime(now));
       await setMeta(anchorsKey(), rememberAnchors(await getMeta(anchorsKey()), [{ ...collar.liveAnchor, unix_s: Math.floor(now / 1000) }]));
     }
-    device.addEventListener('gattserverdisconnected', () => { document.body.classList.remove('is-live'); $('state').textContent = 'Disconnected. Tap Connect to reconnect.'; $('btnSync').disabled = true; $('btnFind').disabled = true; log('collar disconnected'); });
+    device.addEventListener('gattserverdisconnected', () => { document.body.classList.remove('is-live'); $('state').textContent = 'Disconnected. Tap Connect to reconnect.'; $('btnSync').disabled = true; $('btnFind').disabled = true; $('btnStrapPair').disabled = true; $('btnStrapForget').disabled = true; hideCollarHr(); log('collar disconnected'); });
     chr.live.addEventListener('characteristicvaluechanged', async (e) => {
       const r = decodeRecord(e.target.value);
       show(r);
@@ -463,7 +486,7 @@ $('btnConnect').onclick = async () => {
     $('state').textContent = `Connected to ${collar.name} (${st.stored} epochs stored, epoch ${st.epoch_s} s).`;
     document.body.classList.add('is-live');
     $('device').textContent = collar.label; $('deviceRow').hidden = false;
-    $('btnSync').disabled = false; $('btnFind').disabled = false;
+    $('btnSync').disabled = false; $('btnFind').disabled = false; $('btnStrapPair').disabled = false; $('btnStrapForget').disabled = false;
     log(`connected ${collar.name} board=${st.board} model=${info.model} fw=${info.firmware} next_seq=${st.next_seq} uptime=${st.uptime_s}s`);
     $('btnSync').click();  // pull anything recorded while we were away
   } catch (e) { log(`connect failed: ${e.message}`); $('state').textContent = `Could not connect: ${e.message}`; }
@@ -487,6 +510,18 @@ $('btnSync').onclick = async () => {
 
 $('btnFind').onclick = async () => { if (collar) await collar.chr.control.writeValue(CMD_FIND_ME); };
 
+// ---------- chest strap linked to the collar (the collar logs its bpm in each record) ----------
+$('btnStrapPair').onclick = async () => {
+  if (!collar) return;
+  try { await collar.chr.control.writeValue(CMD_STRAP_PAIR); strap.askedAt = Date.now(); log('asked the collar to pair a heart-rate strap (30 s)'); showStrap(); }
+  catch (e) { log(`pair strap failed: ${e.message}`); }
+};
+$('btnStrapForget').onclick = async () => {
+  if (!collar) return;
+  try { await collar.chr.control.writeValue(CMD_STRAP_FORGET); strap.forgotAt = Date.now(); hideCollarHr(); log('asked the collar to forget its strap'); showStrap(); }
+  catch (e) { log(`forget strap failed: ${e.message}`); }
+};
+
 // ---------- heart-rate strap (standard BLE Heart Rate Service, e.g. Polar H10) ----------
 $('btnHr').onclick = async () => {
   try {
@@ -496,7 +531,7 @@ $('btnHr').onclick = async () => {
     let seq = 0;
     c.addEventListener('characteristicvaluechanged', async (e) => {
       const hr = parseHeartRate(e.target.value);
-      $('mHr').querySelector('b').textContent = hr.contact === false ? 'no contact' : `${hr.bpm}`; $('mHr').hidden = false;
+      showHr(hr.contact === false ? 'no contact' : hr.bpm, '(strap to phone)');
       if (hr.contact !== false) await putEvents(heartRateToEvents(hr, { dogId: dogId(), deviceId: device.name || 'hr-strap', timestamp: new Date().toISOString(), seq: `${Date.now()}-${seq++}` }));
     });
     await c.startNotifications();

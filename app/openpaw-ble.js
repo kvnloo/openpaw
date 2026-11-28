@@ -190,6 +190,35 @@ export function encodeSetTime(unixMs) {
 }
 export const CMD_STOP = Uint8Array.of(0x02);
 export const CMD_FIND_ME = Uint8Array.of(0x10);
+// The collar as a chest strap's BLE central (firmware after 0.4.0; older firmware ignores both):
+// 0x30 opens one 30 s window to link any Heart Rate strap, 0x31 forgets it.
+export const CMD_STRAP_PAIR = Uint8Array.of(0x30);
+export const CMD_STRAP_FORGET = Uint8Array.of(0x31);
+
+// The bpm the collar logged in one record, or null (no strap reading this epoch).
+export function collarHr(rec) {
+  if (!rec || rec.no_sample || !(rec.flags & FLAGS.HR_VALID) || !rec.hr_bpm) return null;
+  return rec.hr_bpm;
+}
+
+// The collar does not report its strap link, so the app reads it from the records:
+// askedAt / forgotAt = when this page sent 0x30 / 0x31, lastHrAt + lastHr = newest record with a bpm.
+const STRAP_LOOK_MS = 30e3 + 15e3;  // the collar's pair window + time for the next records to arrive
+const STRAP_LOST_MS = 30e3;         // six 5 s epochs without a bpm
+export function strapStatus({ askedAt = null, forgotAt = null, lastHrAt = null, lastHr = null, now }) {
+  if (forgotAt != null && (askedAt == null || forgotAt >= askedAt)) {
+    if (lastHrAt == null || lastHrAt <= forgotAt) return { state: 'forgotten', text: 'Strap forgotten. The collar no longer looks for it.' };
+  }
+  const since = (t) => (t == null ? -Infinity : t);
+  const start = Math.max(since(askedAt), since(forgotAt));
+  if (lastHrAt != null && lastHrAt >= start) {
+    if (now - lastHrAt <= STRAP_LOST_MS) return { state: 'linked', text: `Strap linked through the collar: ${lastHr} bpm in the latest record.` };
+    return { state: 'lost', text: 'No bpm from the strap for over 30 s. The collar keeps retrying it for an hour; after that, pair again.' };
+  }
+  if (askedAt == null) return null;
+  if (now - askedAt < STRAP_LOOK_MS) return { state: 'looking', text: 'The collar is looking for a strap for 30 s. Put the strap on the dog now, electrodes wet.' };
+  return { state: 'none', text: 'No bpm in the collar\'s records. Check the strap is on and wet, then pair again. Firmware 0.4.0 and earlier cannot pair a strap.' };
+}
 
 // Standard BLE Heart Rate Measurement (0x2A37), e.g. a Polar H10 chest strap.
 // Returns bpm, RR intervals in ms (for HRV), and whether skin contact is detected.
