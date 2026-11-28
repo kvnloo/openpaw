@@ -243,6 +243,7 @@
         <span><i style="background:#d7b986"></i>movement</span>
         <span><svg viewBox="0 0 8 12" width="8" height="12" aria-hidden="true"><path d="M4 0l4 6-4 6-4-6z" fill="#e8a35f"/></svg>burst &gt; 1.5 g</span>
         <span><i style="background:#c0392b;border-radius:50%;width:6px;height:6px"></i>sensor clipped</span>
+        <span id="notReadKey" hidden><i style="width:12px;height:10px;border-radius:2px;background:repeating-linear-gradient(45deg,#4a463d 0 1.5px,transparent 1.5px 4px)"></i>not read (collar resting its sensor)</span>
         <span id="bandLimits"></span><span>Experimental bands; not calibrated for individual dogs.</span>
       </div>
     </section>
@@ -294,7 +295,7 @@ import { UUIDS, decodeRecord, decodeChunk, decodeStatus, encodeDumpFrom, CMD_FIN
 const $ = (id) => document.getElementById(id);
 const logEl = $('log');
 const log = (m) => { logEl.textContent = `${new Date().toLocaleTimeString()}  ${m}\n` + logEl.textContent.slice(0, 4000); };
-import { epochsFromEvents, demoWeek, LEVELS } from './collar-analytics.js';
+import { epochsFromEvents, demoWeek, LEVELS, notReadSpans, extendNotRead } from './collar-analytics.js';
 import { renderNow, renderTimeline, renderRhythm, renderBudget, renderBursts } from './collar-view.js';
 $('bandLimits').textContent = 'bands: ' + LEVELS.filter((level) => Number.isFinite(level.max))
   .map((level) => level.id + ' < ' + level.max).join(' · ') + ' mg';
@@ -318,6 +319,7 @@ refreshStats();
 // ---------- views ----------
 const TZ = new Date().getTimezoneOffset();
 let epochs = [];          // real collar epochs from the store (+ live)
+let notRead = [];         // spans where the collar did not read its sensor (Quiet mode), from the store (+ live)
 let demo = null;          // simulated week, in memory only (never stored)
 let range = 6 * 3600e3;
 const view = () => (demo || epochs);
@@ -330,7 +332,9 @@ function render(animate = false) {
     const ep = view(), now = nowT(), simulated = !!demo;
     document.body.classList.toggle('is-sim', simulated);
     renderNow($('now'), ep, { tz: TZ, now, simulated });
-    renderTimeline($('tl'), $('tlRead'), ep, { range, now, animate: animateNext }); animateNext = false;
+    const nr = demo ? [] : notRead;  // the demo week never shows real spans
+    renderTimeline($('tl'), $('tlRead'), ep, { range, now, animate: animateNext, notRead: nr }); animateNext = false;
+    $('notReadKey').hidden = !nr.some((s) => s.end > now - range);
     renderRhythm($('rhythm'), $('rhythmC'), ep, { tz: TZ, now });
     renderBudget($('budget'), ep, { tz: TZ, now });
     renderBursts($('bursts'), ep);
@@ -338,7 +342,9 @@ function render(animate = false) {
   });
 }
 async function loadStored() {
-  epochs = epochsFromEvents(await allEvents()).filter((e) => e.origin !== 'simulated');
+  const evs = await allEvents();
+  epochs = epochsFromEvents(evs).filter((e) => e.origin !== 'simulated');
+  notRead = notReadSpans(evs.filter((e) => !(e.provenance && e.provenance.origin === 'simulated')));
   render();
 }
 loadStored();
@@ -349,9 +355,11 @@ document.querySelectorAll('#range button').forEach((b) => b.onclick = () => {
 
 // live record -> epoch, without waiting for a store round-trip
 function show(rec) {
-  if (rec.no_sample) return;  // the collar did not read its sensor: nothing to draw
+  const t = collar && collar.clock ? Date.parse(collar.clock(rec.uptime_s)) : Date.now();
+  // the collar did not read its sensor: no movement value, only a shaded "not read" stretch
+  if (rec.no_sample) { extendNotRead(notRead, t, collar?.epochS || 5); if (!demo) render(); return; }
   if (demo) { demo = null; $('btnDemo').setAttribute('aria-pressed', 'false'); }
-  epochs.push({ t: collar && collar.clock ? Date.parse(collar.clock(rec.uptime_s)) : Date.now(), vedba: rec.vedba_mean_mg, max: rec.vedba_max_mg, active: rec.active_frac / 255,
+  epochs.push({ t, vedba: rec.vedba_mean_mg, max: rec.vedba_max_mg, active: rec.active_frac / 255,
     bursts: rec.bursts, pitch: rec.pitch_deg, roll: rec.roll_deg, hr: rec.hr_bpm || null, batt: rec.battery_pct === 255 ? null : rec.battery_pct, clipped: rec.clipped, origin: 'sensor', w: collar?.epochS || 5 });
   render();
 }

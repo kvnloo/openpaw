@@ -49,6 +49,33 @@ export function epochsFromEvents(events) {
   return [...by.values()].filter((r) => r.vedba !== null && Number.isFinite(r.t)).sort((a, b) => a.t - b.t);
 }
 
+// Not-read spans [{start, end}] in ms, newest last: stretches where the collar did not read its
+// sensor (Quiet mode no-sample epochs). Each epoch covers the window that ends at its timestamp;
+// windows that touch (within half an epoch of clock jitter) merge, so one measured epoch between two
+// no-sample stretches leaves a gap and splits them.
+// extendNotRead adds one epoch ending at t (in time order, e.g. a live record) in place.
+export function extendNotRead(spans, t, windowS = 5) {
+  if (!Number.isFinite(t)) return spans;
+  const w = (windowS || 5) * 1000, last = spans[spans.length - 1];
+  if (last && t - w <= last.end + w / 2) last.end = Math.max(last.end, t);
+  else spans.push({ start: t - w, end: t });
+  return spans;
+}
+// Stored events -> spans (any order in, sorted out).
+export function notReadSpans(events) {
+  const ws = [];
+  for (const e of events) {
+    const p = e && e.payload;
+    if (!p || p.metric !== 'device.no_sample') continue;
+    const t = Date.parse(e.timestamp);
+    if (Number.isFinite(t)) ws.push({ t, w: p.window_s || 5 });
+  }
+  ws.sort((a, b) => a.t - b.t);
+  const out = [];
+  for (const s of ws) extendNotRead(out, s.t, s.w);
+  return out;
+}
+
 const DAY_MS = 864e5;
 const localDay = (t, tz) => new Date(t - tz * 60000).toISOString().slice(0, 10);
 // Same day and minute as the Date versions (Date truncates fractional ms), without building a Date

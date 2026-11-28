@@ -71,7 +71,7 @@ export function renderNow(root, epochs, { tz, now, simulated }) {
 }
 
 /* ------------------------------------------------------------------ timeline */
-export function renderTimeline(svg, readout, epochs, { range = 3600e3, now, animate = false }) {
+export function renderTimeline(svg, readout, epochs, { range = 3600e3, now, animate = false, notRead = [] }) {
   // draw in real pixels so labels stay crisp and readable at every width
   const W = Math.round(Math.min(1100, Math.max(320, svg.getBoundingClientRect().width || 760)));
   const H = W < 560 ? 200 : 240, L = 4, Rr = W < 560 ? 58 : 74, T = 16, B = 24, MAX = 1500;
@@ -84,13 +84,19 @@ export function renderTimeline(svg, readout, epochs, { range = 3600e3, now, anim
   if (bucket > 1) { const o = []; for (let i = 0; i < pts.length; i += bucket) { const s = pts.slice(i, i + bucket); const m = s.reduce((a, b) => (b.vedba > a.vedba ? b : a)); o.push({ ...s[Math.floor(s.length / 2)], vedba: s.reduce((a, b) => a + b.vedba, 0) / s.length, peak: m.vedba, bursts: s.reduce((a, b) => a + (b.bursts || 0), 0), clipped: s.some((x) => x.clipped) }); } pts = o; }
   const x = (t) => L + ((t - from) / range) * (W - L - Rr), y = (v) => H - B - sq(v, MAX) * (H - T - B);
   let h = `<defs><linearGradient id="tlg" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#d7b986" stop-opacity=".34"/><stop offset=".7" stop-color="#d7b986" stop-opacity=".05"/><stop offset="1" stop-color="#d7b986" stop-opacity="0"/></linearGradient>
-    <clipPath id="tlc"><rect x="${L}" y="0" width="${W - L - Rr}" height="${H}"/></clipPath></defs>`;
+    <clipPath id="tlc"><rect x="${L}" y="0" width="${W - L - Rr}" height="${H}"/></clipPath>
+    <pattern id="tlnr" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#4a463d" stroke-width="1.5"/></pattern></defs>`;
   let prev = 0;
   LEVELS.forEach((Lv, i) => { const hi = Math.min(MAX, Lv.max); h += `<rect x="${L}" y="${y(hi)}" width="${W - L - Rr}" height="${y(prev) - y(hi)}" fill="${LEVEL_COLORS[i]}" opacity="${0.02 + i * 0.008}"/><text class="band" x="${W - Rr + 10}" y="${(y(prev) + y(hi)) / 2 + 3}" fill="${LEVEL_TEXT[i]}">${Lv.label.toLowerCase()}</text>`; if (i < VIGOROUS) h += `<line x1="${L}" x2="${W - Rr}" y1="${y(hi)}" y2="${y(hi)}" stroke="#2a2823" stroke-dasharray="2 4"/><text class="cut" x="${L + 6}" y="${(y(hi) - 4).toFixed(1)}">${Lv.max} mg</text>`; prev = hi; });
   // time ticks
   const narrow = W < 560;
   const step = range <= 3600e3 ? (narrow ? 20 : 10) * 60000 : range <= 6 * 3600e3 ? (narrow ? 2 : 1) * 3600e3 : (narrow ? 6 : 4) * 3600e3;
   for (let t = Math.ceil(from / step) * step; t <= end; t += step) if (x(t) > L + 26 && x(t) < W - Rr - 20) h += `<line x1="${x(t)}" x2="${x(t)}" y1="${T}" y2="${H - B}" stroke="#1d1c19"/><text class="tick" x="${x(t)}" y="${H - 8}" text-anchor="middle">${clock(t)}</text>`;
+  // not read: Quiet-mode stretches where the collar did not read its sensor (no measurement there)
+  for (const s of notRead) {
+    const a = Math.max(from, s.start), b = Math.min(end, s.end);
+    if (b > a) h += `<rect class="notread" x="${x(a).toFixed(1)}" y="${T}" width="${(x(b) - x(a)).toFixed(1)}" height="${H - B - T}" fill="url(#tlnr)" opacity=".7"><title>not read: the collar rested its sensor</title></rect>`;
+  }
   if (pts.length > 1) {
     const d = pts.map((e, i) => `${i ? 'L' : 'M'}${x(e.t).toFixed(1)} ${y(e.vedba).toFixed(1)}`).join('');
     h += `<g clip-path="url(#tlc)"><path d="${d}L${x(pts[pts.length - 1].t)} ${H - B}L${x(pts[0].t)} ${H - B}Z" fill="url(#tlg)"/>`;
