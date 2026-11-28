@@ -63,6 +63,8 @@ export const SRC = {
   johnson2024: 'https://doi.org/10.7717/peerj.18131',
   clark2020: 'https://doi.org/10.3389/fvets.2020.564201',
   townsend2021: 'https://doi.org/10.3390/vetsci8110254',
+  batLeash: 'https://grishastewart.com/leash.pdf',
+  townsend2022: 'https://doi.org/10.1002/vetr.1627',
 };
 
 // Human-readable names for the source list.
@@ -115,6 +117,8 @@ export const SOURCE_NAMES = {
   [SRC.johnson2024]: 'Johnson & Wynne 2024, Comparing efficacy in reducing pulling and welfare impacts of four types of leash walking equipment (PeerJ)',
   [SRC.clark2020]: 'Clark, Smidt & Bauer 2020, Therapy dogs\u2019 and handlers\u2019 behavior and salivary cortisol during initial hospital visits: a pilot study (Front Vet Sci)',
   [SRC.townsend2021]: 'Townsend, Gee, Johnson & Ng 2021, Recognizing and mitigating canine stress during animal assisted interventions (Vet Sci, review)',
+  [SRC.batLeash]: 'Grisha Stewart 2013: Leash skills for BAT (handout)',
+  [SRC.townsend2022]: 'Townsend, Dixon & Buckley 2022, Lead pulling as a welfare concern in pet dogs (Vet Rec, review)',
 };
 
 export const LESSONS = [
@@ -678,6 +682,18 @@ export const CARDS = [
       { url: 'https://www.youtube.com/watch?v=uVuA4UyVsjM&t=0s', label: 'In a living room a large long-coated dog takes a treat from a seated visitor\u2019s open hand, then turns and walks off to the side, the lead hanging slack from the person standing behind; by about 3 seconds he is facing the camera again, mouth open (0:00 to 0:04; short home clip, Kris Glover). The uploader writes that he used to lunge and bark at visitors closer than about 15 feet, and that he was allowed to control the distance' },
       { url: 'https://www.youtube.com/watch?v=uVuA4UyVsjM&t=5s', label: 'Back at her hand for another treat (0:05 to 0:06), then he stands by the table facing her, mouth open, tongue out (0:08 to 0:14)' },
       { url: 'https://www.youtube.com/watch?v=uVuA4UyVsjM&t=19s', label: 'Nose at her hand (0:19 to 0:20), then he turns and walks away past the person standing behind, lead slack (0:20 to 0:22), and comes back to the table with his head low (0:22 to 0:26)' },
+    ] },
+  { id: 'c-slow-stop', lesson: 'threshold', art: { posture: 'stiff', ears: 'forward', eye: 'hard', mouth: 'closed', tail: 'high', prop: 'person', marks: [['body', 'Heading straight at the person']] },
+    context: 'Your dog is sniffing around a quiet field on a long line (about 5 m, clipped to the back of a harness). A person stands still far across the grass. He spots her: his head comes up and he sets off straight at her, walking faster and standing taller, the line paying out.',
+    ask: 'What do you do?',
+    choices: ['Plant your feet and let the line snap tight, so he learns he can\u2019t go', 'Slow him to a stop: let the line slide through your fingers for a short way as you slow your own steps, then give the line some slack again and wait. If he looks, then turns away or sniffs, follow him any way except straight at her; if he stays fixed on her or gets louder, call him away cheerfully and work farther off next time', 'Let him keep going: meeting her is how he gets used to people', 'Call his name sharply and give a quick tug each time he looks at her'], answer: 1,
+    explain: 'Heading straight at a person, faster and taller, is a sign he is getting close to his threshold, so this is the moment to stop going forward. In Behavior Adjustment Training (BAT), Grisha Stewart\u2019s leash handout describes a \u201cslow stop\u201d: let about 30 cm of line slide through your fingers while you slow yourself down, like braking a car, because a dog is less likely to bark when he comes to a stop slowly, and it is easier on both your bodies. Then relax the line into a \u201csmile\u201d so he gets his balance back and can choose what to do next. The handout calls the leash \u201ca force field, not a correction tool\u201d and says not to use it for leash pops. It is a trainer\u2019s handout, not a trial. A narrative review of lead pulling for vets notes that, bites aside, being pulled over on a lead is the leading cause of non-fatal dog-related injuries in the UK, and that aversive equipment can cause pain, distress and injury; it gives no pooled numbers. Letting him walk all the way up removes the distance that helps him: in interviews with ten trainers about dogs that react on the lead, controlled exposure with counterconditioning was the approach they described most often, though they differed on when to move closer, and what they report is practice, not measured results. A snap of the line or a tug is a correction, which AVSAB advises against; AVSAB recommends reward-based methods. If he does not slow easily, or swings straight back to staring at her, you are too close. Your behaviour consultant can help you practise the line handling without a trigger first.',
+    sources: [SRC.batLeash, SRC.townsend2022, SRC.shnookal2025, SRC.avsabHumane],
+    evidence: ['townsend2022-lead-pulling-as-a-welfare-concern-in-pet', 'shnookal2025-exploring-trainer-insights-and-understanding-of-on-lead', 'avsab2021-position-statement-on-humane-dog-training'],
+    examples: [
+      { url: 'https://www.youtube.com/watch?v=hazeJSOr7Y4&t=14s', label: 'In a big open field a black curly-coated dog sniffs at a small box on the grass beside the handler, the long blue line slack (0:14 to 0:37; a first BAT session with a human helper, Jennie Murphy). The helper is not on camera; the uploader writes that his first response on seeing her was to rush forward, that they slow him down then, and that they move away if he gets too aroused' },
+      { url: 'https://www.youtube.com/watch?v=hazeJSOr7Y4&t=66s', label: 'He trots past the camera, tail up and head level, while the handler walks after him holding the long line (1:06 to 1:09)' },
+      { url: 'https://www.youtube.com/watch?v=hazeJSOr7Y4&t=154s', label: 'He stands with his head up, facing off to the side, for several seconds (2:34 to 2:41), then puts his nose down and sniffs the grass by a small box (2:46 to 2:52). The uploader writes that the goal is for him to glance up at the helper and go back to exploring' },
     ] },
 ];
 
