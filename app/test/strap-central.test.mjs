@@ -46,6 +46,13 @@ test('strap notifications feed the epoch heart rate; each closed epoch takes it'
   assert.match(ino, /openpaw_strap_dropped\(&g_strap,/);
 });
 
+test('a linked strap holds Quiet mode off at both quiet_step calls (no-sample records carry no bpm)', () => {
+  const calls = ino.match(/openpaw_quiet_step\(&g_quiet,[^;]*;/g) || [];
+  assert.equal(calls.length, 2);
+  for (const c of calls) assert.match(c, /openpaw_quiet_hold\([^)]*&g_strap\)/, c);
+  assert.match(power, /strap is linked/i);
+});
+
 test('docs/POWER.md has the strap scan row with its estimate', () => {
   assert.match(power, /Strap scan/);
   assert.match(power, /pair strap/i);

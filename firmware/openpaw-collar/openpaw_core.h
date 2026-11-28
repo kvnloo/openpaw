@@ -681,6 +681,14 @@ static inline int openpaw_strap_step(openpaw_strap_t *s, uint32_t now_ms) {
   return 1;
 }
 
+// Quiet mode's no-sample records carry hr 0, so a linked strap holds Quiet off the way a
+// phone does (pass the result as openpaw_quiet_step's `connected`): the strap's bpm keeps
+// reaching the records, at Still mode's low rate. Pairing or retrying has no bpm to lose and
+// does not hold it; a strap that links during Quiet wakes the collar at the next epoch.
+static inline int openpaw_quiet_hold(int phone, const openpaw_strap_t *s) {
+  return phone || (s && s->state == OPENPAW_STRAP_LINKED);
+}
+
 // Little-endian wire format, 20 bytes. Must match app/openpaw-ble.js decodeRecord().
 static inline void openpaw_encode(const openpaw_record_t *r, uint8_t b[OPENPAW_RECORD_SIZE]) {
   b[0] = r->version;

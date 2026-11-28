@@ -168,8 +168,13 @@ The strap may ask for other connection parameters and the core accepts them; a s
 insists on short intervals costs more (20 ms would be ~100 µA). None of this is measured.
 The phone link and the strap link share the radio; the SoftDevice must have RAM for both
 (boot prints `ble=ok` or `ble=FAILED` on the serial port), which is not checked on a board yet.
-In Quiet mode the collar still writes no-sample records with no heart rate, even when a strap
-is connected.
+While a strap is linked the collar stays out of Quiet mode, because Quiet mode's no-sample
+records carry no heart rate (`openpaw_quiet_hold` in `openpaw_core.h`, host-tested). A still
+dog with a strap on stays in Still mode at the low rate and keeps its bpm in every record; that
+costs the Still-minus-Quiet difference above, about 6 µA (XIAO ~25 vs ~19 µA, T1000-E ~27 vs
+~21 µA, parts only) [E], on top of the strap link itself. A strap that links while the collar
+is already quiet wakes it at the next epoch boundary, so that one 5 s no-sample record has no
+bpm. Pairing and retrying do not hold Quiet off (there is no bpm to lose yet).
 
 ## What else costs power (not done yet)
 
