@@ -1016,6 +1016,50 @@ test('c-slow-stop card: a dog who surges straight at a person on a long line is 
   assert.match(card, /^design: "review"/m);
 });
 
+test('c-stand-up card: a dog who barks when a seated visitor gets up is taught that standing comes first and the treat after, in small steps (half-rise, stand, a step), back a step if he barks; the warm-up with a treat at his lips is named as a trainer\u2019s practice; cites the noise-fear review, the 8-dog desensitisation study and AVSAB with their limits', async () => {
+  const c = CARDS.find((x) => x.id === 'c-stand-up');
+  assert.ok(c, 'c-stand-up card exists');
+  assert.equal(c.lesson, 'threshold');
+  assert.equal(c.art.prop, 'person');
+  assert.ok(['loose', 'closed', 'tense', 'lick', 'yawn', 'snarl'].includes(c.art.mouth), `mouth '${c.art.mouth}' is one the illustration draws`);
+  assert.match(c.context, /(gets|stands) up/i, 'the trigger is a seated visitor getting up');
+  assert.match(c.context, /bark/i);
+  assert.match(c.context, /lead|gate/i, 'practice is set up safely');
+  const { askFor, DEFAULT_ASK } = await import('../learn-content.js');
+  assert.notEqual(askFor(c), DEFAULT_ASK, 'an action card');
+  const right = c.choices[c.answer];
+  assert.match(right, /then|only once|after/i, 'stand first, treat after');
+  assert.match(right, /half/i, 'starts with a smaller movement');
+  assert.match(right, /step/i, 'adds a step later');
+  assert.match(right, /back|smaller/i, 'what to do if he barks');
+  assert.ok(c.choices.some((x, i) => i !== c.answer && /for good|every time.*nose|nose.*every time/i.test(x)), 'a distractor: a treat held at his nose for good, so standing never predicts food');
+  assert.ok(c.choices.some((x, i) => i !== c.answer && /\bno\b|tell him off|firmly/i.test(x)), 'a distractor: a correction');
+  assert.ok(c.choices.some((x, i) => i !== c.answer && /quickly|over and over|again and again/i.test(x)), 'a distractor: flooding');
+  assert.deepEqual(c.evidence, ['riemer2023-therapy-and-prevention-of-noise-fears-in-dogs', 'butler2011-the-efficacy-of-systematic-desensitization-for-treating-the', 'avsab2021-position-statement-on-humane-dog-training']);
+  assert.ok(c.sources.includes(SRC.riemer2023) && c.sources.includes(SRC.butler2011) && c.sources.includes(SRC.avsabHumane));
+  // Riemer 2023 (Animals review, full text read via Europe PMC PMC10705068): "Counterconditioning is most effective if
+  // the trigger is reliably followed by a reward each time and when combined with desensitisation"; "refusing food is an
+  // indicator of high stress". About noise fears, not people.
+  assert.match(c.explain, /followed by a reward/i);
+  assert.match(c.explain, /noise/i, 'says the review is about noise fear');
+  assert.match(c.explain, /refus/i);
+  assert.match(c.explain, /8 dogs/);
+  assert.match(c.explain, /warm-up/i);
+  assert.match(c.explain, /no study/i, 'the warm-up is a trainer\u2019s practice, not measured');
+  assert.match(c.explain, /AVSAB/);
+  assert.match(c.explain, /reward-based/i);
+  assert.match(c.explain, /consultant/i);
+  assert.doesNotMatch(c.explain, /proven|always works|guarantee|cure|stress score|is happy|is dominant|authori[sz]e/i);
+  assert.ok(Array.isArray(c.examples) && c.examples.length >= 3);
+  for (const e of c.examples) {
+    assert.match(e.url, /^https:\/\/www\.youtube\.com\/watch\?v=8SSYYrJo8FQ&t=\d+s$/, e.url);
+    assert.match(e.label, /\(\d+:\d\d( to \d+:\d\d)?/);
+    assert.doesNotMatch(e.label, /scared|afraid|fearful|stress|nervous|anxious|happy|calm|relaxed/i, 'visible facts only');
+  }
+  assert.ok(c.examples.some((e) => /no bark/i.test(e.label)), 'says no bark is identifiable on camera');
+  assert.ok(c.examples.some((e) => /trainer (says|describes)/i.test(e.label)), 'the barking and the next stage are the trainer\u2019s words');
+});
+
 test('all registered sources are used and named', () => {
   const used = new Set([...LESSONS.flatMap((l) => l.sources), ...CARDS.flatMap((c) => c.sources)]);
   for (const u of Object.values(SRC)) assert.ok(used.has(u), `unused source ${u}`);
