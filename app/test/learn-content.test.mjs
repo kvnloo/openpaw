@@ -1103,6 +1103,52 @@ test('c-missed-treat card: when a helper\u2019s tossed treat lands where the dog
   assert.ok(c.examples.some((e) => /our estimate/i.test(e.label)), 'distances are marked as estimates');
 });
 
+test('c-sound-chain card: when a chain of sounds comes before the visitor (van, buzzer, phones, you getting up), practise each part on its own while he eats, join them in the real order once each is easy, and add you getting up last; the full chain at full volume, skipping the sounds and telling him off are the distractors; cites the noise-fear review, the 8-dog desensitisation study and AVSAB with their limits', async () => {
+  const c = CARDS.find((x) => x.id === 'c-sound-chain');
+  assert.ok(c, 'c-sound-chain card exists');
+  assert.equal(c.lesson, 'threshold');
+  assert.ok(['loose', 'closed', 'tense', 'lick', 'yawn', 'snarl'].includes(c.art.mouth), `mouth '${c.art.mouth}' is one the illustration draws`);
+  assert.match(c.context, /van|truck/i, 'a vehicle pulling up is the first sound');
+  assert.match(c.context, /buzz/i);
+  assert.match(c.context, /phone/i);
+  assert.match(c.context, /get up/i, 'the owner getting up is the last cue');
+  assert.match(c.context, /record/i, 'the owner has recordings');
+  const { askFor, DEFAULT_ASK } = await import('../learn-content.js');
+  assert.notEqual(askFor(c), DEFAULT_ASK, 'an action card');
+  const right = c.choices[c.answer];
+  assert.match(right, /on its own|one at a time|separately/i, 'each part alone first');
+  assert.match(right, /eat/i, 'while he eats');
+  assert.match(right, /keeps eating|stops eating/i, 'eating is the volume check');
+  assert.match(right, /real order/i, 'joined in the order they really happen');
+  assert.match(right, /getting up last|get up last/i, 'the owner leaving is the last part');
+  assert.match(right, /someone else/i, 'another person feeds while the owner gets up');
+  assert.ok(c.choices.some((x, i) => i !== c.answer && /full volume|as loud/i.test(x)), 'a distractor: the whole chain at full volume');
+  assert.ok(c.choices.some((x, i) => i !== c.answer && /skip the sounds|only with the courier/i.test(x)), 'a distractor: skip the predictors');
+  assert.ok(c.choices.some((x, i) => i !== c.answer && /quiet|no\b/i.test(x)), 'a distractor: tell him off');
+  assert.deepEqual(c.evidence, ['riemer2023-therapy-and-prevention-of-noise-fears-in-dogs', 'butler2011-the-efficacy-of-systematic-desensitization-for-treating-the', 'avsab2021-position-statement-on-humane-dog-training']);
+  assert.ok(c.sources.includes(SRC.riemer2023) && c.sources.includes(SRC.butler2011) && c.sources.includes(SRC.avsabHumane));
+  // Riemer 2023 (PMC10705068): desensitisation starts at a level that does not elicit anxiety; recordings lack the other sensory parts of the real event.
+  assert.match(c.explain, /does not (cause|elicit)|causes no/i);
+  assert.match(c.explain, /recording/i);
+  assert.match(c.explain, /real (event|thing|delivery)/i, 'recordings miss parts of the real event, so finish with it');
+  // Butler 2011: 8 dogs, one group, food during pre-departure activity, back to the last easy step when the problem showed.
+  assert.match(c.explain, /8 dogs/);
+  assert.match(c.explain, /one group|no comparison/i);
+  assert.match(c.explain, /before (leaving|they left)/i, 'food was paired with the cues that come before leaving');
+  assert.match(c.explain, /no study|no trial/i, 'splitting and joining the chain is a trainer\u2019s practice');
+  assert.match(c.explain, /AVSAB/);
+  assert.match(c.explain, /reward-based/i);
+  assert.match(c.explain, /consultant/i);
+  assert.doesNotMatch(c.explain, /proven|always works|guarantee|cure|stress score|is happy|is dominant|on edge|defend/i);
+  assert.ok(Array.isArray(c.examples) && c.examples.length >= 3);
+  for (const e of c.examples) {
+    assert.match(e.url, /^https:\/\/www\.youtube\.com\/watch\?v=7npayGKZhqc&t=\d+s$/, e.url);
+    assert.match(e.label, /\(\d+:\d\d( to \d+:\d\d)?/);
+    assert.doesNotMatch(e.label, /scared|afraid|fearful|stress|nervous|anxious|happy|calm|relaxed|on edge|worked up|invader/i, 'visible facts only');
+  }
+  assert.ok(c.examples.some((e) => /trainer (says|describes)/i.test(e.label)), 'the plan is the trainer\u2019s words');
+});
+
 test('all registered sources are used and named', () => {
   const used = new Set([...LESSONS.flatMap((l) => l.sources), ...CARDS.flatMap((c) => c.sources)]);
   for (const u of Object.values(SRC)) assert.ok(used.has(u), `unused source ${u}`);
