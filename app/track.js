@@ -3,7 +3,7 @@
 import * as S from './store.js';
 import { TEMPLATES, findPatterns, demoHistory, metricFor, slug, ENGINE_VERSION, APP_PERMS, DEFAULT_MAX_Q } from './patterns.js';
 import { packGroups } from './tile-pack.js';
-import { todayRows, dayLabel, dayRuler } from './today-list.js';
+import { todayRows, dayLabel, dayRuler, rulerLabels } from './today-list.js';
 import { tabStep } from './tab-keys.js';
 
 const $ = (s, r = document) => r.querySelector(s);
@@ -113,7 +113,8 @@ function renderRuler(xs) {
   const r = dayRuler(xs.map((e) => new Date(e.timestamp).getTime()));
   const pc = (f) => `${(f * 100).toFixed(2)}%`;
   $('#dayRuler').innerHTML = `<span class="ax"></span><span class="el" style="width:${pc(r.now)}"></span>`
-    + [0, 1, 2, 3, 4].map((i) => `<span class="hr" style="left:${pc(i / 4)}"></span><span class="lb l${i}" style="left:${pc(i / 4)}">${String(i * 6).padStart(2, '0')}</span>`).join('')
+    + [0, 1, 2, 3, 4].map((i) => `<span class="hr" style="left:${pc(i / 4)}"></span>`).join('')
+    + rulerLabels(r.now).map((l) => `<span class="lb a${l.align}${l.now ? ' nw' : ''}" style="left:${pc(l.f)}">${l.text}</span>`).join('')
     + r.marks.map((f) => `<span class="mk" style="left:${pc(f)}"></span>`).join('')
     + `<span class="now" style="left:${pc(r.now)}"></span>`;
 }
