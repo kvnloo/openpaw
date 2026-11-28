@@ -538,6 +538,69 @@ static inline int openpaw_push_batch(openpaw_state_t *s, const int16_t *xyz, uin
   return 0;
 }
 
+// ---- Chest strap read by the collar (BLE central), e.g. a Polar H10. The strap sends the
+// standard Heart Rate Measurement characteristic (0x2A37, Bluetooth Heart Rate Service
+// 1.0): flags byte, then bpm (uint8, or uint16 when flags bit 0 is set), energy expended
+// (uint16, when bit 3), then RR intervals in 1/1024 s (uint16 each, when bit 4). Contact
+// status: bit 2 = supported, bit 1 = detected. Parsed exactly like app/openpaw-ble.js
+// parseHeartRate. A default-MTU notification holds at most 9 RR intervals; extra ones
+// are dropped. Each closed epoch gets the rounded mean bpm of that epoch's notifications
+// (openpaw_hr_take), never a value carried over from an earlier epoch. The 20-byte record
+// has no room for RR intervals; they stay with the phone path for now.
+#define OPENPAW_HRM_MAX_RR 9
+
+typedef struct {
+  uint16_t bpm;
+  int8_t contact;      // 1 detected, 0 not detected, -1 strap does not report contact
+  uint8_t n_rr;
+  uint16_t rr_1024[OPENPAW_HRM_MAX_RR];
+} openpaw_hrm_t;
+
+// Returns 1 and fills *m for a well-formed packet; 0 for a truncated one.
+static inline int openpaw_hrm_parse(const uint8_t *b, uint16_t len, openpaw_hrm_t *m) {
+  memset(m, 0, sizeof(*m));
+  if (len < 2) return 0;
+  const uint8_t flags = b[0];
+  uint16_t o = 1;
+  if (flags & 0x01) {
+    if (len < 3) return 0;
+    m->bpm = (uint16_t)(b[1] | (b[2] << 8));
+    o = 3;
+  } else {
+    m->bpm = b[1];
+    o = 2;
+  }
+  m->contact = (flags & 0x04) ? ((flags & 0x02) ? 1 : 0) : -1;
+  if (flags & 0x08) {
+    if (len < o + 2) return 0;
+    o += 2;
+  }
+  if (flags & 0x10)
+    for (; o + 1 < len && m->n_rr < OPENPAW_HRM_MAX_RR; o += 2)
+      m->rr_1024[m->n_rr++] = (uint16_t)(b[o] | (b[o + 1] << 8));
+  return 1;
+}
+
+typedef struct {
+  uint32_t sum, n;     // bpm notified during the current epoch
+} openpaw_hr_t;
+
+static inline void openpaw_hr_init(openpaw_hr_t *h) { h->sum = 0; h->n = 0; }
+
+// Contact lost or a 0 bpm reading is not a heart rate: it is left out.
+static inline void openpaw_hr_feed(openpaw_hr_t *h, const openpaw_hrm_t *m) {
+  if (m->bpm == 0 || m->contact == 0) return;
+  h->sum += m->bpm;
+  h->n++;
+}
+
+// The epoch's hr_bpm (0 = no strap reading this epoch; 255 = 255 bpm or more). Resets.
+static inline uint8_t openpaw_hr_take(openpaw_hr_t *h) {
+  uint32_t v = h->n ? (h->sum + h->n / 2) / h->n : 0;
+  openpaw_hr_init(h);
+  return (uint8_t)(v > 255 ? 255 : v);
+}
+
 // Little-endian wire format, 20 bytes. Must match app/openpaw-ble.js decodeRecord().
 static inline void openpaw_encode(const openpaw_record_t *r, uint8_t b[OPENPAW_RECORD_SIZE]) {
   b[0] = r->version;
