@@ -181,6 +181,13 @@
   footer { margin-top:18px; color:var(--dim); font-size:12px; line-height:1.5; }
   footer a { color:var(--mute); }
 
+  /* Phones: the phase sub-line is one line on some steps and two on others, which moved the
+     action pad between taps. Reserve one title line + two sub-lines on the whole block (not the
+     sub-line), so a title that wraps on the narrowest phones can use the spare line (climb-r64). */
+  @media (max-width:479px) {
+    .phase { min-height:calc(28px * 1.05 + 4px + 2 * 14px * 1.3); }
+  }
+
   /* Wide screens: marking controls stay in view on the left, panels fill the right column. */
   @media (min-width:1100px) {
     main { max-width:1120px; padding-left:24px; padding-right:24px; }
